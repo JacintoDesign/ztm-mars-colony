@@ -37,4 +37,7 @@ const renderer = new IsometricRenderer({
   onHoverTile: (tile) => {
     toolbar.setHoveredTile(tile);
   },
+  onStatusChange: (message, level) => {
+    toolbar.setStatus(message, level);
+  },
 });

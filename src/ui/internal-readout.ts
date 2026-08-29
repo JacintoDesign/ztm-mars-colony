@@ -4,6 +4,7 @@ export interface TelemetryReadoutData {
   tick: number;
   oxygen: number;
   power: number;
+  ore: number;
   signedInAccount?: string;
   colonyOwner?: string;
   buildings?: Building[];
@@ -39,6 +40,6 @@ export class InternalReadout {
       buildingsHtml = `<div>buildings:</div><div class="readout-buildings-list">${rows}</div>`;
     }
 
-    this.container.innerHTML = `<div>tick: ${data.tick}</div><div>oxygen: ${data.oxygen}</div><div>power: ${data.power}</div><div>signed-in account: ${signedIn}</div><div>colony owner: ${owner}</div>${buildingsHtml}<div>last applied tick: ${lastTick}</div>`;
+    this.container.innerHTML = `<div>tick: ${data.tick}</div><div>oxygen: ${data.oxygen}</div><div>power: ${data.power}</div><div>ore: ${data.ore}</div><div>signed-in account: ${signedIn}</div><div>colony owner: ${owner}</div>${buildingsHtml}<div>last applied tick: ${lastTick}</div>`;
   }
 }

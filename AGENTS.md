@@ -16,8 +16,8 @@
 ## Never Do
 - Never mutate game simulation state directly from rendering or UI event handlers; all mutations must go through dispatched actions/commands evaluated during the simulation tick.
 - Never hardcode grid coordinates or screen offsets without using the isometric coordinate transform utility.
-- Never render buildings without sorting back-to-front by grid
-  position; overlap must always resolve correctly.
 - Never run the simulation tick on a client-side timer or requestAnimationFrame loop; the tick is a pure server-side function.
 - Never derive owner identity from the client; always read it from the server session.
-- Never load an image asset into the game surface; draw all game elements in code.
+- Never render buildings without sorting back-to-front by grid position; overlap must always resolve correctly.
+- Never deduct or grant a placement cost on the client. The server confirms affordability and applies the deduction.
+- Never restart a colony from anywhere but an explicit player action on the game-over screen. No automatic retry, no agent deciding a dead colony should start over.

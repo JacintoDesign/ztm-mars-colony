@@ -134,7 +134,6 @@ export function drawHabitat(ctx: CanvasRenderingContext2D, center: ScreenPoint, 
 
 /**
  * Draws the Solar Array: strictly mirror-symmetrical dual-wing photovoltaic array.
- * Left and right wings have identical geometry, frame styling, cell grid lines, and colors.
  */
 export function drawSolar(ctx: CanvasRenderingContext2D, center: ScreenPoint, halfW: number, halfH: number): void {
   const cx = center.x;
@@ -256,7 +255,6 @@ export function drawSolar(ctx: CanvasRenderingContext2D, center: ScreenPoint, ha
     }
   };
 
-  // Draw Left Wing and Right Wing with identical mirror logic
   drawWing(false);
   drawWing(true);
 
@@ -269,8 +267,6 @@ export function drawSolar(ctx: CanvasRenderingContext2D, center: ScreenPoint, ha
 
 /**
  * Draws the Scrubber: simplified, elegant industrial atmospheric filtration tower.
- * Features a clean solid base plinth (no black squares), tall vertical column with heatsink ribs,
- * and a simple, bold top exhaust stack.
  */
 export function drawScrubber(ctx: CanvasRenderingContext2D, center: ScreenPoint, halfW: number, halfH: number): void {
   const cx = center.x;
@@ -295,9 +291,8 @@ export function drawScrubber(ctx: CanvasRenderingContext2D, center: ScreenPoint,
   ctx.fill();
   ctx.stroke();
 
-  // 2. Clean, solid lower intake block (no black squares, clean faceted industrial panels)
+  // 2. Clean, solid lower intake block
   const lowerH = 12;
-  // Left shadow face
   ctx.fillStyle = '#1e293b';
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1;
@@ -310,7 +305,6 @@ export function drawScrubber(ctx: CanvasRenderingContext2D, center: ScreenPoint,
   ctx.fill();
   ctx.stroke();
 
-  // Right light face
   ctx.fillStyle = '#334155';
   ctx.beginPath();
   ctx.moveTo(cx, cy + baseH);
@@ -321,7 +315,7 @@ export function drawScrubber(ctx: CanvasRenderingContext2D, center: ScreenPoint,
   ctx.fill();
   ctx.stroke();
 
-  // Subtle horizontal panel seam on base
+  // Subtle horizontal panel seam
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -330,11 +324,10 @@ export function drawScrubber(ctx: CanvasRenderingContext2D, center: ScreenPoint,
   ctx.lineTo(cx + baseW * 0.85, cy + baseH * 0.5 - lowerH * 0.5);
   ctx.stroke();
 
-  // 3. Main vertical filtration column (Upper Stage)
+  // 3. Main vertical filtration column
   const gantryY = cy - lowerH;
   const colTopY = cy - totalH;
 
-  // Left shadow face
   ctx.fillStyle = '#334155';
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1;
@@ -347,7 +340,6 @@ export function drawScrubber(ctx: CanvasRenderingContext2D, center: ScreenPoint,
   ctx.fill();
   ctx.stroke();
 
-  // Right illuminated face
   ctx.fillStyle = '#64748b';
   ctx.beginPath();
   ctx.moveTo(cx, gantryY + towerH);
@@ -358,7 +350,7 @@ export function drawScrubber(ctx: CanvasRenderingContext2D, center: ScreenPoint,
   ctx.fill();
   ctx.stroke();
 
-  // Vertical radiator cooling fins on right face
+  // Vertical radiator cooling fins
   ctx.strokeStyle = '#94a3b8';
   ctx.lineWidth = 1;
   for (let f = 0.25; f <= 0.75; f += 0.25) {
@@ -380,7 +372,6 @@ export function drawScrubber(ctx: CanvasRenderingContext2D, center: ScreenPoint,
   ctx.stroke();
 
   // 4. Clean, simplified top exhaust chimney
-  // Flat cap plate
   ctx.fillStyle = '#475569';
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 1;
@@ -393,26 +384,272 @@ export function drawScrubber(ctx: CanvasRenderingContext2D, center: ScreenPoint,
   ctx.fill();
   ctx.stroke();
 
-  // Single clean central cylindrical exhaust stack
   const stackW = towerW * 0.65;
   const stackH = 7;
   const stackY = colTopY;
 
-  // Left shadow stack face
   ctx.fillStyle = '#334155';
   ctx.fillRect(cx - stackW, stackY - stackH, stackW, stackH);
 
-  // Right light stack face
   ctx.fillStyle = '#94a3b8';
   ctx.fillRect(cx, stackY - stackH, stackW, stackH);
 
-  // Dark circular exhaust vent aperture with cyan status ring
   ctx.fillStyle = '#090d16';
   ctx.strokeStyle = '#38bdf8';
   ctx.lineWidth = 0.8;
   ctx.beginPath();
   ctx.ellipse(cx, stackY - stackH, stackW, 3.5, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.stroke();
+}
+
+/**
+ * Draws the Extractor: wide and low Mars heavy industrial surface excavator.
+ * A cohesive, architectural mining structure featuring a wide low-slung chassis,
+ * an integrated rear power engine with glowing amber horizontal heat vents,
+ * a central recessed ore crushing bay, and a massive 3D forward-sloping excavator
+ * scoop with heavy side-cheeks, hydraulic push-rods, and a segmented tungsten cutting blade.
+ */
+export function drawExtractor(ctx: CanvasRenderingContext2D, center: ScreenPoint, halfW: number, halfH: number): void {
+  const cx = center.x;
+  const cy = center.y;
+
+  const w = halfW * 0.84;
+  const h = halfH * 0.84;
+  const wallH = 15;
+
+  // 1. Reinforced Ground Plinth Pad
+  ctx.fillStyle = '#221209';
+  ctx.strokeStyle = '#100602';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - h * 1.12);
+  ctx.lineTo(cx + w * 1.12, cy);
+  ctx.lineTo(cx, cy + h * 1.12);
+  ctx.lineTo(cx - w * 1.12, cy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // 2. Main Industrial Machine Chassis (Extruded Isometric Diamond Body)
+  const deckY = cy - wallH;
+
+  // Left shadow flank (slope = +0.5)
+  ctx.fillStyle = '#334155';
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - w, cy);
+  ctx.lineTo(cx, cy + h);
+  ctx.lineTo(cx, deckY + h);
+  ctx.lineTo(cx - w, deckY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Right illuminated flank (slope = -0.5)
+  ctx.fillStyle = '#475569';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + h);
+  ctx.lineTo(cx + w, cy);
+  ctx.lineTo(cx + w, deckY);
+  ctx.lineTo(cx, deckY + h);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Top deck plate (clean diamond)
+  ctx.fillStyle = '#64748b';
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx, deckY - h);
+  ctx.lineTo(cx + w, deckY);
+  ctx.lineTo(cx, deckY + h);
+  ctx.lineTo(cx - w, deckY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // 3. Integrated Rear Generator Housing & Perfectly Aligned Amber Radiator Slats
+  const genW = w * 0.48;
+  const genH = h * 0.48;
+  const genCenterY = deckY - h * 0.38;
+  const genHgt = 10;
+
+  // Left shadow wall of generator
+  ctx.fillStyle = '#1e293b';
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - genW, genCenterY);
+  ctx.lineTo(cx, genCenterY + genH);
+  ctx.lineTo(cx, genCenterY + genH - genHgt);
+  ctx.lineTo(cx - genW, genCenterY - genHgt);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Right illuminated wall of generator
+  ctx.fillStyle = '#334155';
+  ctx.beginPath();
+  ctx.moveTo(cx, genCenterY + genH);
+  ctx.lineTo(cx + genW, genCenterY);
+  ctx.lineTo(cx + genW, genCenterY - genHgt);
+  ctx.lineTo(cx, genCenterY + genH - genHgt);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Top plate of generator
+  ctx.fillStyle = '#475569';
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx, genCenterY - genH - genHgt);
+  ctx.lineTo(cx + genW, genCenterY - genHgt);
+  ctx.lineTo(cx, genCenterY + genH - genHgt);
+  ctx.lineTo(cx - genW, genCenterY - genHgt);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Glowing amber radiator slats on the right generator wall (strictly parallel, slope = -0.5)
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 1.2;
+  const slatDyList = [-6, -4, -2];
+  for (const sDy of slatDyList) {
+    const tStart = 0.22;
+    const tEnd = 0.78;
+    const sx1 = cx + genW * tStart;
+    const sy1 = genCenterY + genH * (1 - tStart) - genHgt + sDy;
+    const sx2 = cx + genW * tEnd;
+    const sy2 = genCenterY + genH * (1 - tEnd) - genHgt + sDy;
+
+    ctx.beginPath();
+    ctx.moveTo(sx1, sy1);
+    ctx.lineTo(sx2, sy2);
+    ctx.stroke();
+  }
+
+  // 4. Central Ore Crushing Bay / Hopper with Raw Ore Stockpile
+  const bayW = w * 0.36;
+  const bayH = h * 0.36;
+  const bayY = deckY + h * 0.05;
+
+  // Recessed dark crusher opening
+  ctx.fillStyle = '#0f172a';
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx, bayY - bayH);
+  ctx.lineTo(cx + bayW, bayY);
+  ctx.lineTo(cx, bayY + bayH);
+  ctx.lineTo(cx - bayW, bayY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Glowing Martian ore chunks in crushing bay
+  ctx.fillStyle = '#c2410c';
+  ctx.beginPath();
+  ctx.moveTo(cx - bayW * 0.6, bayY);
+  ctx.lineTo(cx, bayY - bayH * 0.5);
+  ctx.lineTo(cx + bayW * 0.6, bayY);
+  ctx.lineTo(cx, bayY + bayH * 0.5);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#ea580c';
+  ctx.fillRect(cx - 3, bayY - 2, 6, 4);
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillRect(cx - 1, bayY - 1, 2, 2);
+
+  // 5. Bold 3D Forward-Sloping Heavy Excavator Scoop
+  // Spans across the front edge, slanting downward into the ground
+  const sw = w * 0.94;
+  const sh = h * 0.94;
+  const scoopFrontX = cx;
+  const scoopFrontY = cy + h * 1.08;
+  const sDepth = 12;
+
+  // Key scoop corner vertices
+  const botLeft = { x: cx - sw, y: scoopFrontY - sh };
+  const botTip = { x: scoopFrontX, y: scoopFrontY };
+  const botRight = { x: cx + sw, y: scoopFrontY - sh };
+
+  const topLeft = { x: cx - sw, y: scoopFrontY - sh - sDepth };
+  const topTip = { x: scoopFrontX, y: scoopFrontY - sDepth };
+  const topRight = { x: cx + sw, y: scoopFrontY - sh - sDepth };
+
+  // Left shadow cheek plate (slope = +0.5)
+  ctx.fillStyle = '#1e293b';
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(botLeft.x, botLeft.y);
+  ctx.lineTo(botTip.x, botTip.y);
+  ctx.lineTo(topTip.x, topTip.y);
+  ctx.lineTo(topLeft.x, topLeft.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Right illuminated cheek plate (slope = -0.5)
+  ctx.fillStyle = '#64748b';
+  ctx.beginPath();
+  ctx.moveTo(botTip.x, botTip.y);
+  ctx.lineTo(botRight.x, botRight.y);
+  ctx.lineTo(topRight.x, topRight.y);
+  ctx.lineTo(topTip.x, topTip.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Scoop dark interior intake throat
+  ctx.fillStyle = '#090d16';
+  ctx.beginPath();
+  ctx.moveTo(topLeft.x, topLeft.y);
+  ctx.lineTo(topTip.x, topTip.y);
+  ctx.lineTo(topRight.x, topRight.y);
+  ctx.lineTo(botRight.x, botRight.y - sDepth * 0.35);
+  ctx.lineTo(botTip.x, botTip.y - sDepth * 0.35);
+  ctx.lineTo(botLeft.x, botLeft.y - sDepth * 0.35);
+  ctx.closePath();
+  ctx.fill();
+
+  // Sharp silver tungsten-carbide cutting edge lip along the ground
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(botLeft.x, botLeft.y);
+  ctx.lineTo(botTip.x, botTip.y);
+  ctx.lineTo(botRight.x, botRight.y);
+  ctx.stroke();
+
+  // Segmented cutting teeth markers along the blade
+  ctx.fillStyle = '#f8fafc';
+  const teethFractions = [0.25, 0.5, 0.75];
+  for (const tf of teethFractions) {
+    // Left side teeth
+    const lx = botLeft.x * (1 - tf) + botTip.x * tf;
+    const ly = botLeft.y * (1 - tf) + botTip.y * tf;
+    ctx.fillRect(lx - 1, ly - 1, 2, 2);
+
+    // Right side teeth
+    const rx = botTip.x * (1 - tf) + botRight.x * tf;
+    const ry = botTip.y * (1 - tf) + botRight.y * tf;
+    ctx.fillRect(rx - 1, ry - 1, 2, 2);
+  }
+
+  // Heavy hydraulic push-rods
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(cx - w * 0.72, deckY + 1);
+  ctx.lineTo(botLeft.x + sw * 0.35, botLeft.y + sh * 0.35 - sDepth * 0.5);
+  ctx.moveTo(cx + w * 0.72, deckY + 1);
+  ctx.lineTo(botRight.x - sw * 0.35, botRight.y + sh * 0.35 - sDepth * 0.5);
   ctx.stroke();
 }
 
@@ -439,6 +676,9 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, options: DrawBuildin
       break;
     case 'scrubber':
       drawScrubber(ctx, vertices.center, halfW, halfH);
+      break;
+    case 'extractor':
+      drawExtractor(ctx, vertices.center, halfW, halfH);
       break;
   }
 

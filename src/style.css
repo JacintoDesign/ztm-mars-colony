@@ -133,11 +133,18 @@ html, body {
   white-space: nowrap;
 }
 
+.toolbar-status-group {
+  border-left: 1px solid #3d2417;
+  padding-left: 14px;
+  gap: 6px;
+  min-width: 170px;
+}
+
 .toolbar-coords-group {
   border-left: 1px solid #3d2417;
   padding-left: 14px;
   gap: 6px;
-  min-width: 120px;
+  min-width: 110px;
 }
 
 .toolbar-label {
@@ -146,6 +153,27 @@ html, body {
   font-weight: 700;
   color: #8c9ba5;
   letter-spacing: 1px;
+}
+
+.toolbar-status-val {
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #d9dde0;
+  letter-spacing: 0.5px;
+  display: inline-block;
+}
+
+.toolbar-status-val.status-nominal {
+  color: #d9dde0;
+}
+
+.toolbar-status-val.status-warning {
+  color: #E0A030;
+}
+
+.toolbar-status-val.status-critical {
+  color: #D94F3D;
 }
 
 .toolbar-coords-val {

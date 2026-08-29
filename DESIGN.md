@@ -54,14 +54,20 @@ All shapes, panels, and borders use `0px` radius (strictly sharp, utilitarian in
 
 ## Building Silhouette
 
-Each building type is identifiable by shape alone: habitats rounded
-and low, solar arrays flat and angular, scrubbers tall and narrow.
-No labels needed to tell them apart.
+Each building type is identifiable by shape alone, no labels needed:
+
+- habitat: rounded and low
+- solar: flat and angular
+- extractor: wide and low, with an angled scoop silhouette
+- scrubber: tall and narrow
+
+All four must read as distinct from one another at a glance.
 
 ## State on Screen
 
 - Solar arrays glow while power > 0; go dark when the grid fails
 - Scrubbers show a faint vent plume while producing oxygen
+- Extractors show a faint vent glow while producing ore; the glow stops the instant the reserve is exhausted, even though the building keeps drawing power
 - Scene tints with oxygen level — clear when healthy, dusty haze as it drops
 - Colonists stand upright at full health; slump as health falls
 - All of these read from state. None animate on their own timer.
@@ -69,6 +75,10 @@ No labels needed to tell them apart.
 ## Components
 
 Panels and the toolbar are plain text DOM elements rendered alongside or over the HTML5 2D Canvas viewport. The toolbar uses the accent color (`#7fd4e0`) only for the active selection, with all other items rendered in plain text color (`#d9dde0`). There are no heavy styled buttons, gradients, or modal dialogues.
+
+## Game Over Screen
+
+Plain text, same palette and type as the rest of the interface. No colour deviation, no animation — a sol count and a single "Start New Colony" button, nothing more. It replaces the normal view entirely rather than overlaying it.
 
 ## Do's and Don'ts
 

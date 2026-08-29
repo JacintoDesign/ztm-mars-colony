@@ -2,12 +2,14 @@ import { getTileVertices, IsoConfig, GridPoint, screenToGrid, sortBackToFront } 
 import { ColonyStore } from '../simulation/store';
 import { BuildingType } from '../simulation/types';
 import { drawBuilding } from '../assets/building-renderers';
+import { StatusLevel } from '../ui/toolbar';
 
 export interface RendererOptions {
   canvas: HTMLCanvasElement;
   store: ColonyStore;
   gridSize?: number;
   onHoverTile?: (tile: GridPoint | null) => void;
+  onStatusChange?: (message: string, level: StatusLevel) => void;
 }
 
 function tileColorHash(gx: number, gy: number): number {
@@ -24,6 +26,7 @@ export class IsometricRenderer {
   private hoveredTile: GridPoint | null = null;
   private selectedTool: BuildingType | null = null;
   private onHoverTile?: (tile: GridPoint | null) => void;
+  private onStatusChange?: (message: string, level: StatusLevel) => void;
   private dpr = 1;
   private animationFrameId: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
@@ -37,6 +40,7 @@ export class IsometricRenderer {
     this.ctx = ctx;
     this.store = options.store;
     this.onHoverTile = options.onHoverTile;
+    this.onStatusChange = options.onStatusChange;
 
     const gridSize = options.gridSize ?? 20;
 
@@ -56,7 +60,10 @@ export class IsometricRenderer {
 
     this.setupEvents();
     this.handleResize();
-    this.store.subscribe(() => this.requestRender());
+    this.store.subscribe(() => {
+      this.updateStatus();
+      this.requestRender();
+    });
     this.requestRender();
 
     // Extra checks on initialization to ensure immediate sync with viewport
@@ -66,6 +73,7 @@ export class IsometricRenderer {
 
   public setSelectedTool(tool: BuildingType | null): void {
     this.selectedTool = tool;
+    this.updateStatus();
     this.requestRender();
   }
 
@@ -75,6 +83,34 @@ export class IsometricRenderer {
 
   public getConfig(): IsoConfig {
     return { ...this.config };
+  }
+
+  private updateStatus(): void {
+    if (!this.onStatusChange) return;
+
+    if (!this.selectedTool) {
+      this.onStatusChange('Standby', 'nominal');
+      return;
+    }
+
+    if (this.hoveredTile) {
+      const check = this.store.checkPlacement(this.selectedTool, this.hoveredTile.x, this.hoveredTile.y);
+      if (!check.canPlace) {
+        const level: StatusLevel = check.reason === 'Tile Occupied' ? 'warning' : 'critical';
+        this.onStatusChange(check.reason ?? 'Invalid Placement', level);
+      } else {
+        const cost = check.cost;
+        const costStr = cost.ore > 0 ? `${cost.power}P, ${cost.ore} Ore` : `${cost.power} Power`;
+        this.onStatusChange(`Ready (Cost: ${costStr})`, 'nominal');
+      }
+    } else {
+      const afford = this.store.canAfford(this.selectedTool);
+      if (!afford.canAfford) {
+        this.onStatusChange(afford.reason ?? 'Cannot Afford', 'critical');
+      } else {
+        this.onStatusChange('Select Tile', 'nominal');
+      }
+    }
   }
 
   private setupEvents(): void {
@@ -177,6 +213,7 @@ export class IsometricRenderer {
     if (this.onHoverTile) {
       this.onHoverTile(tile);
     }
+    this.updateStatus();
     this.requestRender();
   }
 
@@ -186,6 +223,7 @@ export class IsometricRenderer {
       if (this.onHoverTile) {
         this.onHoverTile(null);
       }
+      this.updateStatus();
       this.requestRender();
     }
   }
@@ -198,12 +236,20 @@ export class IsometricRenderer {
       return;
     }
 
-    this.store.dispatch({
+    const result = this.store.dispatch({
       type: 'PLACE_BUILDING',
       buildingType: this.selectedTool,
       x: tile.x,
       y: tile.y,
     });
+
+    if (!result.success && this.onStatusChange) {
+      const level: StatusLevel = result.reason === 'Tile Occupied' ? 'warning' : 'critical';
+      this.onStatusChange(result.reason ?? 'Placement Rejected', level);
+    } else if (result.success && this.onStatusChange) {
+      this.onStatusChange('Building Placed', 'nominal');
+    }
+    this.requestRender();
   }
 
   public requestRender(): void {
@@ -386,13 +432,13 @@ export class IsometricRenderer {
 
   /**
    * Renders hovered tile highlights and building placement preview ghost.
+   * If placement is invalid (unaffordable or occupied), reuses invalid placement styling (#D94F3D).
    */
   private renderHoverHighlight(ctx: CanvasRenderingContext2D): void {
     if (!this.hoveredTile) return;
 
     const { x, y } = this.hoveredTile;
     const v = getTileVertices(x, y, this.config);
-    const isOccupied = this.store.hasBuildingAt(x, y);
 
     // Draw diamond outline highlight
     ctx.beginPath();
@@ -402,23 +448,24 @@ export class IsometricRenderer {
     ctx.lineTo(v.left.x, v.left.y);
     ctx.closePath();
 
-    if (isOccupied && this.selectedTool) {
-      // Invalid placement over occupied tile (Critical tone #D94F3D)
-      ctx.fillStyle = 'rgba(217, 79, 61, 0.25)';
-      ctx.fill();
-      ctx.strokeStyle = '#D94F3D';
-      ctx.lineWidth = 1.8;
-      ctx.stroke();
-    } else {
-      // Valid hover / empty tile
-      ctx.fillStyle = 'rgba(217, 221, 224, 0.12)';
-      ctx.fill();
-      ctx.strokeStyle = '#d9dde0';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+    if (this.selectedTool) {
+      const check = this.store.checkPlacement(this.selectedTool, x, y);
 
-      // If a tool is selected and tile is empty, draw preview ghost
-      if (this.selectedTool && !isOccupied) {
+      if (!check.canPlace) {
+        // Invalid placement styling (Critical alert tone #D94F3D)
+        ctx.fillStyle = 'rgba(217, 79, 61, 0.25)';
+        ctx.fill();
+        ctx.strokeStyle = '#D94F3D';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+      } else {
+        // Valid placement: outline + building preview ghost
+        ctx.fillStyle = 'rgba(217, 221, 224, 0.12)';
+        ctx.fill();
+        ctx.strokeStyle = '#d9dde0';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
         drawBuilding(ctx, {
           type: this.selectedTool,
           x,
@@ -427,6 +474,13 @@ export class IsometricRenderer {
           isPreview: true,
         });
       }
+    } else {
+      // Normal cursor hover with no tool selected
+      ctx.fillStyle = 'rgba(217, 221, 224, 0.12)';
+      ctx.fill();
+      ctx.strokeStyle = '#d9dde0';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
     }
   }
 }

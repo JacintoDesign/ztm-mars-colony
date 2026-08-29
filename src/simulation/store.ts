@@ -1,7 +1,21 @@
-import { Building, BuildingType, ColonyState, SimulationAction } from './types';
+import {
+  Building,
+  BuildingCost,
+  BUILDING_COSTS,
+  BuildingType,
+  ColonyState,
+  PlacementCheckResult,
+  SimulationAction,
+} from './types';
 import { isInGrid } from '../engine/iso-math';
 
 export type StateListener = (state: ColonyState) => void;
+
+export interface DispatchResult {
+  success: boolean;
+  reason?: 'Insufficient Power' | 'Insufficient Ore' | 'Tile Occupied' | 'Invalid Coordinates';
+  building?: Building;
+}
 
 export class ColonyStore {
   private state: ColonyState;
@@ -11,8 +25,10 @@ export class ColonyStore {
   constructor(initialState?: Partial<ColonyState>) {
     this.state = {
       tick: 0,
-      oxygen: 80,
-      power: 65,
+      oxygen: 50,
+      power: 50,
+      ore: 0,
+      oreReserve: 500,
       signedInAccount: 'none',
       colonyOwner: 'none',
       buildings: [],
@@ -40,24 +56,62 @@ export class ColonyStore {
     return this.state.buildings.find((b) => b.x === x && b.y === y);
   }
 
-  public dispatch(action: SimulationAction): boolean {
+  public getCost(type: BuildingType): BuildingCost {
+    return BUILDING_COSTS[type];
+  }
+
+  public canAfford(type: BuildingType): { canAfford: boolean; reason?: 'Insufficient Power' | 'Insufficient Ore'; cost: BuildingCost } {
+    const cost = BUILDING_COSTS[type];
+    if (this.state.power < cost.power) {
+      return { canAfford: false, reason: 'Insufficient Power', cost };
+    }
+    if (this.state.ore < cost.ore) {
+      return { canAfford: false, reason: 'Insufficient Ore', cost };
+    }
+    return { canAfford: true, cost };
+  }
+
+  public checkPlacement(type: BuildingType, x: number, y: number): PlacementCheckResult {
+    const cost = BUILDING_COSTS[type];
+
+    if (!isInGrid(x, y, 20)) {
+      return { canPlace: false, reason: 'Invalid Coordinates', cost };
+    }
+
+    if (this.hasBuildingAt(x, y)) {
+      return { canPlace: false, reason: 'Tile Occupied', cost };
+    }
+
+    if (this.state.power < cost.power) {
+      return { canPlace: false, reason: 'Insufficient Power', cost };
+    }
+
+    if (this.state.ore < cost.ore) {
+      return { canPlace: false, reason: 'Insufficient Ore', cost };
+    }
+
+    return { canPlace: true, cost };
+  }
+
+  public dispatch(action: SimulationAction): DispatchResult {
     switch (action.type) {
       case 'PLACE_BUILDING':
         return this.handlePlaceBuilding(action.buildingType, action.x, action.y);
       default:
-        return false;
+        return { success: false };
     }
   }
 
-  private handlePlaceBuilding(type: BuildingType, x: number, y: number): boolean {
-    if (!isInGrid(x, y, 20)) {
-      return false;
+  private handlePlaceBuilding(type: BuildingType, x: number, y: number): DispatchResult {
+    const check = this.checkPlacement(type, x, y);
+    if (!check.canPlace) {
+      return {
+        success: false,
+        reason: check.reason,
+      };
     }
 
-    if (this.hasBuildingAt(x, y)) {
-      return false;
-    }
-
+    const cost = check.cost;
     const newBuilding: Building = {
       id: `bld-${this.nextBuildingId++}`,
       type,
@@ -67,11 +121,16 @@ export class ColonyStore {
 
     this.state = {
       ...this.state,
+      power: this.state.power - cost.power,
+      ore: this.state.ore - cost.ore,
       buildings: [...this.state.buildings, newBuilding],
     };
 
     this.notify();
-    return true;
+    return {
+      success: true,
+      building: newBuilding,
+    };
   }
 
   private notify(): void {

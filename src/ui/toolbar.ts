@@ -1,6 +1,8 @@
 import { BuildingType } from '../simulation/types';
 import { GridPoint } from '../engine/iso-math';
 
+export type StatusLevel = 'nominal' | 'warning' | 'critical';
+
 export interface ToolbarOptions {
   containerId?: string;
   onSelectTool: (tool: BuildingType | null) => void;
@@ -10,6 +12,8 @@ export class Toolbar {
   private container: HTMLElement;
   private currentTool: BuildingType | null = null;
   private hoveredCoords: GridPoint | null = null;
+  private currentStatus: string = 'Standby';
+  private currentStatusLevel: StatusLevel = 'nominal';
   private onSelectTool: (tool: BuildingType | null) => void;
   public static readonly CONTAINER_ID = 'toolbar';
 
@@ -37,6 +41,16 @@ export class Toolbar {
     this.onSelectTool(this.currentTool);
   }
 
+  public setStatus(message: string, level: StatusLevel = 'nominal'): void {
+    this.currentStatus = message;
+    this.currentStatusLevel = level;
+    const statusEl = this.container.querySelector<HTMLElement>('#toolbar-status');
+    if (statusEl) {
+      statusEl.textContent = message;
+      statusEl.className = `toolbar-status-val status-${level}`;
+    }
+  }
+
   public setHoveredTile(coords: GridPoint | null): void {
     this.hoveredCoords = coords;
     const coordsEl = this.container.querySelector<HTMLElement>('#toolbar-coords');
@@ -56,7 +70,7 @@ export class Toolbar {
   private render(): void {
     this.container.innerHTML = '';
 
-    // Left section: Tool selection
+    // 1. Tool selection group (Habitat, Solar, Scrubber, Extractor)
     const toolsGroup = document.createElement('div');
     toolsGroup.className = 'toolbar-group';
 
@@ -69,6 +83,7 @@ export class Toolbar {
       { type: 'habitat', name: 'Habitat' },
       { type: 'solar', name: 'Solar' },
       { type: 'scrubber', name: 'Scrubber' },
+      { type: 'extractor', name: 'Extractor' },
     ];
 
     for (const tool of tools) {
@@ -81,6 +96,7 @@ export class Toolbar {
       btn.addEventListener('click', () => {
         if (this.currentTool === tool.type) {
           this.setTool(null);
+          this.setStatus('Standby', 'nominal');
         } else {
           this.setTool(tool.type);
         }
@@ -91,7 +107,24 @@ export class Toolbar {
 
     this.container.appendChild(toolsGroup);
 
-    // Right section: Coordinate Telemetry
+    // 2. Status Bar section
+    const statusGroup = document.createElement('div');
+    statusGroup.className = 'toolbar-group toolbar-status-group';
+
+    const statusLabel = document.createElement('span');
+    statusLabel.className = 'toolbar-label';
+    statusLabel.textContent = 'STATUS:';
+    statusGroup.appendChild(statusLabel);
+
+    const statusValue = document.createElement('span');
+    statusValue.id = 'toolbar-status';
+    statusValue.className = `toolbar-status-val status-${this.currentStatusLevel}`;
+    statusValue.textContent = this.currentStatus;
+    statusGroup.appendChild(statusValue);
+
+    this.container.appendChild(statusGroup);
+
+    // 3. Coordinate Telemetry section
     const coordsGroup = document.createElement('div');
     coordsGroup.className = 'toolbar-group toolbar-coords-group';
 
