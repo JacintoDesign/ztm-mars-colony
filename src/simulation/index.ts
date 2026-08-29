@@ -1,2 +1,2 @@
-// Simulation feature module (tick calculations, building rules, resource pools)
-export {};
+export * from './types';
+export * from './store';

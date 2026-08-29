@@ -1,9 +1,13 @@
+import { Building } from '../simulation/types';
+
 export interface TelemetryReadoutData {
   tick: number;
   oxygen: number;
   power: number;
   signedInAccount?: string;
   colonyOwner?: string;
+  buildings?: Building[];
+  lastAppliedTick?: string;
 }
 
 export class InternalReadout {
@@ -23,6 +27,18 @@ export class InternalReadout {
     if (!this.container) return;
     const signedIn = data.signedInAccount ?? 'none';
     const owner = data.colonyOwner ?? 'none';
-    this.container.innerHTML = `<div>tick: ${data.tick}</div><div>oxygen: ${data.oxygen}</div><div>power: ${data.power}</div><div>signed-in account: ${signedIn}</div><div>colony owner: ${owner}</div>`;
+    const lastTick = data.lastAppliedTick ?? 'Never';
+
+    let buildingsHtml: string;
+    if (!data.buildings || data.buildings.length === 0) {
+      buildingsHtml = '<div>buildings: none</div>';
+    } else {
+      const rows = data.buildings
+        .map((b) => `<div class="readout-building-item">  - ${b.type} (${b.x}, ${b.y})</div>`)
+        .join('');
+      buildingsHtml = `<div>buildings:</div><div class="readout-buildings-list">${rows}</div>`;
+    }
+
+    this.container.innerHTML = `<div>tick: ${data.tick}</div><div>oxygen: ${data.oxygen}</div><div>power: ${data.power}</div><div>signed-in account: ${signedIn}</div><div>colony owner: ${owner}</div>${buildingsHtml}<div>last applied tick: ${lastTick}</div>`;
   }
 }

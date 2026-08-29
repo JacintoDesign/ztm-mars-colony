@@ -52,6 +52,12 @@ No shadows, no gradients. Interfaces use flat rendering with crisp contrasting b
 
 All shapes, panels, and borders use `0px` radius (strictly sharp, utilitarian industrial corners).
 
+## Building Silhouette
+
+Each building type is identifiable by shape alone: habitats rounded
+and low, solar arrays flat and angular, scrubbers tall and narrow.
+No labels needed to tell them apart.
+
 ## State on Screen
 
 - Solar arrays glow while power > 0; go dark when the grid fails
