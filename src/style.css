@@ -1,0 +1,35 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #1a0e08;
+  color: #d9dde0;
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+#internal-readout {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #d9dde0;
+  background-color: rgba(26, 14, 8, 0.85);
+  padding: 8px 12px;
+  border: 1px solid #3d2417;
+  z-index: 9999;
+  user-select: none;
+  white-space: pre;
+}
