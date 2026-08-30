@@ -103,11 +103,12 @@ Fields that persist per account, separate from any single colony — outlives a 
 | Auth & Session Manager | Authenticate player, load active colony session, handle reconnects |
 | Isometric Canvas Renderer | Render terrain tiles, buildings, resource overlays, and colonist sprites via 2D Canvas |
 | Tick Client | Send player actions to serverless tick route; apply authoritative state from Supabase; project state forward on client for display between writes |
-| HUD & Text Info Panels | Display colony metrics (oxygen, power, ore, colonist health) and building placement toolbars in plain text/DOM |
+| HUD & Text Info Panels | Display every colony metric the diagnostic panel tracks except session identity — tick, oxygen, power, ore, ore reserve, colonist health, buildings, last applied tick — and building placement toolbars in plain text/DOM |
 | Building & Placement Controller | Handle cursor tile hovering, building validity and affordability checks, and placement requests |
 | Catch-up Handler | Apply batched offline ticks on load up to the 28,800 tick ceiling |
 | Game Over Screen | Display sols survived when the colony ends; offer a "Start New Colony" action that resets the account's colony to starting state |
 | Help Modal | Explain the survival goal, every building's cost and effect, and the colonist arrival rule, read live from CONTRACT.md. Open via a persistent "?" affordance, closeable, available regardless of game state |
+| Diagnostic Panel | Plain-text readout of internal state for automated verification — tick, resources, colonist health, buildings, session identity, colony ownership. Renders only when the URL includes ?debug=true; absent otherwise. This is what /browser and /playtest read from |
 
 ## States
 
