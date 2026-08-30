@@ -246,30 +246,24 @@ export class ColonyService {
       .eq('id', state.colonyId)
       .eq('owner', userId);
 
-    // 2. Sync colonists
-    // Delete colonists no longer living
-    const currentColonistIds = state.colonists.map((c) => c.id);
-    if (currentColonistIds.length === 0) {
-      await supabase
-        .from('marscolony_colonists')
-        .delete()
-        .eq('colony_id', state.colonyId);
-    } else {
-      // Upsert living colonists
-      for (const colonist of state.colonists) {
-        await supabase
-          .from('marscolony_colonists')
-          .upsert({
-            id: colonist.id.startsWith('col-') ? undefined : colonist.id,
-            colony_id: state.colonyId,
-            owner: userId,
-            x: colonist.x,
-            y: colonist.y,
-            health: colonist.health,
-            destination: colonist.destination,
-            route: colonist.route,
-          });
-      }
+    // 2. Sync colonists in database
+    await supabase
+      .from('marscolony_colonists')
+      .delete()
+      .eq('colony_id', state.colonyId);
+
+    if (state.colonists.length > 0) {
+      const rows = state.colonists.map((c) => ({
+        colony_id: state.colonyId,
+        owner: userId,
+        x: c.x,
+        y: c.y,
+        health: c.health,
+        destination: c.destination,
+        route: c.route || [],
+      }));
+
+      await supabase.from('marscolony_colonists').insert(rows);
     }
 
     // 3. If game_over occurred, update best_sols_survived if beaten

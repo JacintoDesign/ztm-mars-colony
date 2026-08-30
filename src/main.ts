@@ -43,6 +43,11 @@ const renderer = new IsometricRenderer({
   },
 });
 
+// Expose on window for debugging & automated playtesting
+(window as any).__COLONY_STORE__ = store;
+(window as any).__COLONY_RENDERER__ = renderer;
+(window as any).__COLONY_SERVICE__ = colonyService;
+
 // Active session tracking & timers
 let activeUserId: string | null = null;
 let activeColonyId: string | null = null;

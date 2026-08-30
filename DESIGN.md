@@ -80,6 +80,12 @@ Panels and the toolbar are plain text DOM elements rendered alongside or over th
 
 Plain text, same palette and type as the rest of the interface. No colour deviation, no animation — sols survived this run, the account's best sols survived, and a single "Start New Colony" button, nothing more. It replaces the normal view entirely rather than overlaying it.
 
+## Help Modal
+
+Same palette and type as everything else — plain text, no imagery. Opens over the current view rather than replacing it, unlike the Game Over Screen; the colony keeps ticking underneath. A "?" affordance sits in the top-right corner at all times, closeable, available in any game state.
+
+Worth being clear on why this is a second info panel and not one shared with the existing readout: the readout panel in the top-left corner exists for whatever is verifying the build — an agent, a browser check — and answers "what is the state right now." This one exists for the player and answers "what am I supposed to do." Different audience, different corner, never merged.
+
 ## Do's and Don'ts
 
 - DO keep the dark theme fixed; no light mode.

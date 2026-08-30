@@ -107,6 +107,7 @@ Fields that persist per account, separate from any single colony — outlives a 
 | Building & Placement Controller | Handle cursor tile hovering, building validity and affordability checks, and placement requests |
 | Catch-up Handler | Apply batched offline ticks on load up to the 28,800 tick ceiling |
 | Game Over Screen | Display sols survived when the colony ends; offer a "Start New Colony" action that resets the account's colony to starting state |
+| Help Modal | Explain the survival goal, every building's cost and effect, and the colonist arrival rule, read live from CONTRACT.md. Open via a persistent "?" affordance, closeable, available regardless of game state |
 
 ## States
 
@@ -135,6 +136,8 @@ Fields that persist per account, separate from any single colony — outlives a 
 | Catch-up Handler | capped | Offline duration exceeds 28,800 ticks | Cap catch-up at 28,800 ticks; render notification that simulation reached max offline ceiling |
 | Game Over Screen | inactive | Colony status is active | Not rendered; normal HUD and canvas shown |
 | Game Over Screen | shown | Colony status becomes game_over | Replace normal view with sols-survived display and a "Start New Colony" button |
+| Help Modal | closed | Default | The "?" affordance is visible; nothing else rendered |
+| Help Modal | open | Player clicks the "?" affordance | Modal shown over the current view. The tick keeps running underneath — opening it never pauses or affects authoritative state |
 
 ## States That Must Differ
 
