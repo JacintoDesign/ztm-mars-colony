@@ -21,3 +21,4 @@
 - Never render buildings without sorting back-to-front by grid position; overlap must always resolve correctly.
 - Never deduct or grant a placement cost on the client. The server confirms affordability and applies the deduction.
 - Never restart a colony from anywhere but an explicit player action on the game-over screen. No automatic retry, no agent deciding a dead colony should start over.
+- Never update bestSolsSurvived from the client. The comparison and the write both happen inside the server-side tick function, at the moment of game over, nowhere else.

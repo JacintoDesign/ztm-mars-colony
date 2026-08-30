@@ -8,8 +8,9 @@
 ## Ownership
 
 - One colony per account. A colony is created on first sign-in and never reset thereafter, with one exception below.
+- Each account has its own row in a users table, separate from the colony's own state — matching the identity split DATABASE.md requires between this application and Waypoint. It holds bestSolsSurvived, the one piece of account-level data that outlives a colony restart.
 - A colony in `game_over` status may be restarted by the same account, from the game-over screen only. This is the one exception to "never reset" — a player's own deliberate action, not something the server or an agent triggers on its own.
-- Restarting returns oxygen, power, ore and the ore reserve to starting values, and clears buildings and colonists. Status returns to `active`.
+- Restarting returns oxygen, power, ore and the ore reserve to starting values, and clears buildings and colonists. Status returns to `active`. bestSolsSurvived is untouched — it lives on the account, not the colony.
 
 ## Simulation Rules
 
@@ -57,6 +58,7 @@
 ### Game Over
 - If the last colonist dies, colony status becomes `game_over`. No further ticks are applied once set — every tick requested after that, including catch-up, returns the state unchanged
 - 1 sol = 1000 ticks. Sols survived is the tick count at the moment of game over, divided by 1000, rounded down
+- At the moment of game over, compare sols survived against the account's bestSolsSurvived. If higher, update it. If not, leave it unchanged
 
 ### Colonist Arrivals
 - A ship lands every 300 ticks, adding one colonist — capped by total habitat capacity (2 colonists per habitat)
@@ -71,6 +73,28 @@
 
 ### Catch-up
 - Catch-up capped at 28,800 ticks (8 hours)
+
+## State Shape
+
+Every field that needs to persist, in one place — the source of truth for the database schema in Lesson 7.10 and everything the tick function reads or writes in Lesson 7.11.
+
+- ownerId
+- oxygen, power — 0–100
+- ore — stockpile, 0 or above
+- oreReserve — 500 at creation, depletes toward 0
+- tick — monotonic counter
+- lastTickAt — timestamp of the most recent applied tick
+- status — `active` or `game_over`
+- buildings — array of `{ type, x, y }`
+- colonists — array of `{ x, y, health, destination, route }`
+
+Sols survived is never stored. It's derived at display time from `tick`, per the Game Over rule above.
+
+## Account Data
+
+Fields that persist per account, separate from any single colony — outlives a colony restart even though the colony's own state doesn't.
+
+- bestSolsSurvived — 0 at account creation, updated only when a colony's sols at game over exceed the current value
 
 ## Pieces
 

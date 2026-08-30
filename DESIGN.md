@@ -78,7 +78,7 @@ Panels and the toolbar are plain text DOM elements rendered alongside or over th
 
 ## Game Over Screen
 
-Plain text, same palette and type as the rest of the interface. No colour deviation, no animation — a sol count and a single "Start New Colony" button, nothing more. It replaces the normal view entirely rather than overlaying it.
+Plain text, same palette and type as the rest of the interface. No colour deviation, no animation — sols survived this run, the account's best sols survived, and a single "Start New Colony" button, nothing more. It replaces the normal view entirely rather than overlaying it.
 
 ## Do's and Don'ts
 

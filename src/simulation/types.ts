@@ -20,6 +20,7 @@ export interface Building {
 }
 
 export interface ColonyState {
+  colonyId?: string;
   tick: number;
   oxygen: number;
   power: number;

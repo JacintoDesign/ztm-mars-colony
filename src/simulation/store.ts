@@ -17,10 +17,13 @@ export interface DispatchResult {
   building?: Building;
 }
 
+export type BuildingPlacementCallback = (building: Building, cost: BuildingCost) => Promise<void>;
+
 export class ColonyStore {
   private state: ColonyState;
   private listeners: Set<StateListener> = new Set();
   private nextBuildingId = 1;
+  private onBuildingPlacedHandler: BuildingPlacementCallback | null = null;
 
   constructor(initialState?: Partial<ColonyState>) {
     this.state = {
@@ -39,6 +42,34 @@ export class ColonyStore {
 
   public getState(): ColonyState {
     return this.state;
+  }
+
+  public setPersistenceHandler(handler: BuildingPlacementCallback | null): void {
+    this.onBuildingPlacedHandler = handler;
+  }
+
+  public loadState(newState: Partial<ColonyState>): void {
+    this.state = {
+      ...this.state,
+      ...newState,
+    };
+    this.notify();
+  }
+
+  public reset(): void {
+    this.state = {
+      tick: 0,
+      oxygen: 50,
+      power: 50,
+      ore: 0,
+      oreReserve: 500,
+      signedInAccount: 'none',
+      colonyOwner: 'none',
+      buildings: [],
+      lastAppliedTick: 'Never',
+      colonyId: undefined,
+    };
+    this.notify();
   }
 
   public subscribe(listener: StateListener): () => void {
@@ -113,7 +144,7 @@ export class ColonyStore {
 
     const cost = check.cost;
     const newBuilding: Building = {
-      id: `bld-${this.nextBuildingId++}`,
+      id: `bld-${Date.now()}-${this.nextBuildingId++}`,
       type,
       x,
       y,
@@ -127,6 +158,14 @@ export class ColonyStore {
     };
 
     this.notify();
+
+    // Trigger async database persistence if a handler is configured
+    if (this.onBuildingPlacedHandler) {
+      this.onBuildingPlacedHandler(newBuilding, cost).catch((err) => {
+        console.error('Failed to persist building placement to Supabase:', err);
+      });
+    }
+
     return {
       success: true,
       building: newBuilding,

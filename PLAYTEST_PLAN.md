@@ -73,3 +73,14 @@ Then:  - oxygen, power, ore and the ore reserve return to starting
          values
        - no buildings or colonists remain
        - colony status returns to active
+       - the account's bestSolsSurvived is unchanged by the restart
+
+## Scenario 11: A personal best only updates when it's actually beaten
+Given: an account with bestSolsSurvived at 10.
+When:  a colony dies at tick 3,000 (3 sols) — below the existing
+       best.
+Then:  - colony status becomes game_over
+       - the account's bestSolsSurvived remains 10, not 3
+When:  a second colony from the same account instead dies at tick
+       15,000 (15 sols) — above the existing best.
+Then:  - the account's bestSolsSurvived updates to 15

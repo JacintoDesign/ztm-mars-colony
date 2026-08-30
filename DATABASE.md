@@ -6,8 +6,10 @@ This database is shared by two unrelated applications.
 - This project owns tables prefixed `marscolony_` and nothing else.
 - Tables prefixed `waypoint_` belong to a different application.
   Never read, write, alter or reference them.
-- The auth tables and the shared profile table are common to both.
-  Read them. Never alter their structure.
+- The auth tables are common to both. Read them. Never alter their
+  structure.
+- Each application keeps its own user table. `marscolony_users` and
+  `waypoint_users` are not the same table and never share rows.
 
 ## Access
 - Every `marscolony_` table has an owner column referencing the

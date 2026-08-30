@@ -52,7 +52,7 @@ html, body {
   padding: 10px 14px;
   border: 1px solid #3d2417;
   border-radius: 0;
-  z-index: 9999;
+  z-index: 9990;
   user-select: none;
   white-space: pre-wrap;
   word-break: break-word;
@@ -121,7 +121,7 @@ html, body {
   border: 1px solid #3d2417;
   border-radius: 0;
   padding: 8px 16px;
-  z-index: 9999;
+  z-index: 9990;
   user-select: none;
   white-space: nowrap;
 }
@@ -207,4 +207,331 @@ html, body {
   color: #7fd4e0;
   border-color: #7fd4e0;
   background-color: #24140c;
+}
+
+/* Header Bar Controls (Top Right) */
+.header-bar {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: rgba(26, 14, 8, 0.94);
+  border: 1px solid #3d2417;
+  border-radius: 0;
+  padding: 8px 14px;
+  z-index: 9990;
+  user-select: none;
+}
+
+.header-user-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.header-badge-label {
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8c9ba5;
+  letter-spacing: 1px;
+}
+
+.header-badge-user {
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-weight: 600;
+  color: #d9dde0;
+  letter-spacing: 0.5px;
+}
+
+.badge-guest {
+  color: #E0A030;
+}
+
+.badge-permanent {
+  color: #d9dde0;
+}
+
+.header-btn {
+  background-color: #1a0e08;
+  color: #d9dde0;
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border: 1px solid #3d2417;
+  border-radius: 0;
+  cursor: pointer;
+  outline: none;
+  letter-spacing: 0.5px;
+}
+
+.header-btn:hover {
+  border-color: #5e3824;
+  background-color: #24140c;
+}
+
+.header-btn-upgrade {
+  border-color: #5e3824;
+  color: #E0A030;
+}
+
+.header-btn-signout {
+  border-color: #3d2417;
+}
+
+/* Authentication Modal Overlay */
+.auth-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(26, 14, 8, 0.96);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.auth-modal-panel {
+  width: 100%;
+  max-width: 440px;
+  background-color: #1a0e08;
+  border: 1px solid #5e3824;
+  border-radius: 0;
+  padding: 28px;
+  box-shadow: none;
+}
+
+.auth-modal-header {
+  margin-bottom: 20px;
+  border-bottom: 1px solid #3d2417;
+  padding-bottom: 14px;
+}
+
+.auth-modal-title {
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #d9dde0;
+  margin-bottom: 4px;
+}
+
+.auth-modal-subtitle {
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8c9ba5;
+  letter-spacing: 1px;
+}
+
+.auth-mode-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.auth-tab-btn {
+  flex: 1;
+  background-color: #1a0e08;
+  color: #8c9ba5;
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px;
+  border: 1px solid #3d2417;
+  border-radius: 0;
+  cursor: pointer;
+  outline: none;
+  letter-spacing: 1px;
+}
+
+.auth-tab-btn:hover {
+  border-color: #5e3824;
+  color: #d9dde0;
+}
+
+.auth-tab-btn.active {
+  color: #d9dde0;
+  border-color: #5e3824;
+  background-color: #2b170e;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-label {
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #8c9ba5;
+}
+
+.auth-input {
+  background-color: #110905;
+  color: #d9dde0;
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 14px;
+  padding: 10px 12px;
+  border: 1px solid #3d2417;
+  border-radius: 0;
+  outline: none;
+  width: 100%;
+}
+
+.auth-input:focus {
+  border-color: #5e3824;
+  background-color: #160c07;
+}
+
+.auth-status-msg {
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 18px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.auth-status-info {
+  color: #E0A030;
+}
+
+.auth-status-error {
+  color: #D94F3D;
+}
+
+.auth-btn {
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 16px;
+  border: 1px solid #3d2417;
+  border-radius: 0;
+  cursor: pointer;
+  outline: none;
+  letter-spacing: 0.5px;
+  text-align: center;
+  width: 100%;
+}
+
+.auth-btn:hover:not(:disabled) {
+  border-color: #5e3824;
+}
+
+.auth-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-btn-primary {
+  background-color: #2b170e;
+  border-color: #5e3824;
+  color: #d9dde0;
+}
+
+.auth-btn-primary:hover:not(:disabled) {
+  background-color: #3d2013;
+  border-color: #7a462c;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: #5e3824;
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin: 6px 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #3d2417;
+}
+
+.auth-divider span {
+  padding: 0 10px;
+}
+
+.auth-btn-guest {
+  background-color: #1a0e08;
+  border-color: #3d2417;
+  color: #8c9ba5;
+}
+
+.auth-btn-guest:hover:not(:disabled) {
+  border-color: #5e3824;
+  color: #d9dde0;
+  background-color: #24140c;
+}
+
+/* Upgrade Guest Modal */
+.upgrade-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(15, 8, 4, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+}
+
+.upgrade-modal-box {
+  width: 100%;
+  max-width: 400px;
+  background-color: #1a0e08;
+  border: 1px solid #5e3824;
+  padding: 24px;
+}
+
+.upgrade-modal-header {
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #d9dde0;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.upgrade-modal-sub {
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 12px;
+  color: #8c9ba5;
+  margin-bottom: 16px;
+}
+
+.upgrade-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.upgrade-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
 }
