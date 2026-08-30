@@ -10,7 +10,7 @@
 - One colony per account. A colony is created on first sign-in and never reset thereafter, with one exception below.
 - Each account has its own row in a users table, separate from the colony's own state — matching the identity split DATABASE.md requires between this application and Waypoint. It holds bestSolsSurvived, the one piece of account-level data that outlives a colony restart.
 - A colony in `game_over` status may be restarted by the same account, from the game-over screen only. This is the one exception to "never reset" — a player's own deliberate action, not something the server or an agent triggers on its own.
-- Restarting returns oxygen, power, ore and the ore reserve to starting values, and clears buildings and colonists. Status returns to `active`. bestSolsSurvived is untouched — it lives on the account, not the colony.
+- Restarting generates a brand-new seed and a fresh colony, exactly as first sign-in would — new ore distribution, new mining site positions, oxygen/power/food back to starting values, no buildings, no colonists, no pending arrivals, no rovers, no stored battery cells. Status returns to `active`. bestSolsSurvived is untouched — it lives on the account, not the colony.
 
 ## Simulation Rules
 
@@ -18,15 +18,19 @@
 - Tick interval: 1 second of real time
 - lastTickAt stored with colony state
 - Applying N ticks in one batch must produce exactly the same state as applying N ticks one at a time
+- Every random-seeming decision in this document — building breakage, storm timing and target, asteroid timing and position, ore distribution at creation, movement tie-breaks — draws from the same seeded generator stored in colony state, never Math.random(). This is what makes the line above possible for a system with this many moving parts, not just the tick arithmetic itself
 
 ### Starting State
-- A new colony starts with oxygen 50, power 50, no buildings, no colonists, ore 0, ore reserve 500
+- A new colony starts with oxygen 50, power 50, food 50, no buildings, no colonists, ore 0, electronics 0, no pending arrivals, no rovers, no stored battery cells, and a fresh seed generating the colony's ore distribution and mining site positions
 
 ### Buildings
 - habitat: houses 2 colonists, draws 2 power/tick
 - solar: produces 5 power/tick, draws 0
 - scrubber: produces 4 oxygen/tick, draws 3 power/tick
-- extractor: produces 3 ore/tick, draws 4 power/tick
+- extractor: produces 3 ore/tick from its tile's local deposit, draws 4 power/tick
+- farm: produces 4 food/tick, draws 2 power/tick
+- garage: holds up to 2 rovers, draws 1 power/tick, no production
+- refinery: converts ore to battery cells, draws 5 power/tick, no automatic production — refining is a player-initiated action, not continuous
 
 ### Resources
 - oxygen and power are pools, 0–100, clamped at both ends
@@ -34,22 +38,55 @@
 
 ### Ore
 - ore is a stockpile, not a pool: 0 or above, no upper clamp
-- ore does not participate in the health rule. Only oxygen and power can trigger colonist health loss
+- ore does not participate in the health rule. Oxygen, power, and food are the three that can trigger colonist health loss
 
-### Ore Reserve
-- A fixed underground reserve of 500 ore, set once at colony creation, never replenished
-- Each tick the extractor produces, the reserve drops by the same amount produced
-- Once the reserve reaches 0, the extractor produces 0 ore/tick from then on. It still draws power — an idle extractor is not a free one
+### Ore Deposits
+- Ore is not a single global reserve. At colony creation, the seeded generator distributes 500 ore total across roughly 15–25 grid tiles, unevenly — most tiles hold nothing, a handful hold a meaningful amount, and at least one holds as little as 1. Distribution is fixed for the colony's lifetime, generated once, never regenerated
+- An extractor placed on a tile mines only that tile's own deposit, at 3 ore/tick, until it reaches 0. It does not draw from any other tile
+- Once a tile's deposit is exhausted, an extractor there produces 0 ore/tick permanently. It still draws power — an idle extractor is not a free one
+- The three mining sites below are the largest individual deposits in this same 500-total pool, deliberately placed far from the landing zone
+
+### Food
+- food is a pool, 0–100, clamped at both ends, same shape as oxygen and power
+- farm produces food; each colonist consumes 2 food/tick
+- food joins the life-support check: if oxygen is 0 OR power is 0 OR food is 0 at the end of a tick, every colonist loses 5 health. All three pools are read; any one hitting 0 is sufficient
+
+### Building Condition
+- Every building has a condition: operational, broken, or buried
+- Each tick, each operational building has a small seeded chance of becoming broken — 1-in-15,000 per building per tick. At 5 buildings (roughly where an early colony sits) that's an expected break every 3,000 ticks; at 28 buildings (a mature, fully-built colony) it's every 535 ticks. Maintenance load scales with how much you've built, on purpose — it's the direct answer to "build enough and stop worrying"
+- A broken building produces and draws nothing until repaired
+- Repair requires a fixed number of colonists physically present on the building's tile for 50 consecutive ticks, plus an electronics cost — 1 colonist and 1 electronics for habitat, solar, scrubber, and farm; 2 colonists and 2 electronics for extractor, garage, and refinery
+- Repair labor and repair material come from different places on purpose. Colonists are locally renewable — arrivals, if you keep the pipeline running. Electronics are not — the colony cannot manufacture them, only receive them, which is what makes ship traffic worth the escort risk rather than a formality
+- The tick function assigns the nearest idle colonists to a broken building automatically, the same way it assigns new arrivals to a habitat. The player places buildings; the player does not hand-direct repair labor
+- A buried building (see Weather) cannot be repaired until it is dug out first
+
+### Weather
+- Every 5,000-tick window, a seeded roll has a 20% chance a dust storm occurs — an expected storm every 25,000 ticks, independent of colony size. Unlike breakage, weather doesn't scale with how much you've built; it's the pressure that exists regardless
+- A storm buries up to 3 operational buildings, chosen by the seeded generator from those not already buried or broken
+- A buried building produces and draws nothing
+- Digging out requires 1 colonist present on the tile for 100 consecutive ticks, no resource cost. Assigned automatically, same as repair
+- A building already broken when it's buried needs digging out first, then repair — both, in that order
+
+### Colonist Lifespan
+- Each colonist has an age, in ticks, starting at 0 and incrementing every tick
+- Lifespan is seeded per colonist at the moment they're received into `colonists`, uniformly between 12,000 and 18,000 ticks (12–18 sols), average 15,000. A range rather than a fixed number on purpose — colonists who arrived on the same ship would otherwise age out in the exact same tick, which reads as a scripted die-off rather than ordinary attrition
+- 15,000 average against a 300-tick, capacity-gated arrival cadence means the first old-age death lands around sol 12–18 — well before the original equilibrium point (the colony that stalled at tick 3,071 and never had to act again) has had time to feel settled, and every colonist since keeps the same clock running independently
+- At the end of their lifespan, a colonist dies of old age and is removed, independent of health
+- Old-age death follows the same game-over rule as health-based death: if it leaves no colonists remaining, colony status becomes game_over
 
 ### Placement Costs
 - habitat: 20 power
 - solar: 15 power
 - scrubber: 15 power, 5 ore
 - extractor: 25 power
+- farm: 20 power, 5 ore
+- garage: 30 power, 10 ore
+- refinery: 25 power, 15 ore
 - A placement is rejected if the account cannot afford its cost. Cost is deducted server-side the instant placement succeeds
+- A placement is also rejected if the target tile currently holds a building, is buried, or (for extractor specifically) has zero ore in its deposit — placing an extractor on a dry tile is legal but pointless, and the game does not prevent it
 
 ### Health
-- If oxygen is 0 OR power is 0 at end of tick: every colonist loses 5 health
+- If oxygen is 0 OR power is 0 OR food is 0 at end of tick: every colonist loses 5 health
 - Otherwise: colonists recover 1 health per tick, up to 100
 
 ### Colonist Death
@@ -61,34 +98,78 @@
 - At the moment of game over, compare sols survived against the account's bestSolsSurvived. If higher, update it. If not, leave it unchanged
 
 ### Colonist Arrivals
-- A ship lands every 300 ticks, adding one colonist — capped by total habitat capacity (2 colonists per habitat)
-- No landing occurs if capacity is already full
-- New colonists appear at the fixed landing zone, tile (0, 0)
+- A ship lands every 300 ticks — capped by total habitat capacity (2 colonists per habitat). No landing occurs if capacity is already full
+- A landed colonist is not yet a colonist in the sense the rest of this document uses the word. They join `pendingArrivals`, not `colonists` — no health, no age, no life-support draw, because they're not in the colony's care yet
+- The ship also carries 2 electronics, held with the pending arrival until escort succeeds or fails
+- A rover dispatched to the landing zone — a third rover destination, alongside a mining site and an asteroid — picks up the waiting colonist and the electronics and returns them to its garage. On arrival, the arrival moves from `pendingArrivals` into `colonists`, assigned a habitat exactly as arrivals always were, and the electronics join the colony's stockpile
+- Each entry in `pendingArrivals` has 150 ticks from landing to be escorted. If no rover reaches them in that window, the entry is removed — the colonist and the electronics are both lost, nothing recovered
+- 150 ticks is generous for travel — a rover crosses the entire 20×20 grid in about 8 ticks at 5 tiles/tick. The real constraint is never having a rover free to send, not the distance
+- Nothing about escort is automatic. A ship landing during a large catch-up jump, with nobody actively dispatching, times out exactly like one landing while you watch and choosing not to act — there is no auto-dispatch fallback. This is deliberate: leaving the colony to run unattended for long stretches has a real demographic cost, the same way it has a real maintenance cost from Building Condition and Weather. Checking in periodically isn't a suggestion, it's how population actually grows
+
+### Electronics
+- electronics is a stockpile, 0 or above, no upper clamp — same shape as ore
+- The only source is a successful escort. Nothing in the colony produces electronics locally
+- Electronics fund building repair (see Building Condition). Ore funds placement and battery cells. The two are not interchangeable
 
 ### Colonist movement
 - Colonists move one tile per tick toward a destination building, stopping adjacent
+- A colonist can be assigned four kinds of destination: a habitat on arrival, a broken building to repair, a buried building to dig out, or a stranded rover to recover. Only one at a time — a colonist already assigned to any of the four isn't pulled to a second one until the first finishes
 - Movement advances inside the tick function, not in rendering
 - Every movement choice must be deterministic — no fresh random numbers
 - A newly-landed colonist is assigned a destination — the nearest habitat with unclaimed capacity — in the same tick it's created. Capacity is claimed on assignment, not on arrival
+- Rovers move 5 tiles per tick along the same grid, walking's deterministic tie-break rules included. A trip that takes a colonist 40 ticks on foot takes a rover 8
+
+### Rovers
+- A garage holds up to 2 rovers. A rover exists the moment a garage is placed with room for one; rovers are not placed individually
+- Rover state: idle_at_base, traveling_out, on_site, traveling_back, stranded. `on_site` covers mining a site or asteroid and picking up a pending arrival alike — what happens during it depends on the dispatch, the state name doesn't
+- Rover power: 0–100, its own pool, separate from colony power. Recharges 5/tick while idle_at_base, nowhere else
+- Dispatch costs 1 battery cell, consumed on departure. No cell, no dispatch
+- Once dispatched: travel_out_ticks + on_site_ticks + travel_back_ticks, at 5 tiles/tick for the travel legs. A mining or asteroid dispatch sets on_site_ticks to that site's fixed mining duration; a landing-zone dispatch sets it to a fixed 5 ticks, just long enough to represent loading a passenger rather than mining ore. Rover power drains 2/tick for the whole round trip regardless of what it's doing on site
+- Cargo is one of two shapes depending on the dispatch: `{ type: 'ore', amount }` from a mining or asteroid trip, or `{ type: 'arrival' }` from a landing-zone trip, carrying whichever pending arrival was picked up along with their electronics
+- If rover power reaches 0 before the rover returns to base: stranded. Its cargo is lost — ore forfeited, or a rescued arrival lost exactly as if the escort had never happened. A stranded rover is recovered by a colonist walking to it and returning it to the nearest garage with room — the same movement system, a fourth kind of destination
+- On successful return: ore cargo joins the colony's ore stockpile; an arrival cargo moves the pending arrival into `colonists` and adds their electronics to the stockpile, exactly as a completed escort does
+
+### Mining Sites
+- Three fixed sites, generated at colony creation by the seeded generator, positioned among the far tiles in the same 500-total ore distribution — each one is among the largest individual deposits that exist
+- Each site has a distance from the landing zone (setting rover travel_ticks) and a yield (ore per mine-tick, mined the same way an extractor mines a local tile)
+- Sites are walkable in principle. In practice the distance makes rover access the only realistic way to use them before a colonist's assignment is needed elsewhere
+
+### Asteroids
+- Roughly every 5,000 ticks, a seeded roll determines whether one appears, and at which of a small set of fixed candidate positions
+- Visible for 200 ticks before despawning, whether mined or not
+- Yield is higher than any mining site. Reachable by rover the same as a mining site — an asteroid too far to reach in its visible window before despawning is simply missed
+- Unlike the 500-total deposit, asteroids are the one ore source that never runs out. They're also the one source you can't plan around — the seeded roll decides both whether one appears and where
+
+### Battery Cells
+- Refined from ore at a refinery. Refining is a player-initiated action, not automatic: a fixed ore cost produces one cell
+- Stored at the refinery, capacity-limited to 20 cells
+- Decay: -1 efficiency/tick while stored and unused, floor 0. A cell at 0 efficiency still counts toward the dispatch requirement but contributes nothing extra
+- This is the actual constraint on rover expansion: ore funds cells, cells fund dispatch, dispatch funds more ore. Nothing about rovers is free once battery cells exist
 
 ### Catch-up
 - Catch-up capped at 28,800 ticks (8 hours)
 
 ## State Shape
 
-Every field that needs to persist, in one place — the source of truth for the database schema in Lesson 7.10 and everything the tick function reads or writes in Lesson 7.11.
+Every field that needs to persist, in one place — the source of truth for the database schema and everything the tick function reads or writes. This section was written for the original build in Lesson 7.11 and is now out of date with the rest of this document; treat this version, not that lesson, as current.
 
 - ownerId
-- oxygen, power — 0–100
-- ore — stockpile, 0 or above
-- oreReserve — 500 at creation, depletes toward 0
+- oxygen, power, food — 0–100
+- ore, electronics — stockpiles, 0 or above
 - tick — monotonic counter
 - lastTickAt — timestamp of the most recent applied tick
 - status — `active` or `game_over`
-- buildings — array of `{ type, x, y }`
-- colonists — array of `{ x, y, health, destination, route }`
+- seed — the colony's own seeded generator state, set once at creation, advanced deterministically by every roll that reads from it
+- oreDeposits — array of `{ x, y, remaining }`, set once at creation from the seeded 500-total distribution
+- buildings — array of `{ type, x, y, condition }`, condition one of `operational`, `broken`, `buried`
+- colonists — array of `{ x, y, health, age, lifespan, destination, destinationType, route }`, destinationType one of `habitat`, `repair`, `dig`, `rover_recovery`
+- pendingArrivals — array of `{ landedAtTick, electronics }`, position always the landing zone. Not colonists yet — no health, no age, not counted anywhere life support is
+- rovers — array of `{ garageX, garageY, state, power, cargo, destination }`, state one of `idle_at_base`, `traveling_out`, `on_site`, `traveling_back`, `stranded`; cargo either `{ type: 'ore', amount }`, `{ type: 'arrival' }`, or null
+- batteryCells — array of `{ efficiency }`, one entry per stored cell, at the refinery
+- miningSites — array of `{ x, y, yield }`, fixed at creation
+- activeAsteroid — `{ x, y, yield, expiresAtTick }` or null
 
-Sols survived is never stored. It's derived at display time from `tick`, per the Game Over rule above.
+Sols survived is never stored. It's derived at display time from `tick`.
 
 ## Account Data
 
@@ -103,12 +184,13 @@ Fields that persist per account, separate from any single colony — outlives a 
 | Auth & Session Manager | Authenticate player, load active colony session, handle reconnects |
 | Isometric Canvas Renderer | Render terrain tiles, buildings, resource overlays, and colonist sprites via 2D Canvas |
 | Tick Client | Send player actions to serverless tick route; apply authoritative state from Supabase; project state forward on client for display between writes |
-| HUD & Text Info Panels | Display every colony metric the diagnostic panel tracks except session identity — tick, oxygen, power, ore, ore reserve, colonist health, buildings, last applied tick — and building placement toolbars in plain text/DOM |
-| Building & Placement Controller | Handle cursor tile hovering, building validity and affordability checks, and placement requests |
+| HUD & Text Info Panels | Display every colony metric the diagnostic panel tracks except session identity — tick, oxygen, power, food, ore, electronics, building condition, colonist health and age, pending arrivals with time remaining, rover and battery status — and building placement toolbars in plain text/DOM |
+| Building & Placement Controller | Handle cursor tile hovering, building validity and affordability checks, and placement requests. Tile hover shows ore remaining for a tile before an extractor is placed there |
 | Catch-up Handler | Apply batched offline ticks on load up to the 28,800 tick ceiling |
+| Landing Zone | Render pending arrivals waiting at tile (0, 0) with visible time remaining before their escort window expires |
 | Game Over Screen | Display sols survived when the colony ends; offer a "Start New Colony" action that resets the account's colony to starting state |
-| Help Modal | Explain the survival goal, every building's cost and effect, and the colonist arrival rule, read live from CONTRACT.md. Open via a persistent "?" affordance, closeable, available regardless of game state |
-| Diagnostic Panel | Plain-text readout of internal state for automated verification — tick, resources, colonist health, buildings, session identity, colony ownership. Renders only when the URL includes ?debug=true; absent otherwise. This is what /browser and /playtest read from |
+| Help Modal | Explain the survival goal, every building's cost and effect, the colonist arrival rule and escort requirement, and the maintenance mechanics — breakage, burial, aging — read live from CONTRACT.md. Open via a persistent "?" affordance, closeable, available regardless of game state |
+| Diagnostic Panel | Plain-text readout of internal state for automated verification — tick, resources, colonist health and age, pending arrivals, building condition, rover and battery state, session identity, colony ownership. Renders only when the URL includes ?debug=true; absent otherwise. This is what /browser and /playtest read from |
 
 ## States
 
@@ -137,6 +219,9 @@ Fields that persist per account, separate from any single colony — outlives a 
 | Catch-up Handler | capped | Offline duration exceeds 28,800 ticks | Cap catch-up at 28,800 ticks; render notification that simulation reached max offline ceiling |
 | Game Over Screen | inactive | Colony status is active | Not rendered; normal HUD and canvas shown |
 | Game Over Screen | shown | Colony status becomes game_over | Replace normal view with sols-survived display and a "Start New Colony" button |
+| Landing Zone | empty | No entries in pendingArrivals | Nothing rendered at tile (0, 0) beyond the tile itself |
+| Landing Zone | waiting | An entry exists in pendingArrivals with time remaining | Render the pending arrival with a visible countdown |
+| Landing Zone | urgent | An entry's remaining time drops below 30 ticks | Same rendering as waiting, with the countdown in the warning colour — the one visual escalation this piece gets, since a silent timeout is the failure mode most worth preventing |
 | Help Modal | closed | Default | The "?" affordance is visible; nothing else rendered |
 | Help Modal | open | Player clicks the "?" affordance | Modal shown over the current view. The tick keeps running underneath — opening it never pauses or affects authoritative state |
 
@@ -146,7 +231,9 @@ Fields that persist per account, separate from any single colony — outlives a 
 | --- | --- | --- | --- |
 | Building & Placement Controller | Placing Structure (Valid) | Placing Structure (Invalid) | Valid shows green-tinted tile outline / preview; Invalid shows red-tinted outline with plain-text blocker reason in the status bar (e.g. "Insufficient Power" or "Obstacle Blocked") |
 | Tick Client | Reconnecting (Colony Syncing) | Offline (Telemetry Lost) | Reconnecting shows yellow pulse status text "Re-establishing Uplink..."; Offline shows persistent amber banner "Telemetry Lost - Actions Paused" |
-| Building & Placement Controller | Extractor Producing (Reserve Available) | Extractor Idle (Reserve Depleted) | Producing shows the vent glow per DESIGN.md's state-on-screen rules; Idle shows the same structure with no glow, and the panel's ore line stops increasing while power draw continues unchanged |
+| Building & Placement Controller | Extractor Producing (Deposit Available) | Extractor Idle (Deposit Exhausted) | Producing shows the vent glow per DESIGN.md's state-on-screen rules; Idle shows the same structure with no glow, and the panel's ore line stops increasing from that extractor while power draw continues unchanged |
+| Isometric Canvas Renderer | Broken | Buried | Broken shows the structure's normal silhouette with a visible fault indicator per DESIGN.md; Buried shows the structure mostly obscured by terrain-coloured overlay, silhouette barely visible. Neither is confusable with a healthy building glowing or idle — both read as visibly wrong at a glance |
+| Landing Zone | Waiting (Time Remaining) | Urgent (Under 30 Ticks) | Waiting shows the countdown in standard text colour; Urgent shows it in the warning colour from DESIGN.md. Both show the same number — only the colour tells you how much trouble you're in |
 
 ## Failures and Edge Cases
 
@@ -157,9 +244,10 @@ Fields that persist per account, separate from any single colony — outlives a 
 | Auth & Session Manager | Unauthorized / Expired Session | Clear active session, return to login/auth prompt without wiping local client cache |
 | Building & Placement Controller | Rate-Limited Dispatch | Throttle client input dispatch with visual cooldown indicator on action bar |
 | Catch-up Handler | Catch-up Ceiling Reached | Cap catch-up computation at 28,800 ticks, display notice indicating simulation capped at maximum offline duration |
-| Tick Function | Ore Reserve Exhausted | Extractor production drops to 0/tick; power draw continues unchanged; not an error state, this is expected steady-state behavior |
+| Tick Function | A Tile's Ore Deposit Exhausted | The extractor standing on it drops to 0 ore/tick; power draw continues unchanged; not an error state, this is expected behavior for that one tile — other tiles' deposits are unaffected |
 | Tick Function | Last Colonist Dies | Set colony status to game_over; stop applying further ticks, including catch-up; display sols survived on the Game Over Screen |
-| Tick Function | Restart Requested | Only honored when colony status is game_over and the request originates from the Start New Colony button; resets oxygen, power, ore, and the ore reserve to starting values, clears buildings and colonists, sets status to active |
+| Tick Function | Restart Requested | Only honored when colony status is game_over and the request originates from the Start New Colony button; generates a brand-new seed and a fresh colony exactly as first sign-in would — new ore distribution, new mining site positions, oxygen/power/food back to starting values, no buildings, no colonists, no pending arrivals, no rovers, empty battery storage. bestSolsSurvived alone survives, since it lives on the account, not the colony |
+| Tick Function | Pending Arrival's Escort Window Expires | Remove the entry from pendingArrivals; the colonist and their electronics are both lost, nothing added to any stockpile. Not an error — a consequence of the rover fleet being elsewhere when the ship landed |
 
 ## TODOs
 

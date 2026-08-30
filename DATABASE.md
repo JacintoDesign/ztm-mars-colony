@@ -25,3 +25,21 @@ This database is shared by two unrelated applications.
 - Never run a command operating on the whole remote schema — reset,
   pull, or equivalent. Those are project-wide.
 - Never drop a table. Propose the change and stop.
+
+## Tier 3 Schema
+- `marscolony_ore_deposits` gets its own table, matching the existing
+  buildings table's shape: many rows, each independently mutated as
+  a deposit depletes. Same pattern as buildings, same reasoning.
+- `marscolony_rovers` gets its own table, matching the existing
+  colonists table's shape: a small but individually-tracked set of
+  entities, each with its own state machine and position.
+- Battery cells, mining sites, the active asteroid, and the seed
+  itself stay as JSONB columns on `marscolony_state`. None of them
+  need row-level access on their own — mining sites are three fixed
+  values set once, the active asteroid is at most one value that's
+  usually null, battery cells are a small bounded array whose only
+  behavior is a shared decay rule. A table earns its place by having
+  rows that get queried or mutated independently; none of these do.
+- `pendingArrivals` stays JSONB on `marscolony_state` too, for the
+  same reason — it's small, short-lived, and nothing about it needs
+  independent row access the way a building or a colonist does.

@@ -22,3 +22,7 @@
 - Never deduct or grant a placement cost on the client. The server confirms affordability and applies the deduction.
 - Never restart a colony from anywhere but an explicit player action on the game-over screen. No automatic retry, no agent deciding a dead colony should start over.
 - Never update bestSolsSurvived from the client. The comparison and the write both happen inside the server-side tick function, at the moment of game over, nowhere else.
+- Never let a broken or buried building produce, consume, or draw anything until it's repaired or dug out. Condition is checked before production runs, not after.
+- Never use Math.random() for building breakage, storm timing or target selection, asteroid timing or position, or ore distribution at creation. All of it draws from the colony's own seeded generator, the same one movement already uses.
+- Never let rover power, battery cell decay, or a colonist's age advance from a client-side timer. All three are tick-function arithmetic, same discipline as everything else in the simulation, no exceptions for being newer systems.
+- Never extend a pending arrival's 150-tick escort window, and never let anything but a rover reaching the landing zone clear it. A colonist walking there does not count — only a rover dispatch resolves it, by design.

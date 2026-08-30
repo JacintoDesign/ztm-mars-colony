@@ -60,16 +60,24 @@ Each building type is identifiable by shape alone, no labels needed:
 - solar: flat and angular
 - extractor: wide and low, with an angled scoop silhouette
 - scrubber: tall and narrow
+- farm: broad and flat, a grid-like surface pattern rather than a solid mass
+- garage: boxy and squared-off, wider than tall
+- refinery: tall and industrial, distinct from the extractor's scoop — a stack shape rather than a scoop
 
-All four must read as distinct from one another at a glance.
+All seven must read as distinct from one another at a glance.
 
 ## State on Screen
 
 - Solar arrays glow while power > 0; go dark when the grid fails
 - Scrubbers show a faint vent plume while producing oxygen
-- Extractors show a faint vent glow while producing ore; the glow stops the instant the reserve is exhausted, even though the building keeps drawing power
+- Extractors show a faint vent glow while producing ore; the glow stops the instant that tile's deposit is exhausted, even though the building keeps drawing power
+- Farms show a faint green tint while producing food; the tint fades when power fails, same logic as the other producers
 - Scene tints with oxygen level — clear when healthy, dusty haze as it drops
-- Colonists stand upright at full health; slump as health falls
+- Colonists stand upright at full health; slump as health falls; a colonist past three-quarters of their own seeded lifespan shows visibly greyed hair or an equivalent aging cue, distinct from health-based slumping — each colonist ages on their own clock, so this triggers at a different tick for every one of them
+- A broken building shows its normal silhouette with a small fault indicator — a flickering marker, not a colour change, since colour is reserved for the warning/critical palette
+- A buried building is mostly obscured by a terrain-coloured overlay matching the surrounding tint; its silhouette should still be barely legible underneath, not fully hidden
+- A rover shows as a small distinct sprite, visible only while traveling or mining — idle rovers are implied by the garage, not separately rendered
+- An active asteroid renders on its tile with a visibly different silhouette from any building — it isn't placed, so nothing about its shape should read as buildable
 - All of these read from state. None animate on their own timer.
 
 ## Components
@@ -78,15 +86,19 @@ Panels and the toolbar are plain text DOM elements rendered alongside or over th
 
 ## Life Support Telemetry
 
-The styled, player-facing counterpart to the diagnostic panel — everything the diagnostic panel shows, except signed-in account and colony owner. Full parity, not a subset: tick, oxygen, power, ore, ore reserve, colonist health, buildings, and last applied tick all appear here, in whatever form each already takes in the diagnostic panel.
+The styled, player-facing counterpart to the diagnostic panel — everything the diagnostic panel shows, except signed-in account and colony owner. Full parity, not a subset: tick, oxygen, power, food, ore, electronics, colonist health and age, building condition, pending arrivals, rover and battery status all appear here, in whatever form each already takes in the diagnostic panel.
 
-Oxygen, power, and colonist health get bars, colour-shifting through warning (`#E0A030`) and critical (`#D94F3D`) as they drop — the three numbers where "getting low" is a genuine life-support threat, matching the HUD states CONTRACT.md already specifies. Ore, the ore reserve, tick, last applied tick, and buildings are plain numbers or text, no bar, no colour shift — nothing about them threatens a colonist directly, so the warning palette stays reserved for the three that do.
+Oxygen, power, food, and colonist health get bars, colour-shifting through warning (`#E0A030`) and critical (`#D94F3D`) as they drop — the four numbers where "getting low" is a genuine life-support threat, matching the HUD states CONTRACT.md already specifies. A pending arrival's countdown gets the same warning colour once it drops under 30 ticks, per the Landing Zone states-that-must-differ rule — the one non-life-support number that still earns the palette, because losing a colonist and their electronics to an ignored countdown is exactly the kind of failure this colour exists to prevent. Ore, electronics, tick, last applied tick, building list, and rover status are plain numbers or text, no bar, no colour shift — nothing else here threatens a colonist directly, so the warning palette stays reserved for what actually does.
 
 This panel is where CONTRACT.md's `HUD & Text Info Panels` piece is actually implemented for a player. The diagnostic panel exists in parallel, for a different reason, and neither replaces the other.
 
+## Landing Zone
+
+A pending arrival stands at tile (0, 0) rendered like any colonist — same figure, same posture rules — but with a countdown above them showing ticks remaining before their escort window closes. Standard text colour above 30 ticks, warning colour below it, no other change. No animation on the transition; the colour just changes the tick it changes, same as every other state-driven visual in this document.
+
 ## Diagnostic Panel
 
-Two blocks within the same panel, separated by a thin rule. Session identity on top — signed-in account, colony owner — kept small, since it exists purely to confirm identity and isolation and is never meaningful to a player. Full state below: tick, oxygen, power, ore, ore reserve, colonist health, buildings, last applied tick.
+Two blocks within the same panel, separated by a thin rule. Session identity on top — signed-in account, colony owner — kept small, since it exists purely to confirm identity and isolation and is never meaningful to a player. Full state below: tick, oxygen, power, food, ore, electronics, colonist health and age, pending arrivals, building condition, rover and battery status, last applied tick.
 
 Both blocks stay plain text, no colour, no animation — the verification discipline from Lesson 7.5 onward doesn't relax here, this only reorganizes for clarity. The panel's id doesn't change; every playtest scenario since Lesson 7.6 reads from it by that id, reorganized or not.
 
