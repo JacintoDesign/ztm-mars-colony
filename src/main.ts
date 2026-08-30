@@ -5,8 +5,10 @@ import { Toolbar } from './ui/toolbar';
 import { IsometricRenderer } from './engine/renderer';
 import { AuthModal } from './ui/auth-modal';
 import { HeaderBar } from './ui/header-bar';
+import { GameOverModal } from './ui/game-over-modal';
 import { authManager, AuthState } from './services/auth-manager';
 import { colonyService } from './services/colony-service';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 // Initialize simulation store
 const store = new ColonyStore();
@@ -14,11 +16,6 @@ const store = new ColonyStore();
 // Initialize telemetry readout
 const readout = new InternalReadout();
 readout.update(store.getState());
-
-// Subscribe readout to store updates
-store.subscribe((state) => {
-  readout.update(state);
-});
 
 // Initialize building placement toolbar
 const toolbar = new Toolbar({
@@ -46,6 +43,44 @@ const renderer = new IsometricRenderer({
   },
 });
 
+// Active session tracking & timers
+let activeUserId: string | null = null;
+let activeColonyId: string | null = null;
+let clientProjectionInterval: number | null = null;
+let serverSyncInterval: number | null = null;
+let realtimeChannel: RealtimeChannel | null = null;
+
+// Game Over Screen Modal
+const gameOverModal = new GameOverModal({
+  onRestart: async () => {
+    if (!activeColonyId || !activeUserId) return;
+    toolbar.setStatus('Re-initializing Colony...', 'warning');
+
+    try {
+      await colonyService.restartColony(activeColonyId, activeUserId);
+      store.dispatch({ type: 'RESTART_COLONY' });
+      gameOverModal.hide();
+      toolbar.setStatus('Colony Re-established', 'nominal');
+    } catch (err: any) {
+      console.error('Failed to restart colony:', err);
+      toolbar.setStatus(`Restart Error: ${err.message}`, 'critical');
+    }
+  },
+});
+
+// Subscribe readout and game over screen to store updates
+store.subscribe((state) => {
+  readout.update(state);
+
+  if (state.status === 'game_over') {
+    const solsSurvived = Math.floor(state.tick / 1000);
+    gameOverModal.show(solsSurvived, state.bestSolsSurvived);
+    toolbar.setStatus('CRITICAL: All Colonists Deceased', 'critical');
+  } else {
+    gameOverModal.hide();
+  }
+});
+
 // Top-right Header Bar
 const headerBar = new HeaderBar({
   onSignOut: async () => {
@@ -56,7 +91,6 @@ const headerBar = new HeaderBar({
     const res = await authManager.linkGuestAccount(email, password);
     if (!res.error) {
       toolbar.setStatus('Account Upgraded Successfully', 'nominal');
-      // Update account label in state
       store.loadState({
         signedInAccount: email,
       });
@@ -78,19 +112,63 @@ const authModal = new AuthModal({
   },
 });
 
-// Active colony loading state tracker
-let activeColonyOwner: string | null = null;
+/**
+ * Starts the continuous 1-second client-side simulation projection
+ * and 15-second server synchronization interval.
+ */
+function startSimulationLoops(userId: string): void {
+  stopSimulationLoops();
+
+  // 1. Client-side projection: 1 tick every 1 second of real time
+  clientProjectionInterval = window.setInterval(() => {
+    const state = store.getState();
+    if (state.status === 'active') {
+      store.advanceTicks(1);
+    }
+  }, 1000);
+
+  // 2. Periodic server sync: save authoritative snapshot every 15 seconds
+  serverSyncInterval = window.setInterval(async () => {
+    const state = store.getState();
+    if (state.colonyId && activeUserId === userId) {
+      try {
+        await colonyService.syncColonyState(state, userId);
+      } catch (err) {
+        console.warn('Periodic sync failed:', err);
+      }
+    }
+  }, 15000);
+}
+
+function stopSimulationLoops(): void {
+  if (clientProjectionInterval !== null) {
+    clearInterval(clientProjectionInterval);
+    clientProjectionInterval = null;
+  }
+  if (serverSyncInterval !== null) {
+    clearInterval(serverSyncInterval);
+    serverSyncInterval = null;
+  }
+  if (realtimeChannel) {
+    realtimeChannel.unsubscribe();
+    realtimeChannel = null;
+  }
+}
 
 async function handleAuthStateChange(authState: AuthState): Promise<void> {
   headerBar.updateAuth(authState);
 
   if (!authState.user) {
-    // Unauthenticated: pause colony actions, reset store, show auth modal
-    activeColonyOwner = null;
+    // Unauthenticated
+    stopSimulationLoops();
+    activeUserId = null;
+    activeColonyId = null;
     store.setPersistenceHandler(null);
+    store.setRestartHandler(null);
     store.reset();
     renderer.setSelectedTool(null);
     toolbar.setStatus('Authentication Required', 'warning');
+    gameOverModal.hide();
     authModal.show();
     return;
   }
@@ -105,9 +183,10 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
 
   try {
     const colonyData = await colonyService.loadOrCreateColony(user.id);
-    activeColonyOwner = user.id;
+    activeUserId = user.id;
+    activeColonyId = colonyData.colony.id;
 
-    // Populate store with authoritative colony state from Supabase
+    // Populate store with authoritative colony state
     store.loadState({
       colonyId: colonyData.colony.id,
       signedInAccount: userDisplay,
@@ -118,6 +197,9 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
       oreReserve: colonyData.colony.ore_reserve,
       tick: colonyData.colony.tick,
       buildings: colonyData.buildings,
+      colonists: colonyData.colonists,
+      status: colonyData.colony.status,
+      bestSolsSurvived: colonyData.bestSolsSurvived,
       lastAppliedTick: colonyData.colony.last_tick_at
         ? new Date(colonyData.colony.last_tick_at).toLocaleTimeString()
         : 'Never',
@@ -125,9 +207,9 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
 
     // Configure database persistence on building placement
     store.setPersistenceHandler(async (building, cost) => {
-      if (!activeColonyOwner || activeColonyOwner !== user.id) return;
+      if (!activeUserId || activeUserId !== user.id || !activeColonyId) return;
       await colonyService.placeBuilding(
-        colonyData.colony.id,
+        activeColonyId,
         user.id,
         building.type,
         building.x,
@@ -135,6 +217,30 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
         cost,
         store.getState()
       );
+    });
+
+    // Configure database restart handler
+    store.setRestartHandler(async () => {
+      if (!activeColonyId || !activeUserId) return;
+      await colonyService.restartColony(activeColonyId, activeUserId);
+    });
+
+    // Start simulation projection & sync loops
+    startSimulationLoops(user.id);
+
+    // Subscribe to realtime changes on this colony
+    realtimeChannel = colonyService.subscribeToColony(colonyData.colony.id, (payload) => {
+      if (payload.new && payload.new.owner === user.id) {
+        const row = payload.new;
+        store.loadState({
+          oxygen: row.oxygen,
+          power: row.power,
+          ore: row.ore,
+          oreReserve: row.ore_reserve,
+          tick: Math.max(store.getState().tick, row.tick),
+          status: row.status,
+        });
+      }
     });
 
     toolbar.setStatus('Telemetry Link Nominal', 'nominal');

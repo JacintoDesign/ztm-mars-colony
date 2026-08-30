@@ -8,6 +8,7 @@ import {
   SimulationAction,
 } from './types';
 import { isInGrid } from '../engine/iso-math';
+import { applyTicks } from './tick';
 
 export type StateListener = (state: ColonyState) => void;
 
@@ -18,12 +19,14 @@ export interface DispatchResult {
 }
 
 export type BuildingPlacementCallback = (building: Building, cost: BuildingCost) => Promise<void>;
+export type RestartColonyCallback = () => Promise<void>;
 
 export class ColonyStore {
   private state: ColonyState;
   private listeners: Set<StateListener> = new Set();
   private nextBuildingId = 1;
   private onBuildingPlacedHandler: BuildingPlacementCallback | null = null;
+  private onRestartHandler: RestartColonyCallback | null = null;
 
   constructor(initialState?: Partial<ColonyState>) {
     this.state = {
@@ -35,6 +38,9 @@ export class ColonyStore {
       signedInAccount: 'none',
       colonyOwner: 'none',
       buildings: [],
+      colonists: [],
+      status: 'active',
+      bestSolsSurvived: 0,
       lastAppliedTick: 'Never',
       ...initialState,
     };
@@ -46,6 +52,10 @@ export class ColonyStore {
 
   public setPersistenceHandler(handler: BuildingPlacementCallback | null): void {
     this.onBuildingPlacedHandler = handler;
+  }
+
+  public setRestartHandler(handler: RestartColonyCallback | null): void {
+    this.onRestartHandler = handler;
   }
 
   public loadState(newState: Partial<ColonyState>): void {
@@ -66,9 +76,21 @@ export class ColonyStore {
       signedInAccount: 'none',
       colonyOwner: 'none',
       buildings: [],
+      colonists: [],
+      status: 'active',
+      bestSolsSurvived: 0,
       lastAppliedTick: 'Never',
       colonyId: undefined,
     };
+    this.notify();
+  }
+
+  /**
+   * Advances simulation forward by nTicks using the pure tick function.
+   */
+  public advanceTicks(nTicks: number): void {
+    if (this.state.status === 'game_over' || nTicks <= 0) return;
+    this.state = applyTicks(this.state, nTicks);
     this.notify();
   }
 
@@ -128,9 +150,42 @@ export class ColonyStore {
     switch (action.type) {
       case 'PLACE_BUILDING':
         return this.handlePlaceBuilding(action.buildingType, action.x, action.y);
+      case 'RESTART_COLONY':
+        return this.handleRestartColony();
       default:
         return { success: false };
     }
+  }
+
+  private handleRestartColony(): DispatchResult {
+    // Restart only permitted when colony is in game_over status
+    if (this.state.status !== 'game_over') {
+      return { success: false };
+    }
+
+    // Reset colony state per CONTRACT.md (bestSolsSurvived remains untouched)
+    this.state = {
+      ...this.state,
+      oxygen: 50,
+      power: 50,
+      ore: 0,
+      oreReserve: 500,
+      tick: 0,
+      status: 'active',
+      buildings: [],
+      colonists: [],
+      lastAppliedTick: new Date().toLocaleTimeString(),
+    };
+
+    this.notify();
+
+    if (this.onRestartHandler) {
+      this.onRestartHandler().catch((err) => {
+        console.error('Failed to persist colony restart:', err);
+      });
+    }
+
+    return { success: true };
   }
 
   private handlePlaceBuilding(type: BuildingType, x: number, y: number): DispatchResult {

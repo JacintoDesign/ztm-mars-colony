@@ -19,6 +19,22 @@ export interface Building {
   y: number;
 }
 
+export interface GridCoord {
+  x: number;
+  y: number;
+}
+
+export interface Colonist {
+  id: string;
+  x: number;
+  y: number;
+  health: number;
+  destination: GridCoord | null;
+  route: GridCoord[];
+}
+
+export type ColonyStatus = 'active' | 'game_over';
+
 export interface ColonyState {
   colonyId?: string;
   tick: number;
@@ -29,7 +45,11 @@ export interface ColonyState {
   signedInAccount: string;
   colonyOwner: string;
   buildings: Building[];
+  colonists: Colonist[];
+  status: ColonyStatus;
+  bestSolsSurvived: number;
   lastAppliedTick: string;
+  lastTickAtIso?: string;
 }
 
 export interface PlacementCheckResult {
@@ -44,4 +64,7 @@ export type SimulationAction =
       buildingType: BuildingType;
       x: number;
       y: number;
+    }
+  | {
+      type: 'RESTART_COLONY';
     };

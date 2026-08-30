@@ -486,6 +486,106 @@ html, body {
   background-color: #24140c;
 }
 
+/* Dedicated Game Over Screen per DESIGN.md */
+.game-over-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #1a0e08;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 24px;
+}
+
+.game-over-panel {
+  width: 100%;
+  max-width: 520px;
+  background-color: #1a0e08;
+  border: 1px solid #5e3824;
+  border-radius: 0;
+  padding: 36px 32px;
+  text-align: center;
+}
+
+.game-over-header {
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #D94F3D;
+  margin-bottom: 6px;
+}
+
+.game-over-sub {
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #8c9ba5;
+  letter-spacing: 1px;
+  margin-bottom: 28px;
+}
+
+.game-over-metrics {
+  background-color: #110905;
+  border: 1px solid #3d2417;
+  padding: 20px 24px;
+  margin-bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.game-over-metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.game-over-metric-label {
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #8c9ba5;
+  letter-spacing: 1px;
+}
+
+.game-over-metric-val {
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #d9dde0;
+  letter-spacing: 1px;
+}
+
+.game-over-restart-btn {
+  width: 100%;
+  background-color: #2b170e;
+  color: #d9dde0;
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 14px;
+  border: 1px solid #5e3824;
+  border-radius: 0;
+  cursor: pointer;
+  outline: none;
+  letter-spacing: 1px;
+}
+
+.game-over-restart-btn:hover:not(:disabled) {
+  background-color: #3d2013;
+  border-color: #7a462c;
+}
+
+.game-over-restart-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Upgrade Guest Modal */
 .upgrade-modal-backdrop {
   position: fixed;
