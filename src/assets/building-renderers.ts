@@ -274,6 +274,29 @@ export function drawSolar(
     ctx.fill();
     ctx.stroke();
 
+    // PV cell grid dividing lines
+    ctx.strokeStyle = isPowered ? '#0284c7' : '#1e293b';
+    ctx.lineWidth = 0.8;
+
+    // Horizontal centerline
+    ctx.beginPath();
+    ctx.moveTo((pTopIn.x + pBotIn.x) / 2, (pTopIn.y + pBotIn.y) / 2);
+    ctx.lineTo((pTopOut.x + pBotOut.x) / 2, (pTopOut.y + pBotOut.y) / 2);
+    ctx.stroke();
+
+    // Vertical cell dividers
+    for (let f = 0.33; f <= 0.67; f += 0.34) {
+      const topX = pTopIn.x * (1 - f) + pTopOut.x * f;
+      const topY = pTopIn.y * (1 - f) + pTopOut.y * f;
+      const botX = pBotIn.x * (1 - f) + pBotOut.x * f;
+      const botY = pBotIn.y * (1 - f) + pBotOut.y * f;
+
+      ctx.beginPath();
+      ctx.moveTo(topX, topY);
+      ctx.lineTo(botX, botY);
+      ctx.stroke();
+    }
+
     // Active power grid glow highlight
     if (isPowered) {
       ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
@@ -287,10 +310,19 @@ export function drawSolar(
 
   drawWing(false);
   drawWing(true);
+
+  // Central power indicator dot
+  ctx.fillStyle = isPowered ? '#0284c7' : '#334155';
+  ctx.beginPath();
+  ctx.arc(cx, hubY, 1.8, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 /**
- * Draws the Scrubber: tall tower showing faint vent plume while producing oxygen.
+ * Draws the Scrubber: detailed architectural industrial atmospheric filtration tower.
+ * Features a heavy reinforced base plinth, clean faceted lower intake block with panel seams,
+ * tall vertical column with heatsink ribs and cyan oxygen conduit line, and a cylindrical
+ * top exhaust stack with cyan status aperture and faint vent plume when producing oxygen.
  */
 export function drawScrubber(
   ctx: CanvasRenderingContext2D,
@@ -301,59 +333,156 @@ export function drawScrubber(
 ): void {
   const cx = center.x;
   const cy = center.y;
-  const towerH = 34;
-  const w = halfW * 0.42;
 
-  // Ground base pad
-  ctx.fillStyle = '#2b170d';
-  ctx.strokeStyle = '#180b05';
+  const totalH = 54;
+  const baseW = halfW * 0.55;
+  const baseH = halfH * 0.55;
+  const towerW = halfW * 0.34;
+  const towerH = halfH * 0.34;
+
+  // 1. Reinforced heavy foundation plinth
+  ctx.fillStyle = '#1e110a';
+  ctx.strokeStyle = '#0f0804';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.ellipse(cx, cy + 2, w * 1.5, halfH * 0.5, 0, 0, Math.PI * 2);
+  ctx.moveTo(cx, cy - baseH * 1.25);
+  ctx.lineTo(cx + baseW * 1.25, cy);
+  ctx.lineTo(cx, cy + baseH * 1.25);
+  ctx.lineTo(cx - baseW * 1.25, cy);
+  ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
-  // Tower body
+  // 2. Clean, solid lower intake block (faceted industrial panels)
+  const lowerH = 12;
+  // Left shadow face
+  ctx.fillStyle = '#1e293b';
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - baseW, cy);
+  ctx.lineTo(cx, cy + baseH);
+  ctx.lineTo(cx, cy + baseH - lowerH);
+  ctx.lineTo(cx - baseW, cy - lowerH);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Right light face
+  ctx.fillStyle = '#334155';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + baseH);
+  ctx.lineTo(cx + baseW, cy);
+  ctx.lineTo(cx + baseW, cy - lowerH);
+  ctx.lineTo(cx, cy + baseH - lowerH);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Subtle horizontal panel seam on base
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - baseW * 0.85, cy + baseH * 0.5 - lowerH * 0.5);
+  ctx.lineTo(cx, cy + baseH - lowerH * 0.5);
+  ctx.lineTo(cx + baseW * 0.85, cy + baseH * 0.5 - lowerH * 0.5);
+  ctx.stroke();
+
+  // 3. Main vertical filtration column (Upper Stage)
+  const gantryY = cy - lowerH;
+  const colTopY = cy - totalH;
+
+  // Left shadow face
+  ctx.fillStyle = '#334155';
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - towerW, gantryY);
+  ctx.lineTo(cx, gantryY + towerH);
+  ctx.lineTo(cx, colTopY + towerH);
+  ctx.lineTo(cx - towerW, colTopY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Right illuminated face
+  ctx.fillStyle = '#64748b';
+  ctx.beginPath();
+  ctx.moveTo(cx, gantryY + towerH);
+  ctx.lineTo(cx + towerW, gantryY);
+  ctx.lineTo(cx + towerW, colTopY);
+  ctx.lineTo(cx, colTopY + towerH);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Vertical radiator cooling fins on right face
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 1;
+  for (let f = 0.25; f <= 0.75; f += 0.25) {
+    const rx = cx + towerW * f;
+    const ry1 = gantryY + towerH * (1 - f);
+    const ry2 = colTopY + towerH * (1 - f);
+    ctx.beginPath();
+    ctx.moveTo(rx, ry1);
+    ctx.lineTo(rx, ry2);
+    ctx.stroke();
+  }
+
+  // Vertical oxygen conduit line
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx - 2, gantryY + towerH - 2);
+  ctx.lineTo(cx - 2, colTopY + towerH - 2);
+  ctx.stroke();
+
+  // 4. Top exhaust chimney and aperture
+  // Flat cap plate
   ctx.fillStyle = '#475569';
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx - w, cy);
-  ctx.lineTo(cx, cy + halfH * 0.35);
-  ctx.lineTo(cx, cy + halfH * 0.35 - towerH);
-  ctx.lineTo(cx - w, cy - towerH);
+  ctx.moveTo(cx, colTopY - towerH * 0.9);
+  ctx.lineTo(cx + towerW * 1.1, colTopY);
+  ctx.lineTo(cx, colTopY + towerH * 0.9);
+  ctx.lineTo(cx - towerW * 1.1, colTopY);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = '#64748b';
-  ctx.beginPath();
-  ctx.moveTo(cx, cy + halfH * 0.35);
-  ctx.lineTo(cx + w, cy);
-  ctx.lineTo(cx + w, cy - towerH);
-  ctx.lineTo(cx, cy + halfH * 0.35 - towerH);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
+  // Single clean central cylindrical exhaust stack
+  const stackW = towerW * 0.65;
+  const stackH = 7;
+  const stackY = colTopY;
 
-  // Top vent cowl
-  const topY = cy - towerH;
+  // Left shadow stack face
+  ctx.fillStyle = '#334155';
+  ctx.fillRect(cx - stackW, stackY - stackH, stackW, stackH);
+
+  // Right light stack face
   ctx.fillStyle = '#94a3b8';
+  ctx.fillRect(cx, stackY - stackH, stackW, stackH);
+
+  // Dark circular exhaust vent aperture with cyan status ring
+  ctx.fillStyle = '#090d16';
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 0.8;
   ctx.beginPath();
-  ctx.ellipse(cx, topY, w, halfH * 0.25, 0, 0, Math.PI * 2);
+  ctx.ellipse(cx, stackY - stackH, stackW, 3.5, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
-  // Vent Plume effect per DESIGN.md
+  // 5. Vent Plume effect per DESIGN.md while actively producing oxygen
   if (isProducing) {
     ctx.fillStyle = 'rgba(217, 221, 224, 0.35)';
     ctx.beginPath();
-    ctx.ellipse(cx, topY - 5, w * 0.65, 3.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, stackY - stackH - 4, stackW * 0.8, 3, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = 'rgba(217, 221, 224, 0.18)';
     ctx.beginPath();
-    ctx.ellipse(cx, topY - 10, w * 0.9, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, stackY - stackH - 9, stackW * 1.2, 4.5, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 }

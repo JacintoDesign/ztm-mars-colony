@@ -1,4 +1,5 @@
 import { Colonist, ColonyState, GridCoord } from './types';
+import { CONTRACT_RULES } from './contract-rules';
 import {
   findNearestAvailableHabitat,
   findShortestRoute,
@@ -16,6 +17,7 @@ export function applySingleTick(state: ColonyState): ColonyState {
   }
 
   const nextTick = state.tick + 1;
+  const { buildings: bSpecs, arrivals, colonists: cSpecs, pools, ticksPerSol } = CONTRACT_RULES;
 
   // 1. Structure counts, capacity, and blocked obstacle tiles
   let numHabitats = 0;
@@ -33,14 +35,14 @@ export function applySingleTick(state: ColonyState): ColonyState {
     else if (b.type === 'extractor') numExtractors++;
   }
 
-  const totalHabitatCapacity = numHabitats * 2;
+  const totalHabitatCapacity = numHabitats * bSpecs.habitat.capacity;
 
   // 2. Colonist Arrivals:
   // A ship lands every 300 ticks, adding one colonist capped by total habitat capacity.
   // New colonists appear at landing zone (0, 0) and are assigned nearest available habitat with route in the same tick.
   let currentColonists = [...state.colonists];
-  if (nextTick % 300 === 0 && currentColonists.length < totalHabitatCapacity) {
-    const targetHabitat = findNearestAvailableHabitat({ x: 0, y: 0 }, state.buildings, currentColonists);
+  if (nextTick % arrivals.intervalTicks === 0 && currentColonists.length < totalHabitatCapacity) {
+    const targetHabitat = findNearestAvailableHabitat(arrivals.landingTile, state.buildings, currentColonists);
 
     let assignedDest: GridCoord | null = null;
     let initialRoute: GridCoord[] = [];
@@ -48,14 +50,14 @@ export function applySingleTick(state: ColonyState): ColonyState {
     if (targetHabitat) {
       assignedDest = { x: targetHabitat.x, y: targetHabitat.y };
       const goalTiles = getFreeAdjacentTiles(assignedDest, blockedTiles, 20);
-      initialRoute = findShortestRoute({ x: 0, y: 0 }, goalTiles, blockedTiles, 20);
+      initialRoute = findShortestRoute(arrivals.landingTile, goalTiles, blockedTiles, 20);
     }
 
     const newColonist: Colonist = {
       id: `col-${nextTick}-${currentColonists.length + 1}`,
-      x: 0,
-      y: 0,
-      health: 100,
+      x: arrivals.landingTile.x,
+      y: arrivals.landingTile.y,
+      health: cSpecs.maxHealth,
       destination: assignedDest,
       route: initialRoute,
     };
@@ -64,14 +66,17 @@ export function applySingleTick(state: ColonyState): ColonyState {
 
   // 3. Resource Production & Consumption
   // Power: solar produces 5, habitat draws 2, scrubber draws 3, extractor draws 4
-  const powerProduced = numSolars * 5;
-  const powerDrawn = numHabitats * 2 + numScrubbers * 3 + numExtractors * 4;
-  const nextPower = Math.min(100, Math.max(0, state.power + powerProduced - powerDrawn));
+  const powerProduced = numSolars * bSpecs.solar.powerProduction;
+  const powerDrawn =
+    numHabitats * bSpecs.habitat.powerDraw +
+    numScrubbers * bSpecs.scrubber.powerDraw +
+    numExtractors * bSpecs.extractor.powerDraw;
+  const nextPower = Math.min(pools.powerMax, Math.max(pools.powerMin, state.power + powerProduced - powerDrawn));
 
   // Oxygen: scrubber produces 4, each colonist consumes 3
-  const oxygenProduced = numScrubbers * 4;
-  const oxygenConsumed = currentColonists.length * 3;
-  const nextOxygen = Math.min(100, Math.max(0, state.oxygen + oxygenProduced - oxygenConsumed));
+  const oxygenProduced = numScrubbers * bSpecs.scrubber.oxygenProduction;
+  const oxygenConsumed = currentColonists.length * cSpecs.oxygenConsumptionPerTick;
+  const nextOxygen = Math.min(pools.oxygenMax, Math.max(pools.oxygenMin, state.oxygen + oxygenProduced - oxygenConsumed));
 
   // Ore & Ore Reserve: extractor produces 3 ore/tick depleting reserve toward 0
   let currentReserve = state.oreReserve;
@@ -79,7 +84,7 @@ export function applySingleTick(state: ColonyState): ColonyState {
   if (currentReserve > 0 && numExtractors > 0) {
     for (let e = 0; e < numExtractors; e++) {
       if (currentReserve <= 0) break;
-      const take = Math.min(3, currentReserve);
+      const take = Math.min(bSpecs.extractor.oreProduction, currentReserve);
       currentReserve -= take;
       oreProduced += take;
     }
@@ -156,11 +161,11 @@ export function applySingleTick(state: ColonyState): ColonyState {
   // 5. Health Rule
   // If oxygen is 0 OR power is 0 at end of tick: every colonist loses 5 health
   // Otherwise: colonists recover 1 health per tick, up to 100
-  const isStarving = nextOxygen === 0 || nextPower === 0;
+  const isStarving = nextOxygen === pools.oxygenMin || nextPower === pools.powerMin;
   const updatedHealthColonists = movedColonists.map((c) => {
     const newHealth = isStarving
-      ? Math.max(0, c.health - 5)
-      : Math.min(100, c.health + 1);
+      ? Math.max(0, c.health - cSpecs.healthDamagePerTick)
+      : Math.min(cSpecs.maxHealth, c.health + cSpecs.healthRecoveryPerTick);
     return {
       ...c,
       health: newHealth,
@@ -176,7 +181,7 @@ export function applySingleTick(state: ColonyState): ColonyState {
 
   if (hadColonists && livingColonists.length === 0) {
     nextStatus = 'game_over';
-    const solsSurvived = Math.floor(nextTick / 1000);
+    const solsSurvived = Math.floor(nextTick / ticksPerSol);
     if (solsSurvived > nextBestSols) {
       nextBestSols = solsSurvived;
     }

@@ -635,3 +635,324 @@ html, body {
   gap: 10px;
   margin-top: 6px;
 }
+
+/* Compact Resource Telemetry Panel per DESIGN.md */
+.resource-panel {
+  position: fixed;
+  top: 12px;
+  left: 404px;
+  min-width: 220px;
+  background-color: rgba(26, 14, 8, 0.94);
+  border: 1px solid #3d2417;
+  border-radius: 0;
+  padding: 10px 14px;
+  z-index: 9990;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.resource-panel-header {
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8c9ba5;
+  letter-spacing: 1px;
+  border-bottom: 1px solid #3d2417;
+  padding-bottom: 4px;
+}
+
+.resource-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.resource-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.resource-label {
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: #8c9ba5;
+  letter-spacing: 0.5px;
+}
+
+.resource-val {
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.resource-val-nominal {
+  color: #d9dde0;
+}
+
+.resource-val-warning {
+  color: #E0A030;
+}
+
+.resource-val-critical {
+  color: #D94F3D;
+}
+
+.resource-track {
+  width: 100%;
+  height: 8px;
+  background-color: #110905;
+  border: 1px solid #3d2417;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.resource-bar {
+  height: 100%;
+  border-radius: 0;
+}
+
+.resource-bar-nominal {
+  background-color: #d9dde0;
+}
+
+.resource-bar-warning {
+  background-color: #E0A030;
+}
+
+.resource-bar-critical {
+  background-color: #D94F3D;
+}
+
+/* Bottom-Right Help Button (?) Affordance */
+.help-btn {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #1a0e08;
+  border: 1px solid #3d2417;
+  border-radius: 0;
+  color: #d9dde0;
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  z-index: 9990;
+  user-select: none;
+}
+
+.help-btn:hover {
+  border-color: #5e3824;
+  background-color: #24140c;
+}
+
+.help-btn.active {
+  background-color: #2b170e;
+  border-color: #5e3824;
+  color: #d9dde0;
+}
+
+/* Help Modal Overlay per DESIGN.md */
+.help-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(26, 14, 8, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 24px;
+}
+
+.help-modal-panel {
+  width: 100%;
+  max-width: 680px;
+  max-height: 85vh;
+  background-color: #1a0e08;
+  border: 1px solid #5e3824;
+  border-radius: 0;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.help-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid #3d2417;
+  padding-bottom: 12px;
+}
+
+.help-modal-title {
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #d9dde0;
+}
+
+.help-modal-subtitle {
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #8c9ba5;
+  letter-spacing: 1px;
+  margin-top: 2px;
+}
+
+.help-modal-close-btn {
+  background-color: #1a0e08;
+  color: #8c9ba5;
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border: 1px solid #3d2417;
+  border-radius: 0;
+  cursor: pointer;
+  outline: none;
+}
+
+.help-modal-close-btn:hover {
+  border-color: #5e3824;
+  color: #d9dde0;
+  background-color: #24140c;
+}
+
+.help-modal-content {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #3d2417 #1a0e08;
+}
+
+.help-modal-content::-webkit-scrollbar {
+  width: 5px;
+}
+
+.help-modal-content::-webkit-scrollbar-track {
+  background: #1a0e08;
+}
+
+.help-modal-content::-webkit-scrollbar-thumb {
+  background: #3d2417;
+}
+
+.help-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.help-section-title {
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #d9dde0;
+  letter-spacing: 1px;
+  border-left: 2px solid #5e3824;
+  padding-left: 8px;
+}
+
+.help-section-body {
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #b8c2c8;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.help-section-body strong {
+  color: #d9dde0;
+}
+
+.help-buildings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.help-building-card {
+  background-color: #110905;
+  border: 1px solid #3d2417;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.help-building-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.help-b-name {
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #d9dde0;
+  letter-spacing: 0.5px;
+}
+
+.help-b-cost {
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #E0A030;
+}
+
+.help-b-desc {
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 12px;
+  color: #8c9ba5;
+  line-height: 1.35;
+}
+
+.help-b-specs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px solid #24140c;
+  padding-top: 6px;
+  margin-top: 2px;
+}
+
+.help-spec-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-family: 'Chakra Petch', monospace, sans-serif;
+}
+
+.spec-k {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.spec-v {
+  color: #d9dde0;
+  font-weight: 600;
+}
+

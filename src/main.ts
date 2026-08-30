@@ -2,6 +2,8 @@ import './style.css';
 import { ColonyStore } from './simulation/store';
 import { InternalReadout } from './ui/internal-readout';
 import { Toolbar } from './ui/toolbar';
+import { ResourcePanel } from './ui/resource-panel';
+import { HelpModal } from './ui/help-modal';
 import { IsometricRenderer } from './engine/renderer';
 import { AuthModal } from './ui/auth-modal';
 import { HeaderBar } from './ui/header-bar';
@@ -13,9 +15,15 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 // Initialize simulation store
 const store = new ColonyStore();
 
-// Initialize telemetry readout
+// Initialize telemetry readout and resource panel
 const readout = new InternalReadout();
 readout.update(store.getState());
+
+const resourcePanel = new ResourcePanel();
+resourcePanel.update(store.getState());
+
+// Initialize help modal
+const helpModal = new HelpModal();
 
 // Initialize building placement toolbar
 const toolbar = new Toolbar({
@@ -47,6 +55,8 @@ const renderer = new IsometricRenderer({
 (window as any).__COLONY_STORE__ = store;
 (window as any).__COLONY_RENDERER__ = renderer;
 (window as any).__COLONY_SERVICE__ = colonyService;
+(window as any).__COLONY_RESOURCE_PANEL__ = resourcePanel;
+(window as any).__COLONY_HELP_MODAL__ = helpModal;
 
 // Active session tracking & timers
 let activeUserId: string | null = null;
@@ -73,9 +83,10 @@ const gameOverModal = new GameOverModal({
   },
 });
 
-// Subscribe readout and game over screen to store updates
+// Subscribe readout, resource panel and game over screen to store updates
 store.subscribe((state) => {
   readout.update(state);
+  resourcePanel.update(state);
 
   if (state.status === 'game_over') {
     const solsSurvived = Math.floor(state.tick / 1000);
@@ -249,6 +260,9 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
     });
 
     toolbar.setStatus('Telemetry Link Nominal', 'nominal');
+
+    // Auto-open help modal on first load for this user
+    helpModal.handleUserSession(user.id);
   } catch (err: any) {
     console.error('Error initializing colony session:', err);
     toolbar.setStatus(`Colony Load Error: ${err.message}`, 'critical');

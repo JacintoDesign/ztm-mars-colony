@@ -1,3 +1,5 @@
+import { CONTRACT_RULES } from './contract-rules';
+
 export type BuildingType = 'habitat' | 'solar' | 'scrubber' | 'extractor';
 
 export interface BuildingCost {
@@ -6,10 +8,10 @@ export interface BuildingCost {
 }
 
 export const BUILDING_COSTS: Record<BuildingType, BuildingCost> = {
-  habitat: { power: 20, ore: 0 },
-  solar: { power: 15, ore: 0 },
-  scrubber: { power: 15, ore: 5 },
-  extractor: { power: 25, ore: 0 },
+  habitat: { ...CONTRACT_RULES.buildings.habitat.cost },
+  solar: { ...CONTRACT_RULES.buildings.solar.cost },
+  scrubber: { ...CONTRACT_RULES.buildings.scrubber.cost },
+  extractor: { ...CONTRACT_RULES.buildings.extractor.cost },
 };
 
 export interface Building {
