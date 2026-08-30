@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { Building, BuildingType, Colonist, ColonyState } from '../simulation/types';
 import { applyTicks } from '../simulation/tick';
+import { CONTRACT_RULES } from '../simulation/contract-rules';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface ColonyRecord {
@@ -131,7 +132,7 @@ export class ColonyService {
       const lastTickTime = new Date(colony.last_tick_at).getTime();
       const now = Date.now();
       const elapsedSeconds = Math.max(0, Math.floor((now - lastTickTime) / 1000));
-      const ticksToApply = Math.min(elapsedSeconds, 10000); // Cap at 10,000 ticks
+      const ticksToApply = Math.min(elapsedSeconds, CONTRACT_RULES.maxCatchUpTicks); // Cap at 28,800 ticks per CONTRACT.md
 
       if (ticksToApply > 0) {
         const initialState: ColonyState = {
