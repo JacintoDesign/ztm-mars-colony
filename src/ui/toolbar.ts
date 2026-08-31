@@ -26,6 +26,8 @@ export class Toolbar {
   private onRelocateExtractor?: () => void;
   private isCooldown = false;
   private isActionsPaused = false;
+  private hoveredTile: GridPoint | null = null;
+  private hoveredTileOre: number | null = null;
   public static readonly CONTAINER_ID = 'toolbar';
 
   constructor(options: ToolbarOptions) {
@@ -74,8 +76,17 @@ export class Toolbar {
     }
   }
 
-  public setHoveredTile(_coords: GridPoint | null, _oreRemaining: number | null = null): void {
-    // Grid coordinate tracking removed per UI design
+  public setHoveredTile(coords: GridPoint | null, oreRemaining: number | null = null): void {
+    this.hoveredTile = coords;
+    this.hoveredTileOre = oreRemaining;
+  }
+
+  public getHoveredTile(): GridPoint | null {
+    return this.hoveredTile;
+  }
+
+  public getHoveredTileOre(): number | null {
+    return this.hoveredTileOre;
   }
 
   public setActionsPaused(paused: boolean): void {

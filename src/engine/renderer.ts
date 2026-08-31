@@ -821,6 +821,12 @@ export class IsometricRenderer {
           );
           return;
         }
+
+        const depositOre = this.store.getTileOre(this.hoveredTile.x, this.hoveredTile.y);
+        if (depositOre > 0) {
+          this.onStatusChange(`[SURFACE] Deposit: ${depositOre} Ore`, 'nominal');
+          return;
+        }
       }
       this.onStatusChange('Nominal', 'nominal');
       return;
@@ -832,13 +838,16 @@ export class IsometricRenderer {
     }
 
     const check = this.store.checkPlacement(this.selectedTool, this.hoveredTile.x, this.hoveredTile.y);
+    const depositOre = this.store.getTileOre(this.hoveredTile.x, this.hoveredTile.y);
+    const depositPrefix = this.selectedTool === 'extractor' ? `Deposit: ${depositOre} Ore | ` : '';
+
     if (!check.canPlace) {
       const level: StatusLevel = check.reason === 'Tile Occupied' ? 'warning' : 'critical';
-      this.onStatusChange(check.reason ?? 'Placement Blocked', level);
+      this.onStatusChange(`${depositPrefix}${check.reason ?? 'Placement Blocked'}`, level);
     } else {
       const cost = check.cost;
       const costStr = cost.ore > 0 ? `${cost.power} Power, ${cost.ore} Ore` : `${cost.power} Power`;
-      this.onStatusChange(`Ready (Cost: ${costStr})`, 'nominal');
+      this.onStatusChange(`${depositPrefix}Ready (Cost: ${costStr})`, 'nominal');
     }
   }
 }

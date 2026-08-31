@@ -42,24 +42,11 @@ serve(async (req) => {
       });
     }
 
-    // Dynamic import of simulation runner logic or direct database query + tick update
-    // Fetch colony state and apply tick calculations
-    const { data: colony, error: fetchErr } = await supabase
-      .from('marscolony_colonies')
-      .select('*')
-      .eq('id', colonyId)
-      .eq('owner', user.id)
-      .single();
-
-    if (fetchErr || !colony) {
-      return new Response(JSON.stringify({ error: `Colony not found: ${fetchErr?.message}` }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    const { executeAuthoritativeTick } = await import('../_shared/simulation.ts');
+    const colonyData = await executeAuthoritativeTick(supabase, colonyId, user.id);
 
     return new Response(
-      JSON.stringify({ success: true, colonyId, tick: colony.tick }),
+      JSON.stringify({ success: true, colonyId, colonyData }),
       {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

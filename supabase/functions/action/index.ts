@@ -42,10 +42,13 @@ serve(async (req) => {
       });
     }
 
+    const { executeAuthoritativeAction } = await import('../_shared/simulation.ts');
+    const result = await executeAuthoritativeAction(supabase, colonyId, user.id, action);
+
     return new Response(
-      JSON.stringify({ success: true, colonyId, actionType: action.type }),
+      JSON.stringify(result),
       {
-        status: 200,
+        status: result.success ? 200 : 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
