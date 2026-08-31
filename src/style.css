@@ -121,17 +121,17 @@ html, body {
 
 #toolbar {
   position: fixed;
-  bottom: 12px;
+  bottom: 10px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 10px;
-  max-width: calc(100vw - 24px);
+  gap: 8px;
+  max-width: calc(100vw - 20px);
   background-color: rgba(26, 14, 8, 0.95);
   border: 1px solid #3d2417;
   border-radius: 0;
-  padding: 6px 12px;
+  padding: 4px 8px;
   z-index: 9990;
   user-select: none;
   white-space: nowrap;
@@ -140,7 +140,7 @@ html, body {
 .toolbar-group {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   white-space: nowrap;
 }
 
@@ -148,17 +148,17 @@ html, body {
 .toolbar-buttons-view {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .toolbar-dropdown-view {
   display: none;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
-/* Switch to dropdowns on narrower screens or when toolbar overflows */
-@media (max-width: 1380px) {
+/* Switch to dropdowns on narrower screens or when zoomed in */
+@media (max-width: 1580px) {
   .toolbar-buttons-view {
     display: none !important;
   }
@@ -173,9 +173,9 @@ html, body {
   border: 1px solid #3d2417;
   border-radius: 0;
   font-family: 'Chakra Petch', monospace, sans-serif;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
-  padding: 5px 8px;
+  padding: 4px 6px;
   cursor: pointer;
   outline: none;
   transition: border-color 0.15s ease, background-color 0.15s ease;
@@ -190,26 +190,18 @@ html, body {
 .toolbar-select option {
   background-color: #1a0e08;
   color: #d9dde0;
-  padding: 4px;
+  padding: 3px;
 }
 
 .toolbar-status-group {
   border-left: 1px solid #3d2417;
-  padding-left: 10px;
-  gap: 5px;
-  min-width: 140px;
-}
-
-.toolbar-coords-group {
-  border-left: 1px solid #3d2417;
-  padding-left: 10px;
-  gap: 5px;
-  min-width: 90px;
+  padding-left: 8px;
+  gap: 4px;
 }
 
 .toolbar-label {
   font-family: 'Orbitron', monospace, sans-serif;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   color: #8c9ba5;
   letter-spacing: 0.8px;
@@ -217,7 +209,7 @@ html, body {
 
 .toolbar-status-val {
   font-family: 'Chakra Petch', monospace, sans-serif;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   color: #d9dde0;
   letter-spacing: 0.3px;
@@ -236,27 +228,18 @@ html, body {
   color: #D94F3D;
 }
 
-.toolbar-coords-val {
-  font-family: 'Chakra Petch', monospace, sans-serif;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: #d9dde0;
-  letter-spacing: 0.5px;
-  display: inline-block;
-}
-
 .toolbar-btn {
   background-color: #1a0e08;
   color: #d9dde0;
   font-family: 'Chakra Petch', monospace, sans-serif;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 5px 10px;
+  padding: 4px 7px;
   border: 1px solid #3d2417;
   border-radius: 0;
   cursor: pointer;
   outline: none;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
 }
 
 .toolbar-btn:hover {

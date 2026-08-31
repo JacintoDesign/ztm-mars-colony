@@ -16,9 +16,7 @@ export interface ToolbarOptions {
 export class Toolbar {
   private container: HTMLElement;
   private currentTool: BuildingType | null = null;
-  private hoveredCoords: GridPoint | null = null;
-  private hoveredTileOre: number | null = null;
-  private currentStatus: string = 'Standby';
+  private currentStatus: string = 'Nominal';
   private currentStatusLevel: StatusLevel = 'nominal';
   private onSelectTool: (tool: BuildingType | null) => void;
   private onRefineCell?: () => void;
@@ -68,22 +66,8 @@ export class Toolbar {
     }
   }
 
-  public setHoveredTile(coords: GridPoint | null, oreRemaining: number | null = null): void {
-    this.hoveredCoords = coords;
-    this.hoveredTileOre = oreRemaining;
-    const coordsEl = this.container.querySelector<HTMLElement>('#toolbar-coords');
-    if (coordsEl) {
-      if (coords) {
-        const padX = String(coords.x).padStart(2, '0');
-        const padY = String(coords.y).padStart(2, '0');
-        const oreStr = oreRemaining !== null ? ` (ORE: ${oreRemaining})` : '';
-        coordsEl.textContent = `[${padX}, ${padY}]${oreStr}`;
-        coordsEl.classList.add('active');
-      } else {
-        coordsEl.textContent = `[--, --]`;
-        coordsEl.classList.remove('active');
-      }
-    }
+  public setHoveredTile(_coords: GridPoint | null, _oreRemaining: number | null = null): void {
+    // Grid coordinate tracking removed per UI design
   }
 
   private render(): void {
@@ -122,7 +106,7 @@ export class Toolbar {
       btn.addEventListener('click', () => {
         if (this.currentTool === tool.type) {
           this.setTool(null);
-          this.setStatus('Standby', 'nominal');
+          this.setStatus('Nominal', 'nominal');
         } else {
           this.setTool(tool.type);
         }
@@ -161,7 +145,7 @@ export class Toolbar {
         this.setTool(val);
       } else {
         this.setTool(null);
-        this.setStatus('Standby', 'nominal');
+        this.setStatus('Nominal', 'nominal');
       }
     });
 
@@ -312,30 +296,5 @@ export class Toolbar {
     statusGroup.appendChild(statusValue);
 
     this.container.appendChild(statusGroup);
-
-    // 4. Coordinate Telemetry section
-    const coordsGroup = document.createElement('div');
-    coordsGroup.className = 'toolbar-group toolbar-coords-group';
-
-    const coordsLabel = document.createElement('span');
-    coordsLabel.className = 'toolbar-label';
-    coordsLabel.textContent = 'GRID:';
-    coordsGroup.appendChild(coordsLabel);
-
-    const coordsValue = document.createElement('span');
-    coordsValue.id = 'toolbar-coords';
-    coordsValue.className = 'toolbar-coords-val';
-    if (this.hoveredCoords) {
-      const padX = String(this.hoveredCoords.x).padStart(2, '0');
-      const padY = String(this.hoveredCoords.y).padStart(2, '0');
-      const oreStr = this.hoveredTileOre !== null ? ` (ORE: ${this.hoveredTileOre})` : '';
-      coordsValue.textContent = `[${padX}, ${padY}]${oreStr}`;
-      coordsValue.classList.add('active');
-    } else {
-      coordsValue.textContent = `[--, --]`;
-    }
-    coordsGroup.appendChild(coordsValue);
-
-    this.container.appendChild(coordsGroup);
   }
 }

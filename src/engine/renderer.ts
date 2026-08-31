@@ -696,7 +696,7 @@ export class IsometricRenderer {
           return;
         }
       }
-      this.onStatusChange('Telemetry Link Nominal', 'nominal');
+      this.onStatusChange('Nominal', 'nominal');
       return;
     }
 

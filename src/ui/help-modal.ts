@@ -85,7 +85,7 @@ export class HelpModal {
   }
 
   private render(): void {
-    const { buildings, colonists, arrivals, ticksPerSol, starting, maintenance, rovers, refinery, asteroids } = CONTRACT_RULES;
+    const { buildings } = CONTRACT_RULES;
 
     this.modalOverlay.innerHTML = `
       <div class="help-modal-panel">
@@ -100,108 +100,107 @@ export class HelpModal {
         <div class="help-modal-content">
           <!-- Section 1: Survival Goal -->
           <div class="help-section">
-            <div class="help-section-title">1. SURVIVAL OBJECTIVE & LIFE SUPPORT</div>
+            <div class="help-section-title">1. SURVIVAL & LIFE SUPPORT</div>
             <div class="help-section-body">
-              <p>Maintain continuous life support on Mars. A colony starts with ${starting.oxygen} oxygen, ${starting.power} power, ${starting.food} food, and 500 ore distributed across grid deposits.</p>
-              <p>Oxygen, Power, and Food are vital pools. Max Oxygen capacity expands with your infrastructure (<strong>100 base + 25 per operational Scrubber</strong>). If <strong>Oxygen == 0 OR Power == 0 OR Food == 0</strong> at the end of a tick, colonists engage emergency suit reserves and sustain <strong>${colonists.healthDamagePerTick} health damage/tick</strong> (giving a 50-tick emergency survival window). Colonists recover <strong>${colonists.healthRecoveryPerTick} HP/tick</strong> when all 3 pools are nominal.</p>
-              <p>Colonists consume <strong>${colonists.oxygenConsumptionPerTick} O2/tick</strong> and <strong>${colonists.foodConsumptionPerTick} Food/tick</strong> each.</p>
-              <p>If all colonists perish, the mission ends (<strong>GAME OVER</strong>). Sols survived is derived directly from the tick counter (${ticksPerSol} ticks = 1 Sol).</p>
+              <p>• <strong>Starting Pool:</strong> 50 Oxygen, 50 Power, 50 Food, 500 Ore across grid deposits.</p>
+              <p>• <strong>Consumption:</strong> Each colonist consumes <strong>3 O2</strong> and <strong>2 Food</strong> per tick.</p>
+              <p>• <strong>Oxygen Storage:</strong> 100 base capacity + <strong>25 Max O2 per operational Scrubber</strong>.</p>
+              <p>• <strong>Life Support Failure:</strong> If Oxygen, Power, or Food reaches 0, colonists lose <strong>-2 HP/tick</strong> (50-tick survival window). Recovers <strong>+1 HP/tick</strong> when all pools are positive.</p>
+              <p>• <strong>Game Over:</strong> Mission terminates if all colonists perish. 1 Sol = 1,000 ticks.</p>
             </div>
           </div>
 
           <!-- Section 2: Building Specs & Costs -->
           <div class="help-section">
-            <div class="help-section-title">2. STRUCTURE COSTS & OPERATIONAL EFFECTS</div>
+            <div class="help-section-title">2. STRUCTURES & COSTS</div>
             <div class="help-buildings-grid">
               
               <div class="help-building-card">
                 <div class="help-building-header">
                   <span class="help-b-name">${buildings.habitat.name.toUpperCase()}</span>
-                  <span class="help-b-cost">COST: ${buildings.habitat.cost.power} PWR</span>
+                  <span class="help-b-cost">${buildings.habitat.cost.power} PWR</span>
                 </div>
-                <div class="help-b-desc">${buildings.habitat.description}</div>
+                <div class="help-b-desc">Houses 2 colonists.</div>
                 <div class="help-b-specs">
-                  <div class="help-spec-line"><span class="spec-k">CAPACITY:</span> <span class="spec-v">${buildings.habitat.capacity} Colonists</span></div>
-                  <div class="help-spec-line"><span class="spec-k">POWER DRAW:</span> <span class="spec-v">-${buildings.habitat.powerDraw} PWR / tick</span></div>
-                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">${buildings.habitat.repairLabor} Colonist, ${buildings.habitat.repairElectronics} Electronics</span></div>
+                  <div class="help-spec-line"><span class="spec-k">DRAW:</span> <span class="spec-v">-${buildings.habitat.powerDraw} PWR/tick</span></div>
+                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">1 Colonist, 1 Electronics (50t)</span></div>
                 </div>
               </div>
 
               <div class="help-building-card">
                 <div class="help-building-header">
                   <span class="help-b-name">${buildings.solar.name.toUpperCase()}</span>
-                  <span class="help-b-cost">COST: ${buildings.solar.cost.power} PWR</span>
+                  <span class="help-b-cost">${buildings.solar.cost.power} PWR</span>
                 </div>
-                <div class="help-b-desc">${buildings.solar.description}</div>
+                <div class="help-b-desc">Generates solar electricity.</div>
                 <div class="help-b-specs">
-                  <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.solar.powerProduction} PWR / tick</span></div>
-                  <div class="help-spec-line"><span class="spec-k">POWER DRAW:</span> <span class="spec-v">${buildings.solar.powerDraw} PWR / tick</span></div>
-                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">${buildings.solar.repairLabor} Colonist, ${buildings.solar.repairElectronics} Electronics</span></div>
+                  <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.solar.powerProduction} PWR/tick</span></div>
+                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">1 Colonist, 1 Electronics (50t)</span></div>
                 </div>
               </div>
 
               <div class="help-building-card">
                 <div class="help-building-header">
                   <span class="help-b-name">${buildings.scrubber.name.toUpperCase()}</span>
-                  <span class="help-b-cost">COST: ${buildings.scrubber.cost.power} PWR, ${buildings.scrubber.cost.ore} ORE</span>
+                  <span class="help-b-cost">${buildings.scrubber.cost.power} PWR, ${buildings.scrubber.cost.ore} ORE</span>
                 </div>
-                <div class="help-b-desc">${buildings.scrubber.description}</div>
+                <div class="help-b-desc">Filters atmospheric CO2 into O2.</div>
                 <div class="help-b-specs">
-                  <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.scrubber.oxygenProduction} O2 / tick (+25 Max Capacity)</span></div>
-                  <div class="help-spec-line"><span class="spec-k">POWER DRAW:</span> <span class="spec-v">-${buildings.scrubber.powerDraw} PWR / tick</span></div>
-                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">${buildings.scrubber.repairLabor} Colonist, ${buildings.scrubber.repairElectronics} Electronics (30 Ticks)</span></div>
+                  <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.scrubber.oxygenProduction} O2/tick (+25 Cap)</span></div>
+                  <div class="help-spec-line"><span class="spec-k">DRAW:</span> <span class="spec-v">-${buildings.scrubber.powerDraw} PWR/tick</span></div>
+                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">1 Colonist, 1 Electronics (30t)</span></div>
                 </div>
               </div>
 
               <div class="help-building-card">
                 <div class="help-building-header">
                   <span class="help-b-name">${buildings.farm.name.toUpperCase()}</span>
-                  <span class="help-b-cost">COST: ${buildings.farm.cost.power} PWR, ${buildings.farm.cost.ore} ORE</span>
+                  <span class="help-b-cost">${buildings.farm.cost.power} PWR, ${buildings.farm.cost.ore} ORE</span>
                 </div>
-                <div class="help-b-desc">${buildings.farm.description}</div>
+                <div class="help-b-desc">Cultivates nutritious crops.</div>
                 <div class="help-b-specs">
-                  <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.farm.foodProduction} Food / tick</span></div>
-                  <div class="help-spec-line"><span class="spec-k">POWER DRAW:</span> <span class="spec-v">-${buildings.farm.powerDraw} PWR / tick</span></div>
-                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">${buildings.farm.repairLabor} Colonist, ${buildings.farm.repairElectronics} Electronics</span></div>
+                  <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.farm.foodProduction} Food/tick</span></div>
+                  <div class="help-spec-line"><span class="spec-k">DRAW:</span> <span class="spec-v">-${buildings.farm.powerDraw} PWR/tick</span></div>
+                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">1 Colonist, 1 Electronics (50t)</span></div>
                 </div>
               </div>
 
               <div class="help-building-card">
                 <div class="help-building-header">
                   <span class="help-b-name">${buildings.extractor.name.toUpperCase()}</span>
-                  <span class="help-b-cost">COST: ${buildings.extractor.cost.power} PWR</span>
+                  <span class="help-b-cost">${buildings.extractor.cost.power} PWR</span>
                 </div>
-                <div class="help-b-desc">${buildings.extractor.description}</div>
+                <div class="help-b-desc">Mines local tile ore deposit.</div>
                 <div class="help-b-specs">
-                  <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.extractor.oreProduction} ORE / tick (from local tile deposit)</span></div>
-                  <div class="help-spec-line"><span class="spec-k">POWER DRAW:</span> <span class="spec-v">-${buildings.extractor.powerDraw} PWR / tick</span></div>
-                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">${buildings.extractor.repairLabor} Colonists, ${buildings.extractor.repairElectronics} Electronics</span></div>
+                  <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.extractor.oreProduction} Ore/tick</span></div>
+                  <div class="help-spec-line"><span class="spec-k">DRAW:</span> <span class="spec-v">-${buildings.extractor.powerDraw} PWR/tick (0 if OFF)</span></div>
+                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">2 Colonists, 2 Electronics (50t)</span></div>
                 </div>
               </div>
 
               <div class="help-building-card">
                 <div class="help-building-header">
                   <span class="help-b-name">${buildings.garage.name.toUpperCase()}</span>
-                  <span class="help-b-cost">COST: ${buildings.garage.cost.power} PWR, ${buildings.garage.cost.ore} ORE</span>
+                  <span class="help-b-cost">${buildings.garage.cost.power} PWR, ${buildings.garage.cost.ore} ORE</span>
                 </div>
-                <div class="help-b-desc">${buildings.garage.description}</div>
+                <div class="help-b-desc">Houses up to 2 surface rovers.</div>
                 <div class="help-b-specs">
-                  <div class="help-spec-line"><span class="spec-k">CAPACITY:</span> <span class="spec-v">${rovers.maxRoversPerGarage} Surface Rovers</span></div>
-                  <div class="help-spec-line"><span class="spec-k">POWER DRAW:</span> <span class="spec-v">-${buildings.garage.powerDraw} PWR / tick</span></div>
-                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">${buildings.garage.repairLabor} Colonists, ${buildings.garage.repairElectronics} Electronics</span></div>
+                  <div class="help-spec-line"><span class="spec-k">CAPACITY:</span> <span class="spec-v">2 Surface Rovers</span></div>
+                  <div class="help-spec-line"><span class="spec-k">DRAW:</span> <span class="spec-v">-${buildings.garage.powerDraw} PWR/tick</span></div>
+                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">2 Colonists, 2 Electronics (50t)</span></div>
                 </div>
               </div>
 
               <div class="help-building-card">
                 <div class="help-building-header">
                   <span class="help-b-name">${buildings.refinery.name.toUpperCase()}</span>
-                  <span class="help-b-cost">COST: ${buildings.refinery.cost.power} PWR, ${buildings.refinery.cost.ore} ORE</span>
+                  <span class="help-b-cost">${buildings.refinery.cost.power} PWR, ${buildings.refinery.cost.ore} ORE</span>
                 </div>
-                <div class="help-b-desc">${buildings.refinery.description}</div>
+                <div class="help-b-desc">Refines 10 Ore into 1 Battery Cell.</div>
                 <div class="help-b-specs">
-                  <div class="help-spec-line"><span class="spec-k">CAPACITY:</span> <span class="spec-v">${refinery.maxCellCapacity} Battery Cells</span></div>
-                  <div class="help-spec-line"><span class="spec-k">POWER DRAW:</span> <span class="spec-v">-${buildings.refinery.powerDraw} PWR / tick</span></div>
-                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">${buildings.refinery.repairLabor} Colonists, ${buildings.refinery.repairElectronics} Electronics</span></div>
+                  <div class="help-spec-line"><span class="spec-k">CAPACITY:</span> <span class="spec-v">20 Stored Cells</span></div>
+                  <div class="help-spec-line"><span class="spec-k">DRAW:</span> <span class="spec-v">-${buildings.refinery.powerDraw} PWR/tick</span></div>
+                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">2 Colonists, 2 Electronics (50t)</span></div>
                 </div>
               </div>
 
@@ -210,46 +209,46 @@ export class HelpModal {
 
           <!-- Section 3: Maintenance & Weather -->
           <div class="help-section">
-            <div class="help-section-title">3. BUILDING CONDITION, WEATHER & REPAIRS</div>
+            <div class="help-section-title">3. MAINTENANCE & WEATHER</div>
             <div class="help-section-body">
-              <p>Operational buildings have a <strong>1-in-15,000 chance per tick</strong> of suffering a mechanical failure (<strong>broken</strong>). Broken structures produce and draw nothing until repaired (${maintenance.repairDurationTicks} consecutive ticks on-site with required colonists and electronics).</p>
-              <p>Every <strong>${maintenance.dustStormWindowTicks} ticks</strong>, Martian dust storms roll in (<strong>20% probability</strong>), burying up to 3 structures. Buried buildings require <strong>1 colonist for ${maintenance.digOutDurationTicks} ticks to dig out (zero resource cost)</strong> before they can resume operation or be repaired.</p>
+              <p>• <strong>Breakage:</strong> 1-in-15,000 tick chance. Broken buildings produce/draw 0 until repaired by adjacent colonist labor + Electronics (Scrubbers: 30t; Others: 50t).</p>
+              <p>• <strong>Dust Storms:</strong> 20% chance every 5,000 ticks, burying up to 3 buildings. Requires 100 ticks adjacent colonist digging (0 resource cost).</p>
             </div>
           </div>
 
           <!-- Section 4: Colonist Aging -->
           <div class="help-section">
-            <div class="help-section-title">4. COLONIST LIFESPAN & AGING</div>
+            <div class="help-section-title">4. COLONIST LIFESPAN</div>
             <div class="help-section-body">
-              <p>Each colonist has an individual seeded lifespan between <strong>${colonists.minLifespanTicks.toLocaleString()} and ${colonists.maxLifespanTicks.toLocaleString()} ticks</strong> (12–18 Sols). Colonists show visibly greyed hair past 75% of their lifespan and perish of natural old age upon reaching their lifespan ceiling.</p>
+              <p>• Colonists have individual lifespans between 12,000–18,000 ticks (12–18 Sols) and age out naturally.</p>
             </div>
           </div>
 
           <!-- Section 5: Escorted Arrivals & Electronics -->
           <div class="help-section">
-            <div class="help-section-title">5. ESCORTED SHIP ARRIVALS & ELECTRONICS</div>
+            <div class="help-section-title">5. ARRIVALS & ELECTRONICS</div>
             <div class="help-section-body">
-              <p>Transport ships land every <strong>${arrivals.intervalTicks} ticks</strong> delivering 1 colonist and <strong>${arrivals.electronicsPerShip} Electronics</strong> to landing zone (0, 0).</p>
-              <p>A rover must be dispatched to escort the arrival within a <strong>${arrivals.escortWindowTicks}-tick window</strong>. If unescorted, the arrival is permanently lost.</p>
+              <p>• Ships land at (0, 0) every 300 ticks delivering 1 colonist + 2 Electronics (if habitat capacity allows).</p>
+              <p>• Dispatch a rover escort within 150 ticks to rescue the arrival, or they are lost.</p>
             </div>
           </div>
 
-          <!-- Section 6: Rovers, Batteries & Asteroids -->
+          <!-- Section 6: Rovers & Batteries -->
           <div class="help-section">
-            <div class="help-section-title">6. ROVERS, REFINERY & ASTEROIDS</div>
+            <div class="help-section-title">6. ROVERS & MINING</div>
             <div class="help-section-body">
-              <p>Rovers travel at <strong>${rovers.speedTilesPerTick} tiles/tick</strong> and consume <strong>${rovers.powerDrainPerTick} PWR/tick</strong> on missions. Dispatching a rover fuels it to full charge using <strong>1 Battery Cell</strong> (refined at the Refinery for ${refinery.oreCostPerCell} ore).</p>
-              <p>Stored battery cells decay by <strong>-1 efficiency/tick</strong>. Active asteroids spawn periodically (~${asteroids.spawnWindowTicks} ticks) for ${asteroids.lifetimeTicks} ticks with rich ore deposits accessible by rover dispatch.</p>
+              <p>• Rovers travel at 1 tile/tick, draining 1.5 PWR/tick. Dispatch fuels rover to full charge using 1 Battery Cell.</p>
+              <p>• Stored battery cells decay at -1 efficiency/tick. Rovers harvest distant mining sites and timed asteroid strikes.</p>
             </div>
           </div>
 
           <!-- Section 7: Spacing Buffers & Structure Management -->
           <div class="help-section">
-            <div class="help-section-title">7. COLONY SPACING & STRUCTURE CONTROLS</div>
+            <div class="help-section-title">7. SPACING & CONTROLS</div>
             <div class="help-section-body">
-              <p><strong>Colony Spacing & Buffer Zones:</strong> Industrial structures generate heat and dust interference when clumped tightly together. Structures with <strong>&le; 1 adjacent orthogonal neighbor</strong> operate at <strong>100% full capacity</strong>. Overcrowded buildings (&ge; 2 neighbors) suffer a <strong>-1 resource output penalty</strong> per additional neighbor. Spreading out your colony with walkways and open buffers maximizes total resource yields.</p>
-              <p><strong>Extractor Power & Relocation:</strong> Dry extractors continue to draw power unless deactivated. Select an extractor and click <strong>Toggle Power</strong> to put it on standby (0 PWR draw). Click <strong>Move Extractor (10 Power)</strong> to relocate the machine to a fresh ore deposit on the grid.</p>
-              <p><strong>Automated Repairs & Digging:</strong> Idle colonists automatically pathfind adjacent to broken structures or dust storm mounds and perform on-site labor (50 ticks + electronics for repairs; 100 ticks for digging out).</p>
+              <p>• <strong>Spacing:</strong> Buildings with &le; 1 adjacent neighbor run at 100% output. Overcrowded buildings (&ge; 2 neighbors) suffer -1 output per extra neighbor.</p>
+              <p>• <strong>Extractor Controls:</strong> Click <strong>Toggle Power</strong> to deactivate dry extractors (0 PWR draw). Click <strong>Move Extractor (10 PWR)</strong> to relocate to new deposits.</p>
+              <p>• <strong>Automated Labor:</strong> Idle colonists automatically pathfind adjacent to broken/buried structures to perform repairs or dig-outs.</p>
             </div>
           </div>
         </div>
