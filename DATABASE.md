@@ -34,12 +34,12 @@ This database is shared by two unrelated applications.
   colonists table's shape: a small but individually-tracked set of
   entities, each with its own state machine and position.
 - Battery cells, mining sites, the active asteroid, and the seed
-  itself stay as JSONB columns on `marscolony_state`. None of them
+  itself stay as JSONB columns on `marscolony_colonies`. None of them
   need row-level access on their own — mining sites are three fixed
   values set once, the active asteroid is at most one value that's
   usually null, battery cells are a small bounded array whose only
   behavior is a shared decay rule. A table earns its place by having
   rows that get queried or mutated independently; none of these do.
-- `pendingArrivals` stays JSONB on `marscolony_state` too, for the
+- `pendingArrivals` stays JSONB on `marscolony_colonies` too, for the
   same reason — it's small, short-lived, and nothing about it needs
   independent row access the way a building or a colonist does.

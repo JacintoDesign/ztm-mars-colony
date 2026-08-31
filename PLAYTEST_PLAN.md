@@ -105,7 +105,7 @@ Given: 1 habitat, 1 colonist, no farm, food 10, oxygen 100, power
        100, colonist health 100.
 When:  the simulation runs 10 ticks.
 Then:  - food reaches 0 by tick 5 (2 food/tick, 1 colonist)
-       - colonist health drops 5/tick from tick 5 on, despite
+       - colonist health drops 2/tick from tick 5 on, despite
          oxygen and power both remaining at 100 throughout
        - this confirms food alone can trigger the health rule
 
@@ -118,17 +118,17 @@ When:  the simulation runs 60 ticks.
 Then:  - the scrubber produces 0 oxygen while broken
        - the nearest idle colonist is auto-assigned to repair it,
          with no player action directing that assignment
-       - after 50 consecutive ticks of presence and 1 electronics
-         deducted, the scrubber returns to operational and resumes
+       - after 30 consecutive ticks of presence (50 ticks for non-scrubber structures)
+         and 1 electronics deducted, the scrubber returns to operational and resumes
          production
 
 ## Scenario 14: Repair does not proceed without enough electronics
 Given: 1 broken extractor (requires 2 electronics), electronics
        stockpile at 1, 2 idle colonists nearby.
 When:  the simulation runs 200 ticks.
-Then:  - both colonists are assigned to the tile and remain there
-       - the extractor stays broken; electronics stockpile stays
-         at 1
+Then:  - the extractor stays broken; electronics stockpile stays at 1
+       - idle colonists are not dispatched to repair until the colony
+         has the required 2 electronics available
        - repair completes only once electronics reach 2 or more,
          confirmed in a second run seeded with 2 electronics
 
@@ -212,7 +212,7 @@ Then:  - the rover's state moves through traveling_out, on_site,
          traveling_back in that order
        - the ore stockpile increases by the site's yield once the
          rover returns to base
-       - rover power has dropped by 2/tick for the entire round
+       - rover power has dropped by 1.5/tick for the entire round
          trip, mining included
 
 ## Scenario 22: A stranded rover is recovered by a colonist

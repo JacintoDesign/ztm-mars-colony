@@ -50,7 +50,7 @@
 - Ore is not a single global reserve. At colony creation, the seeded generator distributes 500 ore total across roughly 15–25 grid tiles, unevenly — most tiles hold nothing, a handful hold a meaningful amount, and at least one holds as little as 1. Distribution is fixed for the colony's lifetime, generated once, never regenerated
 - An extractor placed on a tile mines only that tile's own deposit, at 3 ore/tick, until it reaches 0. It does not draw from any other tile
 - Once a tile's deposit is exhausted, an extractor there produces 0 ore/tick permanently. It still draws power unless deactivated by the player.
-- **Extractor Deactivation & Relocation**: Players can select an extractor and toggle its power state (deactivated: 0 PWR draw). Players can also relocate an extractor to another available ore tile on the grid for 10 Power.
+- **Structure Deactivation & Relocation**: Players can select a structure (such as an extractor) and toggle its power state (deactivated: 0 PWR draw, 0 production). Players can also relocate a structure to another available tile on the grid for 10 Power.
 - The three mining sites below are the largest individual deposits in this same 500-total pool, deliberately placed far from the landing zone
 
 ### Food
@@ -62,9 +62,9 @@
 - Every building has a condition: operational, broken, buried, or deactivated
 - Each tick, each operational building has a small seeded chance of becoming broken — 1-in-15,000 per building per tick. At 5 buildings (roughly where an early colony sits) that's an expected break every 3,000 ticks; at 28 buildings (a mature, fully-built colony) it's every 535 ticks. Maintenance load scales with how much you've built, on purpose — it's the direct answer to "build enough and stop worrying"
 - A broken building produces and draws nothing until repaired
-- Repair requires a fixed number of colonists present adjacent to or on the building's tile for 50 consecutive ticks (30 ticks for scrubbers), plus an electronics cost — 1 colonist and 1 electronics for habitat, solar, scrubber, and farm; 2 colonists and 2 electronics for extractor, garage, and refinery
+- Repair requires colonist labor presence adjacent to or on the building's tile for 50 ticks of labor (30 ticks for scrubbers), plus an electronics cost deducted upon completion — 1 electronics for habitat, solar, scrubber, and farm; 2 electronics for extractor, garage, and refinery
 - Repair labor and repair material come from different places on purpose. Colonists are locally renewable — arrivals, if you keep the pipeline running. Electronics are not — the colony cannot manufacture them, only receive them, which is what makes ship traffic worth the escort risk rather than a formality
-- The tick function assigns the nearest idle colonists to a broken building automatically, the same way it assigns new arrivals to a habitat. The player places buildings; the player does not hand-direct repair labor
+- The tick function assigns the nearest idle colonists to a broken building automatically once the colony has sufficient electronics in its stockpile. The player places buildings; the player does not hand-direct repair labor
 - A buried building (see Weather) cannot be repaired until it is dug out first
 
 ### Weather

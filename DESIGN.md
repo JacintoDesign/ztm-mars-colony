@@ -86,6 +86,20 @@ All seven must read as distinct from one another at a glance.
 
 Panels and the toolbar are plain text DOM elements rendered alongside or over the HTML5 2D Canvas viewport. The toolbar uses the accent color (`#7fd4e0`) only for the active selection, with all other items rendered in plain text color (`#d9dde0`). There are no heavy styled buttons, gradients, or modal dialogues.
 
+### Header Bar & Guest Account Upgrade
+
+A compact telemetry status bar in the top-right displays the current session uplink (`GUEST [id]` or operator email). For anonymous guest uplinks, an `UPGRADE ACCOUNT` affordance opens a flat modal dialogue allowing operators to attach permanent email credentials and password to their colony without losing current state.
+
+### Viewport Navigation (Pinch-to-Zoom & Pan)
+
+The 2D Canvas supports multi-touch pinch-to-zoom (1.0x to 3.5x scale) and pan offset navigation on touch devices, as well as mouse wheel zooming, maintaining crisp pixel grid alignment.
+
+### Toolbar, Actions & Cooldown Bar
+
+- **Building Selection**: Grid of 7 structure tools, collapsing into a custom telemetry dropdown on narrow screens.
+- **Colony Actions**: Dedicated dispatch buttons for `Refine Cell (10 Ore)`, `Dispatch Escort`, `Dispatch Mining`, `Toggle Power`, and `Move Extractor (10P)`.
+- **Action Rate-Limiting**: A subtle 600ms horizontal cooldown progress bar along the toolbar top edge throttles rapid dispatch inputs.
+
 ## Life Support Telemetry
 
 The styled, player-facing counterpart to the diagnostic panel — everything the diagnostic panel shows, except signed-in account and colony owner. Full parity, not a subset: tick, oxygen, power, food, ore, electronics, colonist health and age, building condition, pending arrivals, rover and battery status all appear here, in whatever form each already takes in the diagnostic panel.
