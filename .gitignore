@@ -37,6 +37,7 @@ out/
 build/
 .next/
 .turbo/
+.vercel/
 
 # Optional npm cache directory
 .npm
