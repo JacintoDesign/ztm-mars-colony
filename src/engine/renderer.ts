@@ -41,6 +41,18 @@ export class IsometricRenderer {
   private animationFrameId: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
 
+  // Zoom and Pan Navigation for Mobile and Desktop
+  private zoomLevel: number = 1.0;
+  private panOffsetX: number = 0;
+  private panOffsetY: number = 0;
+  private touchStartDistance: number = 0;
+  private touchStartZoom: number = 1.0;
+  private touchStartX: number = 0;
+  private touchStartY: number = 0;
+  private touchStartPanX: number = 0;
+  private touchStartPanY: number = 0;
+  private hasMovedSignificantly: boolean = false;
+
   constructor(options: RendererOptions) {
     this.canvas = options.canvas;
     const ctx = this.canvas.getContext('2d');
@@ -66,6 +78,10 @@ export class IsometricRenderer {
     this.handleMouseMove = this.handleMouseMove.bind(this);
     this.handleMouseLeave = this.handleMouseLeave.bind(this);
     this.handleClick = this.handleClick.bind(this);
+    this.handleTouchStart = this.handleTouchStart.bind(this);
+    this.handleTouchMove = this.handleTouchMove.bind(this);
+    this.handleTouchEnd = this.handleTouchEnd.bind(this);
+    this.handleWheel = this.handleWheel.bind(this);
     this.render = this.render.bind(this);
 
     this.setupEvents();
@@ -77,6 +93,26 @@ export class IsometricRenderer {
     this.requestRender();
 
     requestAnimationFrame(() => this.handleResize());
+  }
+
+  public getZoomLevel(): number {
+    return this.zoomLevel;
+  }
+
+  public setZoomLevel(zoom: number): void {
+    this.zoomLevel = Math.max(1.0, Math.min(3.5, zoom));
+    if (this.zoomLevel === 1.0) {
+      this.panOffsetX = 0;
+      this.panOffsetY = 0;
+    }
+    this.handleResize();
+  }
+
+  public resetZoomAndPan(): void {
+    this.zoomLevel = 1.0;
+    this.panOffsetX = 0;
+    this.panOffsetY = 0;
+    this.handleResize();
   }
 
   public setSelectedTool(tool: BuildingType | null): void {
@@ -149,6 +185,11 @@ export class IsometricRenderer {
     this.canvas.removeEventListener('mousemove', this.handleMouseMove);
     this.canvas.removeEventListener('mouseleave', this.handleMouseLeave);
     this.canvas.removeEventListener('click', this.handleClick);
+    this.canvas.removeEventListener('touchstart', this.handleTouchStart);
+    this.canvas.removeEventListener('touchmove', this.handleTouchMove);
+    this.canvas.removeEventListener('touchend', this.handleTouchEnd);
+    this.canvas.removeEventListener('touchcancel', this.handleTouchEnd);
+    this.canvas.removeEventListener('wheel', this.handleWheel);
   }
 
   private setupEvents(): void {
@@ -156,6 +197,11 @@ export class IsometricRenderer {
     this.canvas.addEventListener('mousemove', this.handleMouseMove);
     this.canvas.addEventListener('mouseleave', this.handleMouseLeave);
     this.canvas.addEventListener('click', this.handleClick);
+    this.canvas.addEventListener('touchstart', this.handleTouchStart, { passive: false });
+    this.canvas.addEventListener('touchmove', this.handleTouchMove, { passive: false });
+    this.canvas.addEventListener('touchend', this.handleTouchEnd, { passive: false });
+    this.canvas.addEventListener('touchcancel', this.handleTouchEnd, { passive: false });
+    this.canvas.addEventListener('wheel', this.handleWheel, { passive: false });
 
     if (window.ResizeObserver) {
       this.resizeObserver = new ResizeObserver(() => {
@@ -169,7 +215,85 @@ export class IsometricRenderer {
     }
   }
 
-  private handleResize(): void {
+  private handleWheel(e: WheelEvent): void {
+    e.preventDefault();
+    const zoomDelta = -e.deltaY * 0.0025;
+    const prevZoom = this.zoomLevel;
+    this.zoomLevel = Math.max(1.0, Math.min(3.5, this.zoomLevel + zoomDelta));
+    if (this.zoomLevel === 1.0) {
+      this.panOffsetX = 0;
+      this.panOffsetY = 0;
+    } else if (prevZoom !== this.zoomLevel) {
+      const ratio = this.zoomLevel / prevZoom;
+      this.panOffsetX *= ratio;
+      this.panOffsetY *= ratio;
+    }
+    this.handleResize();
+  }
+
+  private handleTouchStart(e: TouchEvent): void {
+    if (e.touches.length === 1) {
+      this.touchStartX = e.touches[0].clientX;
+      this.touchStartY = e.touches[0].clientY;
+      this.touchStartPanX = this.panOffsetX;
+      this.touchStartPanY = this.panOffsetY;
+      this.hasMovedSignificantly = false;
+    } else if (e.touches.length === 2) {
+      e.preventDefault();
+      const d = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      this.touchStartDistance = d;
+      this.touchStartZoom = this.zoomLevel;
+      this.touchStartPanX = this.panOffsetX;
+      this.touchStartPanY = this.panOffsetY;
+      this.hasMovedSignificantly = true;
+    }
+  }
+
+  private handleTouchMove(e: TouchEvent): void {
+    if (e.touches.length === 1) {
+      const dx = e.touches[0].clientX - this.touchStartX;
+      const dy = e.touches[0].clientY - this.touchStartY;
+      if (Math.hypot(dx, dy) > 8) {
+        this.hasMovedSignificantly = true;
+      }
+      if (this.hasMovedSignificantly || this.zoomLevel > 1.05) {
+        e.preventDefault();
+        this.panOffsetX = this.touchStartPanX + dx;
+        this.panOffsetY = this.touchStartPanY + dy;
+        this.handleResize();
+      }
+    } else if (e.touches.length === 2) {
+      e.preventDefault();
+      const d = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      if (this.touchStartDistance > 0) {
+        const scaleRatio = d / this.touchStartDistance;
+        this.zoomLevel = Math.max(1.0, Math.min(3.5, this.touchStartZoom * scaleRatio));
+        this.hasMovedSignificantly = true;
+        this.handleResize();
+      }
+    }
+  }
+
+  private handleTouchEnd(e: TouchEvent): void {
+    if (!this.hasMovedSignificantly && e.changedTouches.length > 0) {
+      const touch = e.changedTouches[0];
+      const rect = this.canvas.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      const tile = screenToGrid(x, y, this.config);
+      if (tile) {
+        this.handleTileAction(tile);
+      }
+    }
+  }
+
+  public handleResize(): void {
     const width = Math.max(window.innerWidth, document.documentElement.clientWidth || 0);
     const height = Math.max(window.innerHeight, document.documentElement.clientHeight || 0);
 
@@ -185,21 +309,23 @@ export class IsometricRenderer {
     const totalW = this.config.gridSize * baseTileW; // 1280
     const totalH = this.config.gridSize * baseTileH; // 640
 
-    // Leave margin for header (64px) and toolbar (64px)
-    const topMargin = 64;
-    const bottomMargin = 64;
-    const availableW = Math.max(300, width - 32);
-    const availableH = Math.max(300, height - topMargin - bottomMargin);
-    const scale = Math.max(0.5, Math.min(availableW / totalW, availableH / (totalH + 40)));
+    // On mobile, headers/telemetry can take more vertical space
+    const topMargin = width <= 680 ? 120 : 64;
+    const bottomMargin = width <= 680 ? 100 : 64;
+    const availableW = Math.max(200, width - 16);
+    const availableH = Math.max(200, height - topMargin - bottomMargin);
+    const baseScale = Math.max(0.35, Math.min(availableW / totalW, availableH / (totalH + 40)));
+    const effectiveScale = baseScale * this.zoomLevel;
 
-    const tileW = Math.floor(baseTileW * scale);
-    const tileH = Math.floor(baseTileH * scale);
+    const tileW = Math.floor(baseTileW * effectiveScale);
+    const tileH = Math.floor(baseTileH * effectiveScale);
     this.config.tileWidth = tileW;
     this.config.tileHeight = tileH;
 
-    this.config.originX = Math.floor(width / 2);
+    this.config.originX = Math.floor(width / 2) + this.panOffsetX;
     const totalGridH = this.config.gridSize * tileH;
-    this.config.originY = Math.max(10, Math.floor(topMargin + (availableH - totalGridH) / 2));
+    const baseOriginY = Math.max(10, Math.floor(topMargin + (availableH - totalGridH) / 2));
+    this.config.originY = baseOriginY + this.panOffsetY;
 
     this.render();
   }
@@ -241,11 +367,11 @@ export class IsometricRenderer {
   private handleClick(e: MouseEvent): void {
     const { x, y } = this.getCanvasCoords(e);
     const tile = screenToGrid(x, y, this.config);
+    if (!tile) return;
+    this.handleTileAction(tile);
+  }
 
-    if (!tile) {
-      return;
-    }
-
+  private handleTileAction(tile: GridPoint): void {
     // 1. Relocation Mode Active
     if (this.relocatingBuildingId) {
       const result = this.store.dispatch({

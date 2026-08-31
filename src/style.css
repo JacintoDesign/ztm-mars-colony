@@ -1103,4 +1103,187 @@ body:not(:has(#internal-readout)) .resource-panel {
   gap: 2px;
 }
 
+/* ==========================================================================
+   Mobile Responsive Layout (max-width: 680px)
+   ========================================================================== */
+@media (max-width: 680px) {
+  /* Header Bar */
+  .header-bar {
+    top: 6px;
+    left: 6px;
+    right: 42px; /* Leaves room for help button (?) at top right */
+    padding: 4px 8px;
+    gap: 6px;
+    justify-content: space-between;
+  }
+
+  .header-user-badge {
+    font-size: 11px;
+    gap: 4px;
+  }
+
+  .header-badge-label {
+    font-size: 9.5px;
+  }
+
+  .header-badge-user {
+    font-size: 10.5px;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .header-btn {
+    font-size: 10px;
+    padding: 3px 6px;
+    letter-spacing: 0.2px;
+  }
+
+  /* Help Affordance Button */
+  .help-btn {
+    top: 6px;
+    right: 6px;
+    bottom: auto;
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+
+  /* Life Support Telemetry Panel */
+  .resource-panel {
+    top: 42px;
+    left: 6px !important;
+    right: 6px;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    padding: 5px 8px;
+    gap: 3px;
+  }
+
+  .resource-panel-header {
+    padding-bottom: 2px;
+    font-size: 9px;
+    gap: 6px;
+  }
+
+  .resource-header-title {
+    font-size: 8.5px;
+  }
+
+  .resource-header-telemetry {
+    font-size: 9.5px;
+  }
+
+  .resource-row {
+    gap: 1px;
+  }
+
+  .resource-label {
+    font-size: 9px;
+  }
+
+  .resource-val {
+    font-size: 10.5px;
+  }
+
+  .resource-track {
+    height: 4px;
+  }
+
+  .telemetry-stockpiles {
+    font-size: 9.5px;
+    gap: 2px 6px;
+    margin-top: 1px;
+  }
+
+  /* Hide debug panel on narrow mobile phones */
+  #internal-readout {
+    display: none !important;
+  }
+
+  /* Bottom Toolbar */
+  #toolbar {
+    bottom: 6px;
+    left: 6px;
+    right: 6px;
+    transform: none;
+    width: auto;
+    max-width: none;
+    flex-direction: column;
+    gap: 4px;
+    padding: 5px 8px;
+    align-items: stretch;
+  }
+
+  .toolbar-group {
+    width: 100%;
+  }
+
+  .toolbar-actions-group {
+    border-left: none;
+    padding-left: 0;
+  }
+
+  .toolbar-dropdown-view {
+    display: flex !important;
+    width: 100%;
+  }
+
+  .toolbar-buttons-view {
+    display: none !important;
+  }
+
+  .toolbar-select {
+    width: 100%;
+    flex: 1;
+    font-size: 11px;
+    padding: 4px 6px;
+  }
+
+  .toolbar-status-group {
+    border-left: none;
+    padding-left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #3d2417;
+    padding-top: 3px;
+  }
+
+  .toolbar-label {
+    font-size: 9.5px;
+  }
+
+  .toolbar-status-val {
+    font-size: 11px;
+  }
+
+  /* Help Modal */
+  .help-modal-panel {
+    width: 95vw;
+    max-height: 85vh;
+    padding: 12px;
+  }
+
+  .help-buildings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .help-modal-title {
+    font-size: 12px;
+  }
+
+  .help-modal-subtitle {
+    font-size: 9px;
+  }
+
+  .help-section-title {
+    font-size: 10px;
+  }
+}
+
+
 
