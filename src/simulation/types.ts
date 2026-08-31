@@ -80,7 +80,7 @@ export interface Rover {
   x: number;
   y: number;
   state: RoverState;
-  power: number; // 0-100
+  power: number; // 0-150
   cargo: RoverCargo;
   destination: RoverDestination | null;
   onSiteTicksRemaining: number;

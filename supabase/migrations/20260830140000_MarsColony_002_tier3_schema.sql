@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS marscolony_rovers (
     x INTEGER NOT NULL,
     y INTEGER NOT NULL,
     state TEXT NOT NULL DEFAULT 'idle_at_base' CHECK (state IN ('idle_at_base', 'traveling_out', 'on_site', 'traveling_back', 'stranded')),
-    power INTEGER NOT NULL DEFAULT 100 CHECK (power >= 0 AND power <= 100),
+    power INTEGER NOT NULL DEFAULT 150 CHECK (power >= 0 AND power <= 150),
     cargo JSONB DEFAULT NULL,
     destination JSONB DEFAULT NULL,
     route JSONB NOT NULL DEFAULT '[]'::jsonb,

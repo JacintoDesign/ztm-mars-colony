@@ -324,6 +324,15 @@ export function applySingleTick(state: ColonyState): ColonyState {
           colonist.x = nextStep.x;
           colonist.y = nextStep.y;
           colonist.route = colonist.route.slice(1);
+
+          // If colonist is towing a stranded rover back to garage, update rover position alongside colonist
+          if (colonist.destinationType === 'rover_recovery' && colonist.targetEntityId) {
+            const r = updatedRovers.find((rov) => rov.id === colonist.targetEntityId);
+            if (r && r.state === 'stranded' && colonist.destination && (colonist.destination.x === r.garageX && colonist.destination.y === r.garageY)) {
+              r.x = colonist.x;
+              r.y = colonist.y;
+            }
+          }
         }
       }
     } else {
@@ -387,19 +396,51 @@ export function applySingleTick(state: ColonyState): ColonyState {
       } else if (colonist.destinationType === 'rover_recovery' && colonist.targetEntityId) {
         const r = updatedRovers.find((rov) => rov.id === colonist.targetEntityId);
         if (r && r.state === 'stranded') {
-          if (isAdjacentOrOnSite(colonist.x, colonist.y, r.x, r.y)) {
-            r.state = 'idle_at_base';
-            r.x = r.garageX;
-            r.y = r.garageY;
-            r.power = 0;
-            colonist.destination = null;
-            colonist.destinationType = null;
-            colonist.targetEntityId = null;
+          const isTowingToGarage = colonist.destination && colonist.destination.x === r.garageX && colonist.destination.y === r.garageY;
+
+          if (isTowingToGarage) {
+            // Towing phase: check if reached garage
+            if (isAdjacentOrOnSite(colonist.x, colonist.y, r.garageX, r.garageY)) {
+              r.state = 'idle_at_base';
+              r.x = r.garageX;
+              r.y = r.garageY;
+              r.power = 0;
+              colonist.destination = null;
+              colonist.destinationType = null;
+              colonist.targetEntityId = null;
+              colonist.route = [];
+            }
+          } else {
+            // Outbound phase: check if reached stranded rover
+            if (isAdjacentOrOnSite(colonist.x, colonist.y, r.x, r.y)) {
+              // Begin towing back to garage
+              const dest = { x: r.garageX, y: r.garageY };
+              const goalTiles = getFreeAdjacentTiles(dest, blockedTiles, 20);
+              colonist.destination = dest;
+              colonist.route = findShortestRoute(
+                { x: colonist.x, y: colonist.y },
+                goalTiles.length > 0 ? goalTiles : [dest],
+                blockedTiles,
+                20
+              );
+
+              if (isAdjacentOrOnSite(colonist.x, colonist.y, r.garageX, r.garageY)) {
+                r.state = 'idle_at_base';
+                r.x = r.garageX;
+                r.y = r.garageY;
+                r.power = 0;
+                colonist.destination = null;
+                colonist.destinationType = null;
+                colonist.targetEntityId = null;
+                colonist.route = [];
+              }
+            }
           }
         } else {
           colonist.destination = null;
           colonist.destinationType = null;
           colonist.targetEntityId = null;
+          colonist.route = [];
         }
       }
     }

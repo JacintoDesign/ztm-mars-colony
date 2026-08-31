@@ -489,7 +489,7 @@ export class ColonyStore {
           x,
           y,
           state: 'idle_at_base',
-          power: 100,
+          power: CONTRACT_RULES.rovers.powerMax,
           cargo: null,
           destination: null,
           onSiteTicksRemaining: 0,
