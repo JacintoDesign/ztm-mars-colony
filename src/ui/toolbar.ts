@@ -24,6 +24,8 @@ export class Toolbar {
   private onDispatchMining?: () => void;
   private onTogglePower?: () => void;
   private onRelocateExtractor?: () => void;
+  private isCooldown = false;
+  private isActionsPaused = false;
   public static readonly CONTAINER_ID = 'toolbar';
 
   constructor(options: ToolbarOptions) {
@@ -56,6 +58,7 @@ export class Toolbar {
   }
 
   public setTool(tool: BuildingType | null): void {
+    if (this.isActionsPaused) return;
     this.currentTool = tool;
     this.render();
     this.onSelectTool(this.currentTool);
@@ -75,8 +78,46 @@ export class Toolbar {
     // Grid coordinate tracking removed per UI design
   }
 
+  public setActionsPaused(paused: boolean): void {
+    this.isActionsPaused = paused;
+    if (paused) {
+      this.currentTool = null;
+      this.onSelectTool(null);
+    }
+    this.render();
+  }
+
+  /**
+   * Triggers visual cooldown indicator on action bar and throttles inputs.
+   */
+  public triggerCooldown(durationMs = 600): void {
+    if (this.isCooldown) return;
+    this.isCooldown = true;
+
+    this.container.classList.add('toolbar-cooldown-active');
+    const cooldownBar = this.container.querySelector<HTMLElement>('.toolbar-cooldown-bar');
+    if (cooldownBar) {
+      cooldownBar.style.transition = `width ${durationMs}ms linear`;
+      cooldownBar.style.width = '100%';
+    }
+
+    setTimeout(() => {
+      this.isCooldown = false;
+      this.container.classList.remove('toolbar-cooldown-active');
+      if (cooldownBar) {
+        cooldownBar.style.transition = 'none';
+        cooldownBar.style.width = '0%';
+      }
+    }, durationMs);
+  }
+
   private render(): void {
     this.container.innerHTML = '';
+
+    // Cooldown progress indicator overlay
+    const cooldownBar = document.createElement('div');
+    cooldownBar.className = 'toolbar-cooldown-bar';
+    this.container.appendChild(cooldownBar);
 
     const tools: Array<{ type: BuildingType; name: string; cost: string }> = [
       { type: 'habitat', name: 'Habitat', cost: '20 PWR' },
@@ -107,8 +148,10 @@ export class Toolbar {
       btn.className = `toolbar-btn ${this.currentTool === tool.type ? 'active' : ''}`;
       btn.id = `tool-${tool.type}`;
       btn.textContent = tool.name;
+      btn.disabled = this.isActionsPaused;
 
       btn.addEventListener('click', () => {
+        if (this.isActionsPaused || this.isCooldown) return;
         if (this.currentTool === tool.type) {
           this.setTool(null);
           this.setStatus('Nominal', 'nominal');
@@ -135,7 +178,9 @@ export class Toolbar {
       id: 'toolbar-build-dropdown',
       placeholder: '[ BUILD STRUCTURE... ]',
       items: buildDropdownItems,
+      disabled: this.isActionsPaused,
       onSelect: (val) => {
+        if (this.isActionsPaused || this.isCooldown) return;
         if (this.currentTool === val) {
           this.setTool(null);
           this.setStatus('Nominal', 'nominal');
@@ -168,7 +213,10 @@ export class Toolbar {
     refineBtn.className = 'toolbar-btn toolbar-action-btn';
     refineBtn.id = 'action-refine-cell';
     refineBtn.textContent = 'Refine Cell (10 Ore)';
+    refineBtn.disabled = this.isActionsPaused;
     refineBtn.addEventListener('click', () => {
+      if (this.isActionsPaused || this.isCooldown) return;
+      this.triggerCooldown();
       if (this.onRefineCell) this.onRefineCell();
     });
     actButtonsView.appendChild(refineBtn);
@@ -178,7 +226,10 @@ export class Toolbar {
     escortBtn.className = 'toolbar-btn toolbar-action-btn';
     escortBtn.id = 'action-dispatch-escort';
     escortBtn.textContent = 'Dispatch Escort';
+    escortBtn.disabled = this.isActionsPaused;
     escortBtn.addEventListener('click', () => {
+      if (this.isActionsPaused || this.isCooldown) return;
+      this.triggerCooldown();
       if (this.onDispatchEscort) this.onDispatchEscort();
     });
     actButtonsView.appendChild(escortBtn);
@@ -188,7 +239,10 @@ export class Toolbar {
     miningBtn.className = 'toolbar-btn toolbar-action-btn';
     miningBtn.id = 'action-dispatch-mining';
     miningBtn.textContent = 'Dispatch Mining';
+    miningBtn.disabled = this.isActionsPaused;
     miningBtn.addEventListener('click', () => {
+      if (this.isActionsPaused || this.isCooldown) return;
+      this.triggerCooldown();
       if (this.onDispatchMining) this.onDispatchMining();
     });
     actButtonsView.appendChild(miningBtn);
@@ -199,7 +253,10 @@ export class Toolbar {
     togglePowerBtn.id = 'action-toggle-power';
     togglePowerBtn.textContent = 'Toggle Power';
     togglePowerBtn.title = 'Turn off/on selected building or extractor to save power';
+    togglePowerBtn.disabled = this.isActionsPaused;
     togglePowerBtn.addEventListener('click', () => {
+      if (this.isActionsPaused || this.isCooldown) return;
+      this.triggerCooldown();
       if (this.onTogglePower) this.onTogglePower();
     });
     actButtonsView.appendChild(togglePowerBtn);
@@ -210,7 +267,10 @@ export class Toolbar {
     moveBtn.id = 'action-move-extractor';
     moveBtn.textContent = 'Move Extractor (10P)';
     moveBtn.title = 'Relocate extractor to a new ore deposit';
+    moveBtn.disabled = this.isActionsPaused;
     moveBtn.addEventListener('click', () => {
+      if (this.isActionsPaused || this.isCooldown) return;
+      this.triggerCooldown();
       if (this.onRelocateExtractor) this.onRelocateExtractor();
     });
     actButtonsView.appendChild(moveBtn);
@@ -233,7 +293,10 @@ export class Toolbar {
       id: 'toolbar-actions-dropdown',
       placeholder: '[ SELECT ACTION... ]',
       items: actDropdownItems,
+      disabled: this.isActionsPaused,
       onSelect: (val) => {
+        if (this.isActionsPaused || this.isCooldown) return;
+        this.triggerCooldown();
         if (val === 'refine' && this.onRefineCell) {
           this.onRefineCell();
         } else if (val === 'escort' && this.onDispatchEscort) {
@@ -275,6 +338,7 @@ export class Toolbar {
     id: string;
     placeholder: string;
     items: Array<{ value: string; label: string; active?: boolean }>;
+    disabled?: boolean;
     onSelect: (value: string) => void;
   }): HTMLElement {
     const wrapper = document.createElement('div');
@@ -285,6 +349,7 @@ export class Toolbar {
     trigger.type = 'button';
     trigger.className = 'custom-dropdown-trigger';
     trigger.id = options.id;
+    trigger.disabled = Boolean(options.disabled);
 
     const activeItem = options.items.find((i) => i.active);
     const triggerText = document.createElement('span');
@@ -319,6 +384,7 @@ export class Toolbar {
 
     trigger.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (options.disabled) return;
       const isOpen = drawer.style.display === 'block';
       document.querySelectorAll<HTMLElement>('.custom-dropdown-drawer').forEach((d) => {
         if (d !== drawer) d.style.display = 'none';

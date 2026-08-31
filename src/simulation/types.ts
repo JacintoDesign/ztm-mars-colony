@@ -38,6 +38,7 @@ export interface Building {
   condition: BuildingCondition;
   repairProgress: number; // ticks completed toward 50
   digProgress: number; // ticks completed toward 100
+  wasBrokenBeforeBurial?: boolean;
 }
 
 export interface GridCoord {

@@ -40,6 +40,7 @@ export function applySingleTick(state: ColonyState): ColonyState {
       for (let i = 0; i < numToBury; i++) {
         const target = prng.pick(operationalBuildings.filter((b) => b.condition === 'operational'));
         if (target) {
+          target.wasBrokenBeforeBurial = target.condition === 'broken' || Boolean(target.wasBrokenBeforeBurial);
           target.condition = 'buried';
           target.digProgress = 0;
         }
@@ -342,7 +343,13 @@ export function applySingleTick(state: ColonyState): ColonyState {
           if (isAdjacentOrOnSite(colonist.x, colonist.y, b.x, b.y)) {
             b.digProgress += 1;
             if (b.digProgress >= mSpecs.digOutDurationTicks) {
-              b.condition = 'operational';
+              if (b.wasBrokenBeforeBurial) {
+                b.condition = 'broken';
+                b.wasBrokenBeforeBurial = false;
+                b.repairProgress = 0;
+              } else {
+                b.condition = 'operational';
+              }
               b.digProgress = 0;
               colonist.destination = null;
               colonist.destinationType = null;

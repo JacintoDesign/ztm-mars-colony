@@ -1402,5 +1402,86 @@ body:not(:has(#internal-readout)) .resource-panel {
   }
 }
 
+/* =============================================================================
+   Dedicated Telemetry Banner & Action Cooldown (DESIGN.md / CONTRACT.md)
+   ============================================================================= */
+
+.telemetry-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10002;
+  box-sizing: border-box;
+  padding: 6px 14px;
+  border-radius: 0;
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.banner-reconnecting {
+  background-color: rgba(26, 14, 8, 0.96);
+  border: 1px solid #E0A030;
+  color: #E0A030;
+}
+
+.banner-offline {
+  background-color: rgba(26, 14, 8, 0.96);
+  border: 1px solid #D94F3D;
+  color: #E0A030;
+}
+
+.telemetry-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.telemetry-banner-pulse-dot {
+  width: 7px;
+  height: 7px;
+  background-color: #E0A030;
+  border-radius: 0;
+  display: inline-block;
+  animation: telemetryPulse 1s infinite alternate ease-in-out;
+}
+
+@keyframes telemetryPulse {
+  0% {
+    opacity: 0.25;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.telemetry-banner-warning-icon {
+  color: #D94F3D;
+  font-size: 13px;
+}
+
+/* Action Bar Cooldown Indicator */
+.toolbar-cooldown-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0%;
+  background-color: #7fd4e0;
+  z-index: 9991;
+  pointer-events: none;
+}
+
+.toolbar-cooldown-active {
+  opacity: 0.85;
+  cursor: wait;
+}
+
 
 

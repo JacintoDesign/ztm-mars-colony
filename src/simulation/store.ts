@@ -29,6 +29,7 @@ export interface DispatchResult {
 
 export type BuildingPlacementCallback = (building: Building, cost: BuildingCost) => Promise<void>;
 export type RestartColonyCallback = () => Promise<void>;
+export type ServerActionCallback = (action: SimulationAction) => Promise<{ success: boolean; reason?: string }>;
 
 export class ColonyStore {
   private state: ColonyState;
@@ -37,6 +38,7 @@ export class ColonyStore {
   private nextRoverId = 1;
   private onBuildingPlacedHandler: BuildingPlacementCallback | null = null;
   private onRestartHandler: RestartColonyCallback | null = null;
+  private serverActionHandler: ServerActionCallback | null = null;
 
   constructor(initialState?: Partial<ColonyState>) {
     const seed = initialState?.seed ?? generateInitialSeed();
@@ -80,10 +82,43 @@ export class ColonyStore {
     this.onRestartHandler = handler;
   }
 
+  public setServerActionHandler(handler: ServerActionCallback | null): void {
+    this.serverActionHandler = handler;
+  }
+
   public loadState(newState: Partial<ColonyState>): void {
     this.state = {
       ...this.state,
       ...newState,
+    };
+    this.notify();
+  }
+
+  public loadColonyData(data: { colony: any; buildings: Building[]; colonists: any[]; rovers: any[]; oreDeposits: any[]; bestSolsSurvived: number }, signedInAccount: string): void {
+    this.state = {
+      colonyId: data.colony.id,
+      tick: data.colony.tick,
+      oxygen: data.colony.oxygen,
+      power: data.colony.power,
+      food: data.colony.food ?? 50,
+      ore: data.colony.ore,
+      electronics: data.colony.electronics ?? 0,
+      seed: data.colony.seed ?? 133742,
+      oreDeposits: data.oreDeposits,
+      buildings: data.buildings,
+      colonists: data.colonists,
+      pendingArrivals: data.colony.pending_arrivals ?? [],
+      rovers: data.rovers,
+      batteryCells: data.colony.battery_cells ?? [],
+      miningSites: data.colony.mining_sites ?? [],
+      activeAsteroid: data.colony.active_asteroid ?? null,
+      signedInAccount,
+      colonyOwner: data.colony.owner,
+      status: data.colony.status,
+      bestSolsSurvived: data.bestSolsSurvived,
+      lastAppliedTick: data.colony.last_tick_at
+        ? new Date(data.colony.last_tick_at).toLocaleTimeString()
+        : 'Never',
     };
     this.notify();
   }
@@ -187,6 +222,12 @@ export class ColonyStore {
   }
 
   public dispatch(action: SimulationAction): DispatchResult {
+    if (this.serverActionHandler) {
+      this.serverActionHandler(action).catch((err) => {
+        console.error('Server action dispatch error:', err);
+      });
+    }
+
     switch (action.type) {
       case 'PLACE_BUILDING':
         return this.handlePlaceBuilding(action.buildingType, action.x, action.y);

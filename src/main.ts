@@ -8,6 +8,7 @@ import { IsometricRenderer } from './engine/renderer';
 import { AuthModal } from './ui/auth-modal';
 import { HeaderBar } from './ui/header-bar';
 import { GameOverModal } from './ui/game-over-modal';
+import { TelemetryBanner } from './ui/telemetry-banner';
 import { authManager, AuthState } from './services/auth-manager';
 import { colonyService } from './services/colony-service';
 import { RealtimeChannel } from '@supabase/supabase-js';
@@ -25,21 +26,27 @@ resourcePanel.updateFromState(store.getState());
 // Initialize help modal
 const helpModal = new HelpModal();
 
+// Initialize dedicated telemetry banner
+const telemetryBanner = new TelemetryBanner();
+
 // Initialize building placement toolbar
 const toolbar = new Toolbar({
   containerId: 'toolbar',
   onSelectTool: (tool) => {
     renderer.setSelectedTool(tool);
   },
-  onRefineCell: () => {
-    const res = store.dispatch({ type: 'REFINE_CELL' });
+  onRefineCell: async () => {
+    if (!activeColonyId || !activeUserId) return;
+    const res = await colonyService.executeServerAction(activeColonyId, activeUserId, { type: 'REFINE_CELL' });
     if (res.success) {
+      store.loadColonyData(res.colonyData, activeUserDisplay);
       toolbar.setStatus('Cell Refined (+1 Battery Cell)', 'nominal');
     } else {
       toolbar.setStatus(res.reason ? `Refine Failed: ${res.reason}` : 'Refine Failed', 'warning');
     }
   },
-  onDispatchEscort: () => {
+  onDispatchEscort: async () => {
+    if (!activeColonyId || !activeUserId) return;
     const state = store.getState();
     const idleRover = state.rovers.find((r) => r.state === 'idle_at_base');
     if (!idleRover) {
@@ -50,18 +57,22 @@ const toolbar = new Toolbar({
       toolbar.setStatus('Escort Failed: No Battery Cells', 'warning');
       return;
     }
-    const res = store.dispatch({
+
+    const res = await colonyService.executeServerAction(activeColonyId, activeUserId, {
       type: 'DISPATCH_ROVER',
       roverId: idleRover.id,
       destinationType: 'landing_zone',
     });
+
     if (res.success) {
+      store.loadColonyData(res.colonyData, activeUserDisplay);
       toolbar.setStatus('Rover Dispatched to Landing Zone', 'nominal');
     } else {
       toolbar.setStatus(res.reason ? `Dispatch Failed: ${res.reason}` : 'Dispatch Failed', 'warning');
     }
   },
-  onDispatchMining: () => {
+  onDispatchMining: async () => {
+    if (!activeColonyId || !activeUserId) return;
     const state = store.getState();
     const idleRover = state.rovers.find((r) => r.state === 'idle_at_base');
     if (!idleRover) {
@@ -72,7 +83,7 @@ const toolbar = new Toolbar({
       toolbar.setStatus('Mining Failed: No Battery Cells', 'warning');
       return;
     }
-    // Prefer asteroid if active, else first mining site with remaining ore
+
     let destType: 'asteroid' | 'mining_site' = 'mining_site';
     let targetTile = state.miningSites.length > 0 ? { x: state.miningSites[0].x, y: state.miningSites[0].y } : { x: 15, y: 15 };
 
@@ -81,13 +92,15 @@ const toolbar = new Toolbar({
       targetTile = { x: state.activeAsteroid.x, y: state.activeAsteroid.y };
     }
 
-    const res = store.dispatch({
+    const res = await colonyService.executeServerAction(activeColonyId, activeUserId, {
       type: 'DISPATCH_ROVER',
       roverId: idleRover.id,
       destinationType: destType,
       targetTile,
     });
+
     if (res.success) {
+      store.loadColonyData(res.colonyData, activeUserDisplay);
       toolbar.setStatus(`Rover Dispatched to ${destType === 'asteroid' ? 'Asteroid' : 'Mining Site'}`, 'nominal');
     } else {
       toolbar.setStatus(res.reason ? `Dispatch Failed: ${res.reason}` : 'Dispatch Failed', 'warning');
@@ -131,10 +144,12 @@ const renderer = new IsometricRenderer({
 (window as any).__COLONY_RESOURCE_PANEL__ = resourcePanel;
 (window as any).__COLONY_HELP_MODAL__ = helpModal;
 (window as any).__COLONY_TOOLBAR__ = toolbar;
+(window as any).__COLONY_TELEMETRY_BANNER__ = telemetryBanner;
 
 // Active session tracking & timers
 let activeUserId: string | null = null;
 let activeColonyId: string | null = null;
+let activeUserDisplay: string = 'none';
 let isInitializingUserId: string | null = null;
 let clientProjectionInterval: number | null = null;
 let serverSyncInterval: number | null = null;
@@ -147,10 +162,14 @@ const gameOverModal = new GameOverModal({
     toolbar.setStatus('Re-initializing Colony...', 'warning');
 
     try {
-      await colonyService.restartColony(activeColonyId, activeUserId);
-      store.dispatch({ type: 'RESTART_COLONY' });
-      gameOverModal.hide();
-      toolbar.setStatus('Colony Re-established', 'nominal');
+      const res = await colonyService.executeServerAction(activeColonyId, activeUserId, { type: 'RESTART_COLONY' });
+      if (res.success) {
+        store.loadColonyData(res.colonyData, activeUserDisplay);
+        gameOverModal.hide();
+        toolbar.setStatus('Colony Re-established', 'nominal');
+      } else {
+        toolbar.setStatus(`Restart Error: ${res.reason}`, 'critical');
+      }
     } catch (err: any) {
       console.error('Failed to restart colony:', err);
       toolbar.setStatus(`Restart Error: ${err.message}`, 'critical');
@@ -182,6 +201,7 @@ const headerBar = new HeaderBar({
     const res = await authManager.linkGuestAccount(email, password);
     if (!res.error) {
       toolbar.setStatus('Account Upgraded Successfully', 'nominal');
+      activeUserDisplay = email;
       store.loadState({
         signedInAccount: email,
       });
@@ -205,12 +225,17 @@ const authModal = new AuthModal({
 
 /**
  * Starts the continuous 1-second client-side simulation projection
- * and 15-second server synchronization interval.
+ * and 15-second authoritative server tick synchronization interval.
+ * 
+ * Rules:
+ * - Local 1-second projection is strictly for display/HUD/animation.
+ * - The browser client NEVER saves locally ticked values to the database.
+ * - Periodic server sync fetches authoritative state and re-aligns local projection.
  */
 function startSimulationLoops(userId: string): void {
   stopSimulationLoops();
 
-  // 1. Client-side projection: 1 tick every 1 second of real time
+  // 1. Client-side projection (Display only)
   clientProjectionInterval = window.setInterval(() => {
     const state = store.getState();
     if (state.status === 'active') {
@@ -218,14 +243,14 @@ function startSimulationLoops(userId: string): void {
     }
   }, 1000);
 
-  // 2. Periodic server sync: save authoritative snapshot every 15 seconds
+  // 2. Authoritative server sync: calls server tick route every 15 seconds
   serverSyncInterval = window.setInterval(async () => {
-    const state = store.getState();
-    if (state.colonyId && activeUserId === userId) {
+    if (activeColonyId && activeUserId === userId) {
       try {
-        await colonyService.syncColonyState(state, userId);
+        const updatedData = await colonyService.triggerServerTick(activeColonyId, userId);
+        store.loadColonyData(updatedData, activeUserDisplay);
       } catch (err) {
-        console.warn('Periodic sync failed:', err);
+        console.warn('Authoritative periodic server tick sync failed:', err);
       }
     }
   }, 15000);
@@ -246,6 +271,32 @@ function stopSimulationLoops(): void {
   }
 }
 
+// Network Online/Offline & Telemetry Listeners
+window.addEventListener('online', async () => {
+  if (activeColonyId && activeUserId) {
+    telemetryBanner.setState('reconnecting');
+    toolbar.setActionsPaused(true);
+    toolbar.setStatus('Re-establishing Uplink...', 'warning');
+
+    try {
+      const updatedData = await colonyService.triggerServerTick(activeColonyId, activeUserId);
+      store.loadColonyData(updatedData, activeUserDisplay);
+      telemetryBanner.setState('hidden');
+      toolbar.setActionsPaused(false);
+      toolbar.setStatus('Telemetry Link Nominal', 'nominal');
+    } catch {
+      telemetryBanner.setState('offline');
+      toolbar.setStatus('Telemetry Lost - Actions Paused', 'warning');
+    }
+  }
+});
+
+window.addEventListener('offline', () => {
+  telemetryBanner.setState('offline');
+  toolbar.setActionsPaused(true);
+  toolbar.setStatus('Telemetry Lost - Actions Paused', 'warning');
+});
+
 async function handleAuthStateChange(authState: AuthState): Promise<void> {
   headerBar.updateAuth(authState);
 
@@ -254,11 +305,13 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
     stopSimulationLoops();
     activeUserId = null;
     activeColonyId = null;
+    activeUserDisplay = 'none';
     isInitializingUserId = null;
-    store.setPersistenceHandler(null);
-    store.setRestartHandler(null);
+    store.setServerActionHandler(null);
     store.reset();
     renderer.setSelectedTool(null);
+    telemetryBanner.setState('hidden');
+    toolbar.setActionsPaused(false);
     toolbar.setStatus('Authentication Required', 'warning');
     gameOverModal.hide();
     authModal.show();
@@ -268,11 +321,11 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
   // Authenticated user session established
   const user = authState.user;
   const isGuest = authState.isGuest;
-  const userDisplay = isGuest ? `guest-${user.id.slice(0, 6)}` : (user.email ?? user.id.slice(0, 8));
+  activeUserDisplay = isGuest ? `guest-${user.id.slice(0, 6)}` : (user.email ?? user.id.slice(0, 8));
 
   // If already active or currently initializing for this exact user, avoid re-triggering
   if (activeUserId === user.id || isInitializingUserId === user.id) {
-    store.loadState({ signedInAccount: userDisplay });
+    store.loadState({ signedInAccount: activeUserDisplay });
     return;
   }
 
@@ -281,75 +334,60 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
   toolbar.setStatus('Establishing Uplink...', 'nominal');
 
   try {
+    // Load or create colony: performs authoritative catch-up on load via server route
     const colonyData = await colonyService.loadOrCreateColony(user.id);
     activeUserId = user.id;
     activeColonyId = colonyData.colony.id;
 
     // Populate store with authoritative colony state
-    store.loadState({
-      colonyId: colonyData.colony.id,
-      signedInAccount: userDisplay,
-      colonyOwner: colonyData.colony.owner,
-      oxygen: colonyData.colony.oxygen,
-      power: colonyData.colony.power,
-      food: colonyData.colony.food ?? 50,
-      ore: colonyData.colony.ore,
-      electronics: colonyData.colony.electronics ?? 0,
-      seed: colonyData.colony.seed ?? 133742,
-      oreDeposits: colonyData.oreDeposits,
-      miningSites: colonyData.colony.mining_sites ?? [],
-      activeAsteroid: colonyData.colony.active_asteroid ?? null,
-      pendingArrivals: colonyData.colony.pending_arrivals ?? [],
-      batteryCells: colonyData.colony.battery_cells ?? [],
-      rovers: colonyData.rovers,
-      buildings: colonyData.buildings,
-      colonists: colonyData.colonists,
-      status: colonyData.colony.status,
-      bestSolsSurvived: colonyData.bestSolsSurvived,
-      lastAppliedTick: colonyData.colony.last_tick_at
-        ? new Date(colonyData.colony.last_tick_at).toLocaleTimeString()
-        : 'Never',
+    store.loadColonyData(colonyData, activeUserDisplay);
+
+    // Configure authoritative server action handler for all dispatched player actions
+    store.setServerActionHandler(async (action) => {
+      if (!activeColonyId || !activeUserId) {
+        return { success: false, reason: 'No active session' };
+      }
+      const res = await colonyService.executeServerAction(activeColonyId, activeUserId, action);
+      if (res.success) {
+        store.loadColonyData(res.colonyData, activeUserDisplay);
+      }
+      return { success: res.success, reason: res.reason };
     });
 
-    // Configure database persistence on building placement
-    store.setPersistenceHandler(async (building, cost) => {
-      if (!activeUserId || activeUserId !== user.id || !activeColonyId) return;
-      await colonyService.placeBuilding(
-        activeColonyId,
-        user.id,
-        building.type,
-        building.x,
-        building.y,
-        cost,
-        store.getState()
-      );
-    });
-
-    // Configure database restart handler
-    store.setRestartHandler(async () => {
-      if (!activeColonyId || !activeUserId) return;
-      await colonyService.restartColony(activeColonyId, activeUserId);
-    });
-
-    // Start simulation projection & sync loops
+    // Start 1-second client projection (display only) and 15-second server sync
     startSimulationLoops(user.id);
 
-    // Subscribe to realtime changes on this colony
-    realtimeChannel = colonyService.subscribeToColony(colonyData.colony.id, (payload) => {
-      if (payload.new && payload.new.owner === user.id) {
-        const row = payload.new;
-        store.loadState({
-          oxygen: row.oxygen,
-          power: row.power,
-          food: row.food,
-          ore: row.ore,
-          electronics: row.electronics,
-          seed: row.seed,
-          tick: Math.max(store.getState().tick, row.tick),
-          status: row.status,
-        });
+    // Subscribe to realtime changes with connection status handling
+    realtimeChannel = colonyService.subscribeToColony(
+      colonyData.colony.id,
+      (payload) => {
+        if (payload.new && payload.new.owner === user.id) {
+          const row = payload.new;
+          store.loadState({
+            oxygen: row.oxygen,
+            power: row.power,
+            food: row.food,
+            ore: row.ore,
+            electronics: row.electronics,
+            seed: row.seed,
+            tick: Math.max(store.getState().tick, row.tick),
+            status: row.status,
+          });
+        }
+      },
+      (status) => {
+        if (status === 'SUBSCRIBED') {
+          if (navigator.onLine) {
+            telemetryBanner.setState('hidden');
+            toolbar.setActionsPaused(false);
+            toolbar.setStatus('Telemetry Link Nominal', 'nominal');
+          }
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          telemetryBanner.setState('reconnecting');
+          toolbar.setStatus('Re-establishing Uplink...', 'warning');
+        }
       }
-    });
+    );
 
     toolbar.setStatus('Telemetry Link Nominal', 'nominal');
 
