@@ -167,7 +167,20 @@ html, body {
   }
 }
 
-.toolbar-select {
+/* Custom Dropdown Drawers */
+.custom-dropdown {
+  position: relative;
+  width: 100%;
+  max-width: 200px;
+  flex: 1;
+}
+
+.custom-dropdown-trigger {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   background-color: #1a0e08;
   color: #d9dde0;
   border: 1px solid #3d2417;
@@ -175,22 +188,84 @@ html, body {
   font-family: 'Chakra Petch', monospace, sans-serif;
   font-size: 11.5px;
   font-weight: 600;
-  padding: 4px 6px;
+  padding: 4px 8px;
   cursor: pointer;
   outline: none;
   transition: border-color 0.15s ease, background-color 0.15s ease;
+  user-select: none;
+  text-align: left;
 }
 
-.toolbar-select:focus,
-.toolbar-select:hover {
+.custom-dropdown-trigger:hover,
+.custom-dropdown-trigger.open {
   border-color: #7fd4e0;
   background-color: #24140c;
 }
 
-.toolbar-select option {
+.custom-dropdown-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 6px;
+}
+
+.custom-dropdown-arrow {
+  font-size: 8px;
+  color: #8c9ba5;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.custom-dropdown-trigger.open .custom-dropdown-arrow {
+  transform: rotate(180deg);
+  color: #7fd4e0;
+}
+
+.custom-dropdown-drawer {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 100%;
+  margin-bottom: 2px;
   background-color: #1a0e08;
+  border: 1px solid #3d2417;
+  border-radius: 0;
+  box-sizing: border-box;
+  z-index: 10000;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.85);
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #3d2417 #1a0e08;
+}
+
+.custom-dropdown-item {
+  padding: 5px 8px;
+  font-family: 'Chakra Petch', monospace, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
   color: #d9dde0;
-  padding: 3px;
+  cursor: pointer;
+  transition: background-color 0.1s ease, color 0.1s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid rgba(61, 36, 23, 0.4);
+}
+
+.custom-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.custom-dropdown-item:hover {
+  background-color: #2b170e;
+  color: #7fd4e0;
+}
+
+.custom-dropdown-item.active {
+  background-color: #24140c;
+  color: #7fd4e0;
+  font-weight: 700;
 }
 
 .toolbar-status-group {
@@ -256,14 +331,17 @@ html, body {
 .header-bar {
   position: fixed;
   top: 12px;
-  right: 12px;
+  right: 56px;
+  height: 38px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 12px;
   background-color: rgba(26, 14, 8, 0.94);
   border: 1px solid #3d2417;
   border-radius: 0;
-  padding: 8px 14px;
+  padding: 0 10px;
   z-index: 9990;
   user-select: none;
 }
@@ -272,7 +350,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .header-badge-label {
@@ -298,18 +376,29 @@ html, body {
   color: #d9dde0;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .header-btn {
   background-color: #1a0e08;
   color: #d9dde0;
   font-family: 'Chakra Petch', monospace, sans-serif;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
-  padding: 5px 12px;
+  height: 26px;
+  padding: 0 10px;
   border: 1px solid #3d2417;
   border-radius: 0;
   cursor: pointer;
   outline: none;
   letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .header-btn:hover {
@@ -805,22 +894,23 @@ body:not(:has(#internal-readout)) .resource-panel {
   background-color: #D94F3D;
 }
 
-/* Bottom-Right Help Button (?) Affordance */
+/* Help Button (?) Affordance */
 .help-btn {
   position: fixed;
-  bottom: 16px;
-  right: 16px;
-  width: 36px;
-  height: 36px;
+  top: 12px;
+  right: 12px;
+  width: 38px;
+  height: 38px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #1a0e08;
+  background-color: rgba(26, 14, 8, 0.94);
   border: 1px solid #3d2417;
   border-radius: 0;
   color: #d9dde0;
   font-family: 'Orbitron', monospace, sans-serif;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
   outline: none;
@@ -1111,8 +1201,9 @@ body:not(:has(#internal-readout)) .resource-panel {
   .header-bar {
     top: 6px;
     left: 6px;
-    right: 42px; /* Leaves room for help button (?) at top right */
-    padding: 4px 8px;
+    right: 46px; /* Leaves 6px gap to 34px help button */
+    height: 34px;
+    padding: 0 8px;
     gap: 6px;
     justify-content: space-between;
   }
@@ -1128,15 +1219,20 @@ body:not(:has(#internal-readout)) .resource-panel {
 
   .header-badge-user {
     font-size: 10.5px;
-    max-width: 90px;
+    max-width: 85px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
+  .header-actions {
+    gap: 6px;
+  }
+
   .header-btn {
+    height: 24px;
     font-size: 10px;
-    padding: 3px 6px;
+    padding: 0 6px;
     letter-spacing: 0.2px;
   }
 
@@ -1145,14 +1241,15 @@ body:not(:has(#internal-readout)) .resource-panel {
     top: 6px;
     right: 6px;
     bottom: auto;
-    width: 28px;
-    height: 28px;
-    font-size: 13px;
+    width: 34px;
+    height: 34px;
+    box-sizing: border-box;
+    font-size: 14px;
   }
 
   /* Life Support Telemetry Panel */
   .resource-panel {
-    top: 42px;
+    top: 46px;
     left: 6px !important;
     right: 6px;
     width: auto;
@@ -1219,6 +1316,9 @@ body:not(:has(#internal-readout)) .resource-panel {
 
   .toolbar-group {
     width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .toolbar-actions-group {
@@ -1228,6 +1328,8 @@ body:not(:has(#internal-readout)) .resource-panel {
 
   .toolbar-dropdown-view {
     display: flex !important;
+    flex: 1;
+    min-width: 0;
     width: 100%;
   }
 
@@ -1235,9 +1337,21 @@ body:not(:has(#internal-readout)) .resource-panel {
     display: none !important;
   }
 
-  .toolbar-select {
+  .toolbar-label {
+    width: 65px;
+    min-width: 65px;
+    max-width: 65px;
+    font-size: 10px;
+  }
+
+  .custom-dropdown {
     width: 100%;
+    max-width: none;
     flex: 1;
+  }
+
+  .custom-dropdown-trigger {
+    width: 100%;
     font-size: 11px;
     padding: 4px 6px;
   }
@@ -1253,7 +1367,10 @@ body:not(:has(#internal-readout)) .resource-panel {
     padding-top: 3px;
   }
 
-  .toolbar-label {
+  .toolbar-status-group .toolbar-label {
+    width: auto;
+    min-width: auto;
+    max-width: none;
     font-size: 9.5px;
   }
 

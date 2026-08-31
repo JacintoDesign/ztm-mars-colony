@@ -56,8 +56,10 @@ export class HeaderBar {
         <span class="header-badge-label">UPLINK:</span>
         <span class="header-badge-user ${isGuest ? 'badge-guest' : 'badge-permanent'}">${userLabel}</span>
       </div>
-      ${upgradeBtnHtml}
-      <button type="button" id="header-signout-btn" class="header-btn header-btn-signout">SIGN OUT</button>
+      <div class="header-actions">
+        ${upgradeBtnHtml}
+        <button type="button" id="header-signout-btn" class="header-btn header-btn-signout">SIGN OUT</button>
+      </div>
       ${this.isUpgradeModalOpen ? this.renderUpgradeModal() : ''}
     `;
 

@@ -43,6 +43,11 @@ export class Toolbar {
       document.body.appendChild(this.container);
     }
 
+    document.addEventListener('click', () => {
+      document.querySelectorAll<HTMLElement>('.custom-dropdown-drawer').forEach((d) => (d.style.display = 'none'));
+      document.querySelectorAll<HTMLElement>('.custom-dropdown-trigger').forEach((t) => t.classList.remove('open'));
+    });
+
     this.render();
   }
 
@@ -120,36 +125,27 @@ export class Toolbar {
     const dropdownView = document.createElement('div');
     dropdownView.className = 'toolbar-dropdown-view';
 
-    const buildSelect = document.createElement('select');
-    buildSelect.id = 'toolbar-build-dropdown';
-    buildSelect.className = 'toolbar-select';
+    const buildDropdownItems = tools.map((tool) => ({
+      value: tool.type,
+      label: `${tool.name} (${tool.cost})`,
+      active: this.currentTool === tool.type,
+    }));
 
-    const defaultOpt = document.createElement('option');
-    defaultOpt.value = '';
-    defaultOpt.textContent = '[ BUILD STRUCTURE... ]';
-    buildSelect.appendChild(defaultOpt);
-
-    for (const tool of tools) {
-      const opt = document.createElement('option');
-      opt.value = tool.type;
-      opt.textContent = `${tool.name} (${tool.cost})`;
-      if (this.currentTool === tool.type) {
-        opt.selected = true;
-      }
-      buildSelect.appendChild(opt);
-    }
-
-    buildSelect.addEventListener('change', () => {
-      const val = buildSelect.value as BuildingType | '';
-      if (val) {
-        this.setTool(val);
-      } else {
-        this.setTool(null);
-        this.setStatus('Nominal', 'nominal');
-      }
+    const buildCustomDropdown = this.createCustomDropdown({
+      id: 'toolbar-build-dropdown',
+      placeholder: '[ BUILD STRUCTURE... ]',
+      items: buildDropdownItems,
+      onSelect: (val) => {
+        if (this.currentTool === val) {
+          this.setTool(null);
+          this.setStatus('Nominal', 'nominal');
+        } else {
+          this.setTool(val as BuildingType);
+        }
+      },
     });
 
-    dropdownView.appendChild(buildSelect);
+    dropdownView.appendChild(buildCustomDropdown);
     toolsGroup.appendChild(dropdownView);
 
     this.container.appendChild(toolsGroup);
@@ -225,57 +221,34 @@ export class Toolbar {
     const actDropdownView = document.createElement('div');
     actDropdownView.className = 'toolbar-dropdown-view';
 
-    const actSelect = document.createElement('select');
-    actSelect.id = 'toolbar-actions-dropdown';
-    actSelect.className = 'toolbar-select';
+    const actDropdownItems = [
+      { value: 'refine', label: 'Refine Cell (10 Ore)' },
+      { value: 'escort', label: 'Dispatch Escort' },
+      { value: 'mining', label: 'Dispatch Mining' },
+      { value: 'toggle', label: 'Toggle Power (OFF/ON)' },
+      { value: 'move', label: 'Move Extractor (10P)' },
+    ];
 
-    const defaultActOpt = document.createElement('option');
-    defaultActOpt.value = '';
-    defaultActOpt.textContent = '[ SELECT ACTION... ]';
-    actSelect.appendChild(defaultActOpt);
-
-    const refineOpt = document.createElement('option');
-    refineOpt.value = 'refine';
-    refineOpt.textContent = 'Refine Cell (10 Ore)';
-    actSelect.appendChild(refineOpt);
-
-    const escortOpt = document.createElement('option');
-    escortOpt.value = 'escort';
-    escortOpt.textContent = 'Dispatch Escort';
-    actSelect.appendChild(escortOpt);
-
-    const miningOpt = document.createElement('option');
-    miningOpt.value = 'mining';
-    miningOpt.textContent = 'Dispatch Mining';
-    actSelect.appendChild(miningOpt);
-
-    const toggleOpt = document.createElement('option');
-    toggleOpt.value = 'toggle';
-    toggleOpt.textContent = 'Toggle Power (OFF/ON)';
-    actSelect.appendChild(toggleOpt);
-
-    const moveOpt = document.createElement('option');
-    moveOpt.value = 'move';
-    moveOpt.textContent = 'Move Extractor (10P)';
-    actSelect.appendChild(moveOpt);
-
-    actSelect.addEventListener('change', () => {
-      const val = actSelect.value;
-      if (val === 'refine' && this.onRefineCell) {
-        this.onRefineCell();
-      } else if (val === 'escort' && this.onDispatchEscort) {
-        this.onDispatchEscort();
-      } else if (val === 'mining' && this.onDispatchMining) {
-        this.onDispatchMining();
-      } else if (val === 'toggle' && this.onTogglePower) {
-        this.onTogglePower();
-      } else if (val === 'move' && this.onRelocateExtractor) {
-        this.onRelocateExtractor();
-      }
-      actSelect.selectedIndex = 0;
+    const actCustomDropdown = this.createCustomDropdown({
+      id: 'toolbar-actions-dropdown',
+      placeholder: '[ SELECT ACTION... ]',
+      items: actDropdownItems,
+      onSelect: (val) => {
+        if (val === 'refine' && this.onRefineCell) {
+          this.onRefineCell();
+        } else if (val === 'escort' && this.onDispatchEscort) {
+          this.onDispatchEscort();
+        } else if (val === 'mining' && this.onDispatchMining) {
+          this.onDispatchMining();
+        } else if (val === 'toggle' && this.onTogglePower) {
+          this.onTogglePower();
+        } else if (val === 'move' && this.onRelocateExtractor) {
+          this.onRelocateExtractor();
+        }
+      },
     });
 
-    actDropdownView.appendChild(actSelect);
+    actDropdownView.appendChild(actCustomDropdown);
     actionsGroup.appendChild(actDropdownView);
 
     this.container.appendChild(actionsGroup);
@@ -296,5 +269,75 @@ export class Toolbar {
     statusGroup.appendChild(statusValue);
 
     this.container.appendChild(statusGroup);
+  }
+
+  private createCustomDropdown(options: {
+    id: string;
+    placeholder: string;
+    items: Array<{ value: string; label: string; active?: boolean }>;
+    onSelect: (value: string) => void;
+  }): HTMLElement {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'custom-dropdown';
+    wrapper.id = `${options.id}-wrapper`;
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'custom-dropdown-trigger';
+    trigger.id = options.id;
+
+    const activeItem = options.items.find((i) => i.active);
+    const triggerText = document.createElement('span');
+    triggerText.className = 'custom-dropdown-text';
+    triggerText.textContent = activeItem ? activeItem.label : options.placeholder;
+    trigger.appendChild(triggerText);
+
+    const arrow = document.createElement('span');
+    arrow.className = 'custom-dropdown-arrow';
+    arrow.textContent = '▼';
+    trigger.appendChild(arrow);
+
+    const drawer = document.createElement('div');
+    drawer.className = 'custom-dropdown-drawer';
+    drawer.style.display = 'none';
+
+    for (const item of options.items) {
+      const itemEl = document.createElement('div');
+      itemEl.className = `custom-dropdown-item ${item.active ? 'active' : ''}`;
+      itemEl.textContent = item.label;
+      itemEl.dataset.value = item.value;
+
+      itemEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        drawer.style.display = 'none';
+        trigger.classList.remove('open');
+        options.onSelect(item.value);
+      });
+
+      drawer.appendChild(itemEl);
+    }
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = drawer.style.display === 'block';
+      document.querySelectorAll<HTMLElement>('.custom-dropdown-drawer').forEach((d) => {
+        if (d !== drawer) d.style.display = 'none';
+      });
+      document.querySelectorAll<HTMLElement>('.custom-dropdown-trigger').forEach((t) => {
+        if (t !== trigger) t.classList.remove('open');
+      });
+
+      if (isOpen) {
+        drawer.style.display = 'none';
+        trigger.classList.remove('open');
+      } else {
+        drawer.style.display = 'block';
+        trigger.classList.add('open');
+      }
+    });
+
+    wrapper.appendChild(trigger);
+    wrapper.appendChild(drawer);
+    return wrapper;
   }
 }
