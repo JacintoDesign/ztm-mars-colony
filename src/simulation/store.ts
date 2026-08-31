@@ -3,6 +3,7 @@ import {
   BuildingCost,
   BUILDING_COSTS,
   BuildingType,
+  BuildingCondition,
   ColonyState,
   PlacementCheckResult,
   SimulationAction,
@@ -193,11 +194,87 @@ export class ColonyStore {
         return this.handleRefineCell();
       case 'DISPATCH_ROVER':
         return this.handleDispatchRover(action.roverId, action.destinationType, action.targetTile, action.targetArrivalId);
+      case 'TOGGLE_BUILDING_POWER':
+        return this.handleToggleBuildingPower(action.buildingId);
+      case 'MOVE_BUILDING':
+        return this.handleMoveBuilding(action.buildingId, action.targetX, action.targetY);
       case 'RESTART_COLONY':
         return this.handleRestartColony();
       default:
         return { success: false };
     }
+  }
+
+  private handleToggleBuildingPower(buildingId: string): DispatchResult {
+    const buildingIndex = this.state.buildings.findIndex((b) => b.id === buildingId);
+    if (buildingIndex < 0) {
+      return { success: false };
+    }
+
+    const building = this.state.buildings[buildingIndex];
+    if (building.condition === 'broken' || building.condition === 'buried') {
+      return { success: false, reason: 'Insufficient Power' };
+    }
+
+    const nextCondition: BuildingCondition = building.condition === 'deactivated' ? 'operational' : 'deactivated';
+    const updatedBuildings = [...this.state.buildings];
+    updatedBuildings[buildingIndex] = {
+      ...building,
+      condition: nextCondition,
+    };
+
+    this.state = {
+      ...this.state,
+      buildings: updatedBuildings,
+    };
+
+    this.notify();
+    return { success: true };
+  }
+
+  private handleMoveBuilding(buildingId: string, targetX: number, targetY: number): DispatchResult {
+    const buildingIndex = this.state.buildings.findIndex((b) => b.id === buildingId);
+    if (buildingIndex < 0) {
+      return { success: false };
+    }
+
+    const building = this.state.buildings[buildingIndex];
+    if (building.condition === 'broken' || building.condition === 'buried') {
+      return { success: false, reason: 'Insufficient Power' };
+    }
+
+    if (!isInGrid(targetX, targetY, 20)) {
+      return { success: false, reason: 'Invalid Coordinates' };
+    }
+
+    if (targetX === 0 && targetY === 0) {
+      return { success: false, reason: 'Tile (0, 0) is reserved for Landing Pad' };
+    }
+
+    if (this.hasBuildingAt(targetX, targetY)) {
+      return { success: false, reason: 'Tile Occupied' };
+    }
+
+    const movePowerCost = 10;
+    if (this.state.power < movePowerCost) {
+      return { success: false, reason: 'Insufficient Power' };
+    }
+
+    const updatedBuildings = [...this.state.buildings];
+    updatedBuildings[buildingIndex] = {
+      ...building,
+      x: targetX,
+      y: targetY,
+    };
+
+    this.state = {
+      ...this.state,
+      power: Math.max(0, this.state.power - movePowerCost),
+      buildings: updatedBuildings,
+    };
+
+    this.notify();
+    return { success: true };
   }
 
   private handleRefineCell(): DispatchResult {
@@ -275,6 +352,7 @@ export class ColonyStore {
     const updatedRovers = [...this.state.rovers];
     updatedRovers[roverIndex] = {
       ...rover,
+      power: CONTRACT_RULES.rovers.powerMax, // Fueled with full charge from battery cell
       state: 'traveling_out',
       occupants: 1,
       destination: {

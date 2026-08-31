@@ -249,33 +249,55 @@ export function applySingleTick(state: ColonyState): ColonyState {
     colonist.age += 1;
 
     // Check if colonist needs an automated assignment
-    if (!colonist.destination || colonist.route.length === 0) {
+    const isEngagedInMaintenance =
+      (colonist.destinationType === 'dig' || colonist.destinationType === 'repair' || colonist.destinationType === 'rover_recovery') &&
+      colonist.targetEntityId !== null;
+
+    if (!isEngagedInMaintenance) {
       // 1. Digging out buried buildings
       if (buriedBuildings.length > 0) {
         const target = buriedBuildings[0];
+        const goalTiles = getFreeAdjacentTiles({ x: target.x, y: target.y }, blockedTiles, 20);
         colonist.destination = { x: target.x, y: target.y };
         colonist.destinationType = 'dig';
         colonist.targetEntityId = target.id;
-        colonist.route = findShortestRoute({ x: colonist.x, y: colonist.y }, [{ x: target.x, y: target.y }], blockedTiles, 20);
+        colonist.route = findShortestRoute(
+          { x: colonist.x, y: colonist.y },
+          goalTiles.length > 0 ? goalTiles : [{ x: target.x, y: target.y }],
+          blockedTiles,
+          20
+        );
       }
       // 2. Repairing broken buildings
       else if (brokenBuildings.length > 0) {
         const target = brokenBuildings[0];
         const reqElectronics = bSpecs[target.type].repairElectronics;
         if (currentElectronics >= reqElectronics) {
+          const goalTiles = getFreeAdjacentTiles({ x: target.x, y: target.y }, blockedTiles, 20);
           colonist.destination = { x: target.x, y: target.y };
           colonist.destinationType = 'repair';
           colonist.targetEntityId = target.id;
-          colonist.route = findShortestRoute({ x: colonist.x, y: colonist.y }, [{ x: target.x, y: target.y }], blockedTiles, 20);
+          colonist.route = findShortestRoute(
+            { x: colonist.x, y: colonist.y },
+            goalTiles.length > 0 ? goalTiles : [{ x: target.x, y: target.y }],
+            blockedTiles,
+            20
+          );
         }
       }
       // 3. Recovering stranded rovers
       else if (strandedRovers.length > 0) {
         const target = strandedRovers[0];
+        const goalTiles = getFreeAdjacentTiles({ x: target.x, y: target.y }, blockedTiles, 20);
         colonist.destination = { x: target.x, y: target.y };
         colonist.destinationType = 'rover_recovery';
         colonist.targetEntityId = target.id;
-        colonist.route = findShortestRoute({ x: colonist.x, y: colonist.y }, [{ x: target.x, y: target.y }], blockedTiles, 20);
+        colonist.route = findShortestRoute(
+          { x: colonist.x, y: colonist.y },
+          goalTiles.length > 0 ? goalTiles : [{ x: target.x, y: target.y }],
+          blockedTiles,
+          20
+        );
       }
       // 4. Habitat home assignment
       else if (colonist.destinationType !== 'habitat' || !colonist.destination) {
@@ -307,43 +329,70 @@ export function applySingleTick(state: ColonyState): ColonyState {
       colonist.moveProgress = 0;
     }
 
+    // Helper for labor reach (colonist is adjacent or directly on destination tile)
+    const isAdjacentOrOnSite = (cx: number, cy: number, tx: number, ty: number) => {
+      return Math.abs(cx - tx) + Math.abs(cy - ty) <= 1;
+    };
+
     // Colonist labor on site
-    if (colonist.destination && colonist.x === colonist.destination.x && colonist.y === colonist.destination.y) {
+    if (colonist.destination) {
       if (colonist.destinationType === 'dig' && colonist.targetEntityId) {
         const b = updatedBuildings.find((bld) => bld.id === colonist.targetEntityId);
         if (b && b.condition === 'buried') {
-          b.digProgress += 1;
-          if (b.digProgress >= mSpecs.digOutDurationTicks) {
-            b.condition = 'operational';
-            b.digProgress = 0;
-            colonist.destination = null;
-            colonist.destinationType = null;
+          if (isAdjacentOrOnSite(colonist.x, colonist.y, b.x, b.y)) {
+            b.digProgress += 1;
+            if (b.digProgress >= mSpecs.digOutDurationTicks) {
+              b.condition = 'operational';
+              b.digProgress = 0;
+              colonist.destination = null;
+              colonist.destinationType = null;
+              colonist.targetEntityId = null;
+            }
           }
+        } else {
+          colonist.destination = null;
+          colonist.destinationType = null;
+          colonist.targetEntityId = null;
         }
       } else if (colonist.destinationType === 'repair' && colonist.targetEntityId) {
         const b = updatedBuildings.find((bld) => bld.id === colonist.targetEntityId);
         if (b && b.condition === 'broken') {
-          b.repairProgress += 1;
-          if (b.repairProgress >= mSpecs.repairDurationTicks) {
-            const reqElectronics = bSpecs[b.type].repairElectronics;
-            if (currentElectronics >= reqElectronics) {
-              currentElectronics -= reqElectronics;
-              b.condition = 'operational';
-              b.repairProgress = 0;
-              colonist.destination = null;
-              colonist.destinationType = null;
+          if (isAdjacentOrOnSite(colonist.x, colonist.y, b.x, b.y)) {
+            b.repairProgress += 1;
+            const requiredRepairTicks = b.type === 'scrubber' ? (mSpecs.scrubberRepairDurationTicks ?? 30) : mSpecs.repairDurationTicks;
+            if (b.repairProgress >= requiredRepairTicks) {
+              const reqElectronics = bSpecs[b.type].repairElectronics;
+              if (currentElectronics >= reqElectronics) {
+                currentElectronics -= reqElectronics;
+                b.condition = 'operational';
+                b.repairProgress = 0;
+                colonist.destination = null;
+                colonist.destinationType = null;
+                colonist.targetEntityId = null;
+              }
             }
           }
+        } else {
+          colonist.destination = null;
+          colonist.destinationType = null;
+          colonist.targetEntityId = null;
         }
       } else if (colonist.destinationType === 'rover_recovery' && colonist.targetEntityId) {
         const r = updatedRovers.find((rov) => rov.id === colonist.targetEntityId);
         if (r && r.state === 'stranded') {
-          r.state = 'idle_at_base';
-          r.x = r.garageX;
-          r.y = r.garageY;
-          r.power = 0;
+          if (isAdjacentOrOnSite(colonist.x, colonist.y, r.x, r.y)) {
+            r.state = 'idle_at_base';
+            r.x = r.garageX;
+            r.y = r.garageY;
+            r.power = 0;
+            colonist.destination = null;
+            colonist.destinationType = null;
+            colonist.targetEntityId = null;
+          }
+        } else {
           colonist.destination = null;
           colonist.destinationType = null;
+          colonist.targetEntityId = null;
         }
       }
     }
@@ -351,7 +400,7 @@ export function applySingleTick(state: ColonyState): ColonyState {
     return colonist;
   });
 
-  // 10. Production & Consumption (Only OPERATIONAL buildings produce / consume!)
+  // 10. Production & Consumption (Only OPERATIONAL buildings produce / consume; Spacing rules apply)
   let powerProduced = 0;
   let powerDrawn = 0;
   let oxygenProduced = 0;
@@ -360,17 +409,29 @@ export function applySingleTick(state: ColonyState): ColonyState {
   for (const b of updatedBuildings) {
     if (b.condition !== 'operational') continue;
 
-    const spec = bSpecs[b.type];
-    powerProduced += spec.powerProduction;
-    powerDrawn += spec.powerDraw;
-    oxygenProduced += spec.oxygenProduction;
-    foodProduced += spec.foodProduction;
+    // Check adjacent orthogonal buildings for spacing / overcrowding penalty
+    let adjacentNeighbors = 0;
+    for (const other of updatedBuildings) {
+      if (other.id !== b.id && Math.abs(b.x - other.x) + Math.abs(b.y - other.y) === 1) {
+        adjacentNeighbors += 1;
+      }
+    }
+    const maxFree = CONTRACT_RULES.spacing?.maxAdjacentForFullEfficiency ?? 1;
+    const penaltyRate = CONTRACT_RULES.spacing?.crowdingPenaltyPerNeighbor ?? 1;
+    const crowdingPenalty = Math.max(0, adjacentNeighbors - maxFree) * penaltyRate;
 
-    // Extractor: mines 3 ore from local tile deposit
+    const spec = bSpecs[b.type];
+    powerProduced += Math.max(0, spec.powerProduction - crowdingPenalty);
+    powerDrawn += spec.powerDraw;
+    oxygenProduced += Math.max(0, spec.oxygenProduction - crowdingPenalty);
+    foodProduced += Math.max(0, spec.foodProduction - crowdingPenalty);
+
+    // Extractor: mines ore from local tile deposit
     if (b.type === 'extractor') {
       const deposit = updatedOreDeposits.find((d) => d.x === b.x && d.y === b.y);
       if (deposit && deposit.remaining > 0) {
-        const take = Math.min(spec.oreProduction, deposit.remaining);
+        const effectiveOreProduction = Math.max(1, spec.oreProduction - crowdingPenalty);
+        const take = Math.min(effectiveOreProduction, deposit.remaining);
         deposit.remaining -= take;
         currentOre += take;
       }
@@ -381,8 +442,11 @@ export function applySingleTick(state: ColonyState): ColonyState {
   const oxygenConsumed = currentColonists.length * cSpecs.oxygenConsumptionPerTick;
   const foodConsumed = currentColonists.length * cSpecs.foodConsumptionPerTick;
 
+  const operationalScrubbers = updatedBuildings.filter((b) => b.type === 'scrubber' && b.condition === 'operational').length;
+  const maxOxygen = (pools.oxygenBaseMax ?? 100) + (operationalScrubbers * (pools.oxygenPerScrubber ?? 25));
+
   const nextPower = Math.min(pools.powerMax, Math.max(pools.powerMin, state.power + powerProduced - powerDrawn));
-  const nextOxygen = Math.min(pools.oxygenMax, Math.max(pools.oxygenMin, state.oxygen + oxygenProduced - oxygenConsumed));
+  const nextOxygen = Math.min(maxOxygen, Math.max(pools.oxygenMin, state.oxygen + oxygenProduced - oxygenConsumed));
   const nextFood = Math.min(pools.foodMax, Math.max(pools.foodMin, state.food + foodProduced - foodConsumed));
 
   // 11. Health Rule: If Oxygen==0 OR Power==0 OR Food==0 -> -5 HP; else +1 HP

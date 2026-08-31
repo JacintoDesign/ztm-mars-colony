@@ -2,6 +2,7 @@ import { ColonyState } from '../simulation/types';
 
 export interface ResourcePanelData {
   oxygen: number;
+  maxOxygen?: number;
   power: number;
   food: number;
   ore: number;
@@ -31,6 +32,7 @@ export class ResourcePanel {
     this.container = el;
     this.render({
       oxygen: 50,
+      maxOxygen: 100,
       power: 50,
       food: 50,
       ore: 0,
@@ -57,8 +59,14 @@ export class ResourcePanel {
     const arrivalCountdown =
       state.pendingArrivals.length > 0 ? state.pendingArrivals[0].ticksRemaining : null;
 
+    const operationalScrubbers = state.buildings.filter(
+      (b) => b.type === 'scrubber' && b.condition === 'operational'
+    ).length;
+    const maxOxygen = 100 + operationalScrubbers * 25;
+
     this.render({
       oxygen: state.oxygen,
+      maxOxygen,
       power: state.power,
       food: state.food,
       ore: state.ore,
@@ -81,12 +89,13 @@ export class ResourcePanel {
   }
 
   private render(data: ResourcePanelData): void {
-    const o2Val = Math.max(0, Math.min(100, Math.round(data.oxygen)));
+    const maxO2 = data.maxOxygen ?? 100;
+    const o2Pct = Math.max(0, Math.min(100, Math.round((data.oxygen / maxO2) * 100)));
     const pwrVal = Math.max(0, Math.min(100, Math.round(data.power)));
     const foodVal = Math.max(0, Math.min(100, Math.round(data.food)));
     const hpVal = Math.max(0, Math.min(100, Math.round(data.colonistHealthAvg)));
 
-    const o2Level = this.getResourceLevel(o2Val);
+    const o2Level = this.getResourceLevel(o2Pct);
     const pwrLevel = this.getResourceLevel(pwrVal);
     const foodLevel = this.getResourceLevel(foodVal);
     const hpLevel = this.getResourceLevel(hpVal);
@@ -106,10 +115,10 @@ export class ResourcePanel {
       <div class="resource-row">
         <div class="resource-meta">
           <span class="resource-label">OXYGEN</span>
-          <span class="resource-val resource-val-${o2Level}" id="resource-val-oxygen">${o2Val}%</span>
+          <span class="resource-val resource-val-${o2Level}" id="resource-val-oxygen">${o2Pct}% (${Math.round(data.oxygen)}/${maxO2})</span>
         </div>
         <div class="resource-track">
-          <div class="resource-bar resource-bar-${o2Level}" style="width: ${o2Val}%;"></div>
+          <div class="resource-bar resource-bar-${o2Level}" style="width: ${o2Pct}%;"></div>
         </div>
       </div>
 

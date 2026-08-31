@@ -174,4 +174,14 @@ export type SimulationAction =
     }
   | {
       type: 'RESTART_COLONY';
+    }
+  | {
+      type: 'TOGGLE_BUILDING_POWER';
+      buildingId: string;
+    }
+  | {
+      type: 'MOVE_BUILDING';
+      buildingId: string;
+      targetX: number;
+      targetY: number;
     };

@@ -93,6 +93,12 @@ const toolbar = new Toolbar({
       toolbar.setStatus(res.reason ? `Dispatch Failed: ${res.reason}` : 'Dispatch Failed', 'warning');
     }
   },
+  onTogglePower: () => {
+    renderer.toggleBuildingPower();
+  },
+  onRelocateExtractor: () => {
+    renderer.startRelocateBuilding();
+  },
 });
 
 // Initialize canvas renderer

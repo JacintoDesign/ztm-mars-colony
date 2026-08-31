@@ -1702,7 +1702,7 @@ export function drawBuildingConditionOverlay(
   center: ScreenPoint,
   halfW: number,
   halfH: number,
-  condition: 'operational' | 'broken' | 'buried'
+  condition: 'operational' | 'broken' | 'buried' | 'deactivated'
 ): void {
   const cx = center.x;
   const cy = center.y;
@@ -1742,6 +1742,23 @@ export function drawBuildingConditionOverlay(
     ctx.font = 'bold 7px Chakra Petch, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('BURIED', cx, cy - 4);
+    ctx.restore();
+  } else if (condition === 'deactivated') {
+    // Standby / Deactivated icon badge (grey/amber power off indicator)
+    ctx.save();
+    ctx.fillStyle = 'rgba(20, 24, 30, 0.85)';
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(cx - 16, cy - 24, 32, 12, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'bold 6.5px Chakra Petch, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('OFF', cx, cy - 18);
     ctx.restore();
   }
 }

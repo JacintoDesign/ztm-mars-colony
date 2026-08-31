@@ -7,7 +7,7 @@ export type BuildingType =
   | 'garage'
   | 'refinery';
 
-export type BuildingCondition = 'operational' | 'broken' | 'buried';
+export type BuildingCondition = 'operational' | 'broken' | 'buried' | 'deactivated';
 
 export type ColonistDestinationType = 'habitat' | 'repair' | 'dig' | 'rover_recovery';
 
@@ -37,7 +37,8 @@ export const CONTRACT_RULES = {
   // Resource Pool limits
   pools: {
     oxygenMin: 0,
-    oxygenMax: 100,
+    oxygenBaseMax: 100,
+    oxygenPerScrubber: 25, // Each operational scrubber adds +25 to oxygen buffer capacity
     powerMin: 0,
     powerMax: 100,
     foodMin: 0,
@@ -59,7 +60,7 @@ export const CONTRACT_RULES = {
     ticksPerTile: 5, // 5 ticks to walk from one tile to another
     oxygenConsumptionPerTick: 3,
     foodConsumptionPerTick: 2,
-    healthDamagePerTick: 5, // applied if oxygen == 0 OR power == 0 OR food == 0
+    healthDamagePerTick: 2, // applied if oxygen == 0 OR power == 0 OR food == 0 (50-tick survival window)
     healthRecoveryPerTick: 1, // applied when oxygen > 0 AND power > 0 AND food > 0
     maxHealth: 100,
     minLifespanTicks: 12000,
@@ -71,17 +72,24 @@ export const CONTRACT_RULES = {
   maintenance: {
     breakageChancePerTick: 1 / 15000, // 1-in-15,000 per operational building per tick
     repairDurationTicks: 50,
+    scrubberRepairDurationTicks: 30, // Fast 30-tick repair for critical oxygen scrubbers
     dustStormWindowTicks: 5000,
     dustStormChance: 0.2, // 20% per 5,000-tick window
     maxBuriedPerStorm: 3,
     digOutDurationTicks: 100,
   },
 
+  // Colony Spacing & Buffer Zone Rules
+  spacing: {
+    maxAdjacentForFullEfficiency: 1, // 0 or 1 adjacent orthogonal building -> 100% efficiency
+    crowdingPenaltyPerNeighbor: 1, // Each neighbor beyond 1 reduces production output by 1 (min 0)
+  },
+
   // Rover specs
   rovers: {
     speedTilesPerTick: 1, // 1 tick to travel from one tile to another
-    powerMax: 100,
-    powerDrainPerTick: 2,
+    powerMax: 150,
+    powerDrainPerTick: 1.5,
     rechargeRatePerTick: 5,
     landingZoneLoadTicks: 5,
     maxRoversPerGarage: 2,

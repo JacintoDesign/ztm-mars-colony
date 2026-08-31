@@ -85,7 +85,7 @@ export class HelpModal {
   }
 
   private render(): void {
-    const { buildings, colonists, arrivals, ticksPerSol, starting, pools, maintenance, rovers, refinery, asteroids } = CONTRACT_RULES;
+    const { buildings, colonists, arrivals, ticksPerSol, starting, maintenance, rovers, refinery, asteroids } = CONTRACT_RULES;
 
     this.modalOverlay.innerHTML = `
       <div class="help-modal-panel">
@@ -103,7 +103,7 @@ export class HelpModal {
             <div class="help-section-title">1. SURVIVAL OBJECTIVE & LIFE SUPPORT</div>
             <div class="help-section-body">
               <p>Maintain continuous life support on Mars. A colony starts with ${starting.oxygen} oxygen, ${starting.power} power, ${starting.food} food, and 500 ore distributed across grid deposits.</p>
-              <p>Oxygen, Power, and Food are finite pools (${pools.oxygenMin}–${pools.powerMax}). If <strong>Oxygen == 0 OR Power == 0 OR Food == 0</strong> at the end of a tick, every colonist sustains <strong>${colonists.healthDamagePerTick} health damage</strong>. Colonists recover <strong>${colonists.healthRecoveryPerTick} HP/tick</strong> when all 3 pools are nominal.</p>
+              <p>Oxygen, Power, and Food are vital pools. Max Oxygen capacity expands with your infrastructure (<strong>100 base + 25 per operational Scrubber</strong>). If <strong>Oxygen == 0 OR Power == 0 OR Food == 0</strong> at the end of a tick, colonists engage emergency suit reserves and sustain <strong>${colonists.healthDamagePerTick} health damage/tick</strong> (giving a 50-tick emergency survival window). Colonists recover <strong>${colonists.healthRecoveryPerTick} HP/tick</strong> when all 3 pools are nominal.</p>
               <p>Colonists consume <strong>${colonists.oxygenConsumptionPerTick} O2/tick</strong> and <strong>${colonists.foodConsumptionPerTick} Food/tick</strong> each.</p>
               <p>If all colonists perish, the mission ends (<strong>GAME OVER</strong>). Sols survived is derived directly from the tick counter (${ticksPerSol} ticks = 1 Sol).</p>
             </div>
@@ -147,9 +147,9 @@ export class HelpModal {
                 </div>
                 <div class="help-b-desc">${buildings.scrubber.description}</div>
                 <div class="help-b-specs">
-                  <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.scrubber.oxygenProduction} O2 / tick</span></div>
+                  <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.scrubber.oxygenProduction} O2 / tick (+25 Max Capacity)</span></div>
                   <div class="help-spec-line"><span class="spec-k">POWER DRAW:</span> <span class="spec-v">-${buildings.scrubber.powerDraw} PWR / tick</span></div>
-                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">${buildings.scrubber.repairLabor} Colonist, ${buildings.scrubber.repairElectronics} Electronics</span></div>
+                  <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">${buildings.scrubber.repairLabor} Colonist, ${buildings.scrubber.repairElectronics} Electronics (30 Ticks)</span></div>
                 </div>
               </div>
 
@@ -238,8 +238,18 @@ export class HelpModal {
           <div class="help-section">
             <div class="help-section-title">6. ROVERS, REFINERY & ASTEROIDS</div>
             <div class="help-section-body">
-              <p>Rovers travel at <strong>${rovers.speedTilesPerTick} tiles/tick</strong> and consume <strong>${rovers.powerDrainPerTick} PWR/tick</strong> on missions. Dispatching a rover requires <strong>1 Battery Cell</strong> (refined at the Refinery for ${refinery.oreCostPerCell} ore).</p>
+              <p>Rovers travel at <strong>${rovers.speedTilesPerTick} tiles/tick</strong> and consume <strong>${rovers.powerDrainPerTick} PWR/tick</strong> on missions. Dispatching a rover fuels it to full charge using <strong>1 Battery Cell</strong> (refined at the Refinery for ${refinery.oreCostPerCell} ore).</p>
               <p>Stored battery cells decay by <strong>-1 efficiency/tick</strong>. Active asteroids spawn periodically (~${asteroids.spawnWindowTicks} ticks) for ${asteroids.lifetimeTicks} ticks with rich ore deposits accessible by rover dispatch.</p>
+            </div>
+          </div>
+
+          <!-- Section 7: Spacing Buffers & Structure Management -->
+          <div class="help-section">
+            <div class="help-section-title">7. COLONY SPACING & STRUCTURE CONTROLS</div>
+            <div class="help-section-body">
+              <p><strong>Colony Spacing & Buffer Zones:</strong> Industrial structures generate heat and dust interference when clumped tightly together. Structures with <strong>&le; 1 adjacent orthogonal neighbor</strong> operate at <strong>100% full capacity</strong>. Overcrowded buildings (&ge; 2 neighbors) suffer a <strong>-1 resource output penalty</strong> per additional neighbor. Spreading out your colony with walkways and open buffers maximizes total resource yields.</p>
+              <p><strong>Extractor Power & Relocation:</strong> Dry extractors continue to draw power unless deactivated. Select an extractor and click <strong>Toggle Power</strong> to put it on standby (0 PWR draw). Click <strong>Move Extractor (10 Power)</strong> to relocate the machine to a fresh ore deposit on the grid.</p>
+              <p><strong>Automated Repairs & Digging:</strong> Idle colonists automatically pathfind adjacent to broken structures or dust storm mounds and perform on-site labor (50 ticks + electronics for repairs; 100 ticks for digging out).</p>
             </div>
           </div>
         </div>

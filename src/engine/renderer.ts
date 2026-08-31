@@ -33,6 +33,8 @@ export class IsometricRenderer {
   private config: IsoConfig;
   private hoveredTile: GridPoint | null = null;
   private selectedTool: BuildingType | null = null;
+  private selectedBuildingId: string | null = null;
+  private relocatingBuildingId: string | null = null;
   private onHoverTile?: (tile: GridPoint | null) => void;
   private onStatusChange?: (message: string, level: StatusLevel) => void;
   private dpr = 1;
@@ -79,12 +81,59 @@ export class IsometricRenderer {
 
   public setSelectedTool(tool: BuildingType | null): void {
     this.selectedTool = tool;
+    this.relocatingBuildingId = null;
     this.updateStatus();
     this.requestRender();
   }
 
   public getSelectedTool(): BuildingType | null {
     return this.selectedTool;
+  }
+
+  public getSelectedBuildingId(): string | null {
+    return this.selectedBuildingId;
+  }
+
+  public setSelectedBuildingId(id: string | null): void {
+    this.selectedBuildingId = id;
+    this.requestRender();
+  }
+
+  public startRelocateBuilding(buildingId?: string): boolean {
+    const targetId = buildingId ?? this.selectedBuildingId ?? this.store.getState().buildings.find((b) => b.type === 'extractor')?.id;
+    if (!targetId) {
+      if (this.onStatusChange) this.onStatusChange('No building selected to move', 'warning');
+      return false;
+    }
+    this.selectedTool = null;
+    this.relocatingBuildingId = targetId;
+    this.selectedBuildingId = targetId;
+    if (this.onStatusChange) {
+      this.onStatusChange('Select target tile to relocate structure (Cost: 10 Power)', 'nominal');
+    }
+    this.requestRender();
+    return true;
+  }
+
+  public toggleBuildingPower(buildingId?: string): boolean {
+    const targetId = buildingId ?? this.selectedBuildingId ?? this.store.getState().buildings.find((b) => b.type === 'extractor')?.id;
+    if (!targetId) {
+      if (this.onStatusChange) this.onStatusChange('No building selected to toggle', 'warning');
+      return false;
+    }
+    const res = this.store.dispatch({
+      type: 'TOGGLE_BUILDING_POWER',
+      buildingId: targetId,
+    });
+    if (res.success) {
+      const b = this.store.getState().buildings.find((bld) => bld.id === targetId);
+      const conditionStr = b?.condition === 'deactivated' ? 'Deactivated (0 PWR)' : 'Activated';
+      if (this.onStatusChange) this.onStatusChange(`Building ${conditionStr}`, 'nominal');
+    } else {
+      if (this.onStatusChange) this.onStatusChange(res.reason ? `Toggle Failed: ${res.reason}` : 'Toggle Failed', 'warning');
+    }
+    this.requestRender();
+    return res.success;
   }
 
   public destroy(): void {
@@ -193,22 +242,68 @@ export class IsometricRenderer {
     const { x, y } = this.getCanvasCoords(e);
     const tile = screenToGrid(x, y, this.config);
 
-    if (!tile || !this.selectedTool) {
+    if (!tile) {
       return;
     }
 
-    const result = this.store.dispatch({
-      type: 'PLACE_BUILDING',
-      buildingType: this.selectedTool,
-      x: tile.x,
-      y: tile.y,
-    });
+    // 1. Relocation Mode Active
+    if (this.relocatingBuildingId) {
+      const result = this.store.dispatch({
+        type: 'MOVE_BUILDING',
+        buildingId: this.relocatingBuildingId,
+        targetX: tile.x,
+        targetY: tile.y,
+      });
 
-    if (!result.success && this.onStatusChange) {
-      const level: StatusLevel = result.reason === 'Tile Occupied' ? 'warning' : 'critical';
-      this.onStatusChange(result.reason ?? 'Placement Rejected', level);
-    } else if (result.success && this.onStatusChange) {
-      this.onStatusChange('Building Placed', 'nominal');
+      if (result.success) {
+        if (this.onStatusChange) this.onStatusChange('Building Relocated (10 Power)', 'nominal');
+        this.relocatingBuildingId = null;
+      } else {
+        if (this.onStatusChange) {
+          const level: StatusLevel = result.reason === 'Tile Occupied' ? 'warning' : 'critical';
+          this.onStatusChange(result.reason ? `Relocation Blocked: ${result.reason}` : 'Relocation Failed', level);
+        }
+      }
+      this.requestRender();
+      return;
+    }
+
+    // 2. Building Placement Mode Active
+    if (this.selectedTool) {
+      const result = this.store.dispatch({
+        type: 'PLACE_BUILDING',
+        buildingType: this.selectedTool,
+        x: tile.x,
+        y: tile.y,
+      });
+
+      if (!result.success && this.onStatusChange) {
+        const level: StatusLevel = result.reason === 'Tile Occupied' ? 'warning' : 'critical';
+        this.onStatusChange(result.reason ?? 'Placement Rejected', level);
+      } else if (result.success && this.onStatusChange) {
+        this.onStatusChange('Building Placed', 'nominal');
+      }
+      this.requestRender();
+      return;
+    }
+
+    // 3. Selection Mode (No tool active)
+    const building = this.store.getState().buildings.find((b) => b.x === tile.x && b.y === tile.y);
+    if (building) {
+      this.selectedBuildingId = building.id;
+      // Compute neighbors for spacing telemetry
+      const neighbors = this.store.getState().buildings.filter(
+        (other) => other.id !== building.id && Math.abs(building.x - other.x) + Math.abs(building.y - other.y) === 1
+      ).length;
+      const spacingInfo = neighbors > 1 ? `Crowded (-${neighbors - 1} output)` : 'Optimal Spacing (100%)';
+      if (this.onStatusChange) {
+        this.onStatusChange(
+          `[${building.type.toUpperCase()}] ${building.condition.toUpperCase()} | Neighbors: ${neighbors} (${spacingInfo})`,
+          neighbors > 1 ? 'warning' : 'nominal'
+        );
+      }
+    } else {
+      this.selectedBuildingId = null;
     }
     this.requestRender();
   }
@@ -464,6 +559,27 @@ export class IsometricRenderer {
   }
 
   private renderHoverHighlight(ctx: CanvasRenderingContext2D): void {
+    const state = this.store.getState();
+
+    // 1. Draw Selection Highlight around currently selected building
+    if (this.selectedBuildingId) {
+      const selectedBld = state.buildings.find((b) => b.id === this.selectedBuildingId);
+      if (selectedBld) {
+        const sv = getTileVertices(selectedBld.x, selectedBld.y, this.config);
+        ctx.beginPath();
+        ctx.moveTo(sv.top.x, sv.top.y);
+        ctx.lineTo(sv.right.x, sv.right.y);
+        ctx.lineTo(sv.bottom.x, sv.bottom.y);
+        ctx.lineTo(sv.left.x, sv.left.y);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(78, 201, 176, 0.2)';
+        ctx.fill();
+        ctx.strokeStyle = '#4ec9b0';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
     if (!this.hoveredTile) return;
 
     const { x, y } = this.hoveredTile;
@@ -476,6 +592,40 @@ export class IsometricRenderer {
     ctx.lineTo(v.left.x, v.left.y);
     ctx.closePath();
 
+    // 2. Relocation Mode Highlight
+    if (this.relocatingBuildingId) {
+      const relocatingBld = state.buildings.find((b) => b.id === this.relocatingBuildingId);
+      const isOccupied = state.buildings.some((b) => b.x === x && b.y === y);
+      const isReserved = x === 0 && y === 0;
+      const canRelocate = !isOccupied && !isReserved && state.power >= 10;
+
+      if (!canRelocate) {
+        ctx.fillStyle = 'rgba(217, 79, 61, 0.25)';
+        ctx.fill();
+        ctx.strokeStyle = '#D94F3D';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = 'rgba(78, 201, 176, 0.2)';
+        ctx.fill();
+        ctx.strokeStyle = '#4ec9b0';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+
+        if (relocatingBld) {
+          drawBuilding(ctx, {
+            type: relocatingBld.type,
+            x,
+            y,
+            config: this.config,
+            isPreview: true,
+          });
+        }
+      }
+      return;
+    }
+
+    // 3. Placement Tool Mode Highlight
     if (this.selectedTool) {
       const check = this.store.checkPlacement(this.selectedTool, x, y);
 
@@ -512,7 +662,40 @@ export class IsometricRenderer {
   private updateStatus(): void {
     if (!this.onStatusChange) return;
 
+    if (this.relocatingBuildingId) {
+      if (!this.hoveredTile) {
+        this.onStatusChange('Select target tile to relocate structure (Cost: 10 Power)', 'nominal');
+        return;
+      }
+      const isOccupied = this.store.getState().buildings.some((b) => b.x === this.hoveredTile!.x && b.y === this.hoveredTile!.y);
+      const isReserved = this.hoveredTile.x === 0 && this.hoveredTile.y === 0;
+      if (isOccupied) {
+        this.onStatusChange('Tile Occupied', 'warning');
+      } else if (isReserved) {
+        this.onStatusChange('Tile (0, 0) Reserved', 'warning');
+      } else if (this.store.getState().power < 10) {
+        this.onStatusChange('Insufficient Power (Requires 10 PWR)', 'critical');
+      } else {
+        this.onStatusChange('Click tile to place relocated structure (Cost: 10 Power)', 'nominal');
+      }
+      return;
+    }
+
     if (!this.selectedTool) {
+      if (this.hoveredTile) {
+        const b = this.store.getState().buildings.find((bld) => bld.x === this.hoveredTile!.x && bld.y === this.hoveredTile!.y);
+        if (b) {
+          const neighbors = this.store.getState().buildings.filter(
+            (other) => other.id !== b.id && Math.abs(b.x - other.x) + Math.abs(b.y - other.y) === 1
+          ).length;
+          const spacingInfo = neighbors > 1 ? `Crowded (-${neighbors - 1} output)` : 'Optimal Spacing (100%)';
+          this.onStatusChange(
+            `[${b.type.toUpperCase()}] ${b.condition.toUpperCase()} | Neighbors: ${neighbors} (${spacingInfo})`,
+            neighbors > 1 ? 'warning' : 'nominal'
+          );
+          return;
+        }
+      }
       this.onStatusChange('Telemetry Link Nominal', 'nominal');
       return;
     }

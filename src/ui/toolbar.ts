@@ -9,6 +9,8 @@ export interface ToolbarOptions {
   onRefineCell?: () => void;
   onDispatchEscort?: () => void;
   onDispatchMining?: () => void;
+  onTogglePower?: () => void;
+  onRelocateExtractor?: () => void;
 }
 
 export class Toolbar {
@@ -22,6 +24,8 @@ export class Toolbar {
   private onRefineCell?: () => void;
   private onDispatchEscort?: () => void;
   private onDispatchMining?: () => void;
+  private onTogglePower?: () => void;
+  private onRelocateExtractor?: () => void;
   public static readonly CONTAINER_ID = 'toolbar';
 
   constructor(options: ToolbarOptions) {
@@ -29,6 +33,8 @@ export class Toolbar {
     this.onRefineCell = options.onRefineCell;
     this.onDispatchEscort = options.onDispatchEscort;
     this.onDispatchMining = options.onDispatchMining;
+    this.onTogglePower = options.onTogglePower;
+    this.onRelocateExtractor = options.onRelocateExtractor;
 
     const existing = document.getElementById(options.containerId ?? Toolbar.CONTAINER_ID);
     if (existing) {
@@ -84,13 +90,13 @@ export class Toolbar {
     this.container.innerHTML = '';
 
     const tools: Array<{ type: BuildingType; name: string; cost: string }> = [
-      { type: 'habitat', name: 'Habitat', cost: '20P, 10 Ore' },
-      { type: 'solar', name: 'Solar', cost: '10P, 5 Ore' },
-      { type: 'scrubber', name: 'Scrubber', cost: '15P, 8 Ore' },
-      { type: 'extractor', name: 'Extractor', cost: '25P, 15 Ore' },
-      { type: 'farm', name: 'Farm', cost: '30P, 20 Ore' },
-      { type: 'garage', name: 'Garage', cost: '40P, 30 Ore' },
-      { type: 'refinery', name: 'Refinery', cost: '50P, 40 Ore' },
+      { type: 'habitat', name: 'Habitat', cost: '20 PWR' },
+      { type: 'solar', name: 'Solar', cost: '15 PWR' },
+      { type: 'scrubber', name: 'Scrubber', cost: '15 PWR, 5 Ore' },
+      { type: 'extractor', name: 'Extractor', cost: '25 PWR' },
+      { type: 'farm', name: 'Farm', cost: '20 PWR, 5 Ore' },
+      { type: 'garage', name: 'Garage', cost: '30 PWR, 10 Ore' },
+      { type: 'refinery', name: 'Refinery', cost: '25 PWR, 15 Ore' },
     ];
 
     // 1. Tool selection group (All 7 buildings)
@@ -207,6 +213,28 @@ export class Toolbar {
     });
     actButtonsView.appendChild(miningBtn);
 
+    const togglePowerBtn = document.createElement('button');
+    togglePowerBtn.type = 'button';
+    togglePowerBtn.className = 'toolbar-btn toolbar-action-btn';
+    togglePowerBtn.id = 'action-toggle-power';
+    togglePowerBtn.textContent = 'Toggle Power';
+    togglePowerBtn.title = 'Turn off/on selected building or extractor to save power';
+    togglePowerBtn.addEventListener('click', () => {
+      if (this.onTogglePower) this.onTogglePower();
+    });
+    actButtonsView.appendChild(togglePowerBtn);
+
+    const moveBtn = document.createElement('button');
+    moveBtn.type = 'button';
+    moveBtn.className = 'toolbar-btn toolbar-action-btn';
+    moveBtn.id = 'action-move-extractor';
+    moveBtn.textContent = 'Move Extractor (10P)';
+    moveBtn.title = 'Relocate extractor to a new ore deposit';
+    moveBtn.addEventListener('click', () => {
+      if (this.onRelocateExtractor) this.onRelocateExtractor();
+    });
+    actButtonsView.appendChild(moveBtn);
+
     actionsGroup.appendChild(actButtonsView);
 
     // 2b. Dropdown View
@@ -237,6 +265,16 @@ export class Toolbar {
     miningOpt.textContent = 'Dispatch Mining';
     actSelect.appendChild(miningOpt);
 
+    const toggleOpt = document.createElement('option');
+    toggleOpt.value = 'toggle';
+    toggleOpt.textContent = 'Toggle Power (OFF/ON)';
+    actSelect.appendChild(toggleOpt);
+
+    const moveOpt = document.createElement('option');
+    moveOpt.value = 'move';
+    moveOpt.textContent = 'Move Extractor (10P)';
+    actSelect.appendChild(moveOpt);
+
     actSelect.addEventListener('change', () => {
       const val = actSelect.value;
       if (val === 'refine' && this.onRefineCell) {
@@ -245,6 +283,10 @@ export class Toolbar {
         this.onDispatchEscort();
       } else if (val === 'mining' && this.onDispatchMining) {
         this.onDispatchMining();
+      } else if (val === 'toggle' && this.onTogglePower) {
+        this.onTogglePower();
+      } else if (val === 'move' && this.onRelocateExtractor) {
+        this.onRelocateExtractor();
       }
       actSelect.selectedIndex = 0;
     });

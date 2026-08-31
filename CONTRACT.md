@@ -27,35 +27,42 @@
 - habitat: houses 2 colonists, draws 2 power/tick
 - solar: produces 5 power/tick, draws 0
 - scrubber: produces 4 oxygen/tick, draws 3 power/tick
-- extractor: produces 3 ore/tick from its tile's local deposit, draws 4 power/tick
+- extractor: produces 3 ore/tick from its tile's local deposit, draws 4 power/tick. Can be deactivated (0 PWR draw) and relocated to fresh deposits for 10 PWR
 - farm: produces 4 food/tick, draws 2 power/tick
 - garage: holds up to 2 rovers, draws 1 power/tick, no production
 - refinery: converts ore to battery cells, draws 5 power/tick, no automatic production — refining is a player-initiated action, not continuous
 
-### Resources
-- oxygen and power are pools, 0–100, clamped at both ends
+### Colony Spacing & Buffer Zones
+- Heavy industrial and life support structures require ventilation, solar clearance, and ground isolation.
+- Structures with $\le 1$ immediate adjacent orthogonal neighbor operate at **100% full nominal efficiency**.
+- Clustered structures with $\ge 2$ adjacent neighbors suffer an overcrowding penalty of **-1 resource production per additional neighbor** (minimum 0). Designing open colony layouts with walkways and spacing buffers maximizes aggregate output.
+
+### Resources & Storage Scaling
+- power and food are pools, 0–100, clamped at both ends
+- oxygen is a scalable life support pool (0 to dynamic max: **100 base + 25 per operational Scrubber**)
 - Each colonist consumes 3 oxygen/tick
 
 ### Ore
 - ore is a stockpile, not a pool: 0 or above, no upper clamp
 - ore does not participate in the health rule. Oxygen, power, and food are the three that can trigger colonist health loss
 
-### Ore Deposits
+### Ore Deposits & Extractor Relocation
 - Ore is not a single global reserve. At colony creation, the seeded generator distributes 500 ore total across roughly 15–25 grid tiles, unevenly — most tiles hold nothing, a handful hold a meaningful amount, and at least one holds as little as 1. Distribution is fixed for the colony's lifetime, generated once, never regenerated
 - An extractor placed on a tile mines only that tile's own deposit, at 3 ore/tick, until it reaches 0. It does not draw from any other tile
-- Once a tile's deposit is exhausted, an extractor there produces 0 ore/tick permanently. It still draws power — an idle extractor is not a free one
+- Once a tile's deposit is exhausted, an extractor there produces 0 ore/tick permanently. It still draws power unless deactivated by the player.
+- **Extractor Deactivation & Relocation**: Players can select an extractor and toggle its power state (deactivated: 0 PWR draw). Players can also relocate an extractor to another available ore tile on the grid for 10 Power.
 - The three mining sites below are the largest individual deposits in this same 500-total pool, deliberately placed far from the landing zone
 
 ### Food
-- food is a pool, 0–100, clamped at both ends, same shape as oxygen and power
+- food is a pool, 0–100, clamped at both ends, same shape as power
 - farm produces food; each colonist consumes 2 food/tick
-- food joins the life-support check: if oxygen is 0 OR power is 0 OR food is 0 at the end of a tick, every colonist loses 5 health. All three pools are read; any one hitting 0 is sufficient
+- food joins the life-support check: if oxygen is 0 OR power is 0 OR food is 0 at the end of a tick, every colonist loses 2 health. All three pools are read; any one hitting 0 is sufficient
 
 ### Building Condition
-- Every building has a condition: operational, broken, or buried
+- Every building has a condition: operational, broken, buried, or deactivated
 - Each tick, each operational building has a small seeded chance of becoming broken — 1-in-15,000 per building per tick. At 5 buildings (roughly where an early colony sits) that's an expected break every 3,000 ticks; at 28 buildings (a mature, fully-built colony) it's every 535 ticks. Maintenance load scales with how much you've built, on purpose — it's the direct answer to "build enough and stop worrying"
 - A broken building produces and draws nothing until repaired
-- Repair requires a fixed number of colonists physically present on the building's tile for 50 consecutive ticks, plus an electronics cost — 1 colonist and 1 electronics for habitat, solar, scrubber, and farm; 2 colonists and 2 electronics for extractor, garage, and refinery
+- Repair requires a fixed number of colonists present adjacent to or on the building's tile for 50 consecutive ticks (30 ticks for scrubbers), plus an electronics cost — 1 colonist and 1 electronics for habitat, solar, scrubber, and farm; 2 colonists and 2 electronics for extractor, garage, and refinery
 - Repair labor and repair material come from different places on purpose. Colonists are locally renewable — arrivals, if you keep the pipeline running. Electronics are not — the colony cannot manufacture them, only receive them, which is what makes ship traffic worth the escort risk rather than a formality
 - The tick function assigns the nearest idle colonists to a broken building automatically, the same way it assigns new arrivals to a habitat. The player places buildings; the player does not hand-direct repair labor
 - A buried building (see Weather) cannot be repaired until it is dug out first
@@ -64,7 +71,7 @@
 - Every 5,000-tick window, a seeded roll has a 20% chance a dust storm occurs — an expected storm every 25,000 ticks, independent of colony size. Unlike breakage, weather doesn't scale with how much you've built; it's the pressure that exists regardless
 - A storm buries up to 3 operational buildings, chosen by the seeded generator from those not already buried or broken
 - A buried building produces and draws nothing
-- Digging out requires 1 colonist present on the tile for 100 consecutive ticks, no resource cost. Assigned automatically, same as repair
+- Digging out requires 1 colonist present adjacent to or on the tile for 100 consecutive ticks, no resource cost. Assigned automatically, same as repair
 - A building already broken when it's buried needs digging out first, then repair — both, in that order
 
 ### Colonist Lifespan
@@ -78,7 +85,7 @@
 - habitat: 20 power
 - solar: 15 power
 - scrubber: 15 power, 5 ore
-- extractor: 25 power
+- extractor: 25 power (Relocation: 10 power)
 - farm: 20 power, 5 ore
 - garage: 30 power, 10 ore
 - refinery: 25 power, 15 ore
@@ -87,7 +94,7 @@
 - For extractor specifically: placing an extractor on a dry tile (zero ore) is legal but pointless, and the game does not prevent it
 
 ### Health
-- If oxygen is 0 OR power is 0 OR food is 0 at end of tick: every colonist loses 5 health
+- If oxygen is 0 OR power is 0 OR food is 0 at end of tick: every colonist loses 2 health (50-tick survival buffer)
 - Otherwise: colonists recover 1 health per tick, up to 100
 
 ### Colonist Death
@@ -129,11 +136,11 @@
   - 1 occupant: single colonist driver (standard transit, mining dispatch, or outbound escort)
   - 2 occupants: driver + passenger colonist (e.g. returning from landing zone with the escorted colonist)
 - Rover state: idle_at_base, traveling_out, on_site, traveling_back, stranded. `on_site` covers mining a site or asteroid and picking up a pending arrival alike — what happens during it depends on the dispatch, the state name doesn't
-- Rover power: 0–100, its own pool, separate from colony power. Recharges 5/tick while idle_at_base, nowhere else
+- Rover power: 0–150, its own pool, separate from colony power. Recharges 5/tick while idle_at_base, nowhere else. Dispatched at full charge using 1 battery cell
 - Dispatch costs 1 battery cell, consumed on departure. No cell, no dispatch
-- Once dispatched: travel_out_ticks + on_site_ticks + travel_back_ticks, at 1 tile/tick for the travel legs. A mining or asteroid dispatch sets on_site_ticks to that site's fixed mining duration; a landing-zone dispatch sets it to a fixed 5 ticks, just long enough to represent loading a passenger rather than mining ore. Rover power drains 2/tick for the whole round trip regardless of what it's doing on site
+- Once dispatched: travel_out_ticks + on_site_ticks + travel_back_ticks, at 1 tile/tick for the travel legs. A mining or asteroid dispatch sets on_site_ticks to that site's fixed mining duration; a landing-zone dispatch sets it to a fixed 5 ticks, just long enough to represent loading a passenger rather than mining ore. Rover power drains 1.5/tick for the round trip
 - Cargo is one of two shapes depending on the dispatch: `{ type: 'ore', amount }` from a mining or asteroid trip, or `{ type: 'arrival' }` from a landing-zone trip, carrying whichever pending arrival was picked up along with their electronics
-- If rover power reaches 0 before the rover returns to base: stranded. Its cargo is lost — ore forfeited, or a rescued arrival lost exactly as if the escort had never happened. A stranded rover is recovered by a colonist walking to it and returning it to the nearest garage with room — the same movement system, a fourth kind of destination
+- If rover power reaches 0 before the rover returns to base: stranded. Its cargo is lost — ore forfeited, or a rescued arrival lost exactly as if the escort had never happened. A stranded rover is recovered by a colonist walking adjacent to it and returning it to the nearest garage with room — the same movement system, a fourth kind of destination
 - On successful return: ore cargo joins the colony's ore stockpile; an arrival cargo moves the pending arrival into `colonists` and adds their electronics to the stockpile, exactly as a completed escort does
 
 ### Mining Sites
