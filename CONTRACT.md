@@ -72,7 +72,7 @@
 - A storm buries up to 3 operational buildings, chosen by the seeded generator from those not already buried or broken
 - A buried building produces and draws nothing
 - Digging out requires 1 colonist present adjacent to or on the tile for 100 consecutive ticks, no resource cost. Assigned automatically, same as repair
-- A building already broken when it's buried needs digging out first, then repair — both, in that order
+- A building already broken when it's buried preserves its broken state (`wasBrokenBeforeBurial = true`), needing digging out first (100 ticks) which returns its condition to `broken`, followed by standard repair (labor + electronics) — both, in that order
 
 ### Colonist Lifespan
 - Each colonist has an age, in ticks, starting at 0 and incrementing every tick
@@ -123,6 +123,7 @@
 
 ### Colonist movement
 - Colonists move one tile every 5 ticks toward a destination building, stopping adjacent (0.2 tiles/tick)
+- A sub-tick counter (`moveProgress`, 0 to 4 ticks) tracks progress between each tile step
 - A colonist can be assigned four kinds of destination: a habitat on arrival, a broken building to repair, a buried building to dig out, or a stranded rover to recover. Only one at a time — a colonist already assigned to any of the four isn't pulled to a second one until the first finishes
 - Movement advances inside the tick function, not in rendering
 - Every movement choice must be deterministic — no fresh random numbers
@@ -136,6 +137,7 @@
   - 1 occupant: single colonist driver (standard transit, mining dispatch, or outbound escort)
   - 2 occupants: driver + passenger colonist (e.g. returning from landing zone with the escorted colonist)
 - Rover state: idle_at_base, traveling_out, on_site, traveling_back, stranded. `on_site` covers mining a site or asteroid and picking up a pending arrival alike — what happens during it depends on the dispatch, the state name doesn't
+- While in `on_site` state, `onSiteTicksRemaining` tracks the tick countdown until mining or passenger loading operations conclude
 - Rover power: 0–150, its own pool, separate from colony power. Recharges 5/tick while idle_at_base, nowhere else. Dispatched at full charge using 1 battery cell
 - Dispatch costs 1 battery cell, consumed on departure. No cell, no dispatch
 - Once dispatched: travel_out_ticks + on_site_ticks + travel_back_ticks, at 1 tile/tick for the travel legs. A mining or asteroid dispatch sets on_site_ticks to that site's fixed mining duration; a landing-zone dispatch sets it to a fixed 5 ticks, just long enough to represent loading a passenger rather than mining ore. Rover power drains 1.5/tick for the round trip
@@ -175,10 +177,10 @@ Every field that needs to persist, in one place — the source of truth for the 
 - status — `active` or `game_over`
 - seed — the colony's own seeded generator state, set once at creation, advanced deterministically by every roll that reads from it
 - oreDeposits — array of `{ x, y, remaining }`, set once at creation from the seeded 500-total distribution
-- buildings — array of `{ type, x, y, condition }`, condition one of `operational`, `broken`, `buried`
-- colonists — array of `{ x, y, health, age, lifespan, destination, destinationType, route }`, destinationType one of `habitat`, `repair`, `dig`, `rover_recovery`
+- buildings — array of `{ type, x, y, condition, repairProgress, digProgress, wasBrokenBeforeBurial }`, condition one of `operational`, `broken`, `buried`, `deactivated`
+- colonists — array of `{ x, y, health, age, lifespan, moveProgress, destination, destinationType, targetEntityId, route }`, destinationType one of `habitat`, `repair`, `dig`, `rover_recovery`
 - pendingArrivals — array of `{ landedAtTick, electronics }`, position always the landing zone. Not colonists yet — no health, no age, not counted anywhere life support is
-- rovers — array of `{ garageX, garageY, state, power, cargo, destination }`, state one of `idle_at_base`, `traveling_out`, `on_site`, `traveling_back`, `stranded`; cargo either `{ type: 'ore', amount }`, `{ type: 'arrival' }`, or null
+- rovers — array of `{ garageX, garageY, x, y, state, power, cargo, destination, onSiteTicksRemaining, route }`, state one of `idle_at_base`, `traveling_out`, `on_site`, `traveling_back`, `stranded`; cargo either `{ type: 'ore', amount }`, `{ type: 'arrival' }`, or null
 - batteryCells — array of `{ efficiency }`, one entry per stored cell, at the refinery
 - miningSites — array of `{ x, y, yield }`, fixed at creation
 - activeAsteroid — `{ x, y, yield, expiresAtTick }` or null
@@ -197,8 +199,8 @@ Fields that persist per account, separate from any single colony — outlives a 
 | --- | --- |
 | Auth & Session Manager | Authenticate player, load active colony session, handle reconnects |
 | Isometric Canvas Renderer | Render terrain tiles, buildings, resource overlays, and colonist sprites via 2D Canvas |
-| Tick Client | Send player actions to serverless tick route; apply authoritative state from Supabase; project state forward on client for display between writes |
-| HUD & Text Info Panels | Display every colony metric the diagnostic panel tracks except session identity — tick, oxygen, power, food, ore, electronics, building condition, colonist health and age, pending arrivals with time remaining, rover and battery status — and building placement toolbars in plain text/DOM |
+| Tick Client & Fallback Engine | Send player actions to serverless tick route; apply authoritative state from Supabase; project state forward on client for display between writes. When serverless Edge Functions are offline or unreachable, local fallback engine (`server-simulation.ts`) provides an identical direct-database authoritative simulation runner for offline/local development |
+| HUD, Toolbar & Text Info Panels | Display every colony metric the diagnostic panel tracks except session identity — tick, oxygen, power, food, ore, electronics, building condition, colonist health and age, pending arrivals with time remaining, rover and battery status — and building placement toolbars in plain text/DOM. On compact/mobile screens, toolbars collapse cleanly into custom responsive dropdown drawers |
 | Building & Placement Controller | Handle cursor tile hovering, building validity and affordability checks, and placement requests. Tile hover shows ore remaining for a tile before an extractor is placed there |
 | Catch-up Handler | Apply batched offline ticks on load up to the 28,800 tick ceiling |
 | Landing Zone | Render pending arrivals waiting at tile (0, 0) with visible time remaining before their escort window expires |

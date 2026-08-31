@@ -96,8 +96,9 @@ The 2D Canvas supports multi-touch pinch-to-zoom (1.0x to 3.5x scale) and pan of
 
 ### Toolbar, Actions & Cooldown Bar
 
-- **Building Selection**: Grid of 7 structure tools, collapsing into a custom telemetry dropdown on narrow screens.
+- **Building Selection**: Grid of 7 structure tools, collapsing into a custom telemetry dropdown drawer on narrow screens.
 - **Colony Actions**: Dedicated dispatch buttons for `Refine Cell (10 Ore)`, `Dispatch Escort`, `Dispatch Mining`, `Toggle Power`, and `Move Extractor (10P)`.
+- **Mobile Dropdown Navigation Toolbar**: On mobile viewports and narrow displays, the toolbar automatically collapses into expandable custom dropdown panels for both building placement tools and colony action dispatches, triggered by compact arrow indicators (`▼`/`▲`) with full touch responsiveness.
 - **Action Rate-Limiting**: A subtle 600ms horizontal cooldown progress bar along the toolbar top edge throttles rapid dispatch inputs.
 
 ## Life Support Telemetry

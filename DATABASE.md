@@ -11,13 +11,18 @@ This database is shared by two unrelated applications.
 - Each application keeps its own user table. `marscolony_users` and
   `waypoint_users` are not the same table and never share rows.
 
-## Access
+## Access & Simulation Execution
 - Every `marscolony_` table has an owner column referencing the
   authenticated user.
 - Row-level security is enabled on every `marscolony_` table, scoped
   to the current user for select, insert, update and delete.
 - Application code uses the session's credentials so those policies
   apply. The service role key is not used by application code.
+- Serverless edge functions (`tick`, `action`) execute pure authoritative
+  simulation arithmetic and persist mutations to Supabase. When edge
+  functions are unreachable in local/offline environments, the client
+  utilizes `server-simulation.ts` as an identical direct-database
+  authoritative simulation fallback runner.
 
 ## Migrations
 - Migration files are prefixed `marscolony_` and only ever contain
@@ -32,7 +37,10 @@ This database is shared by two unrelated applications.
   a deposit depletes. Same pattern as buildings, same reasoning.
 - `marscolony_rovers` gets its own table, matching the existing
   colonists table's shape: a small but individually-tracked set of
-  entities, each with its own state machine and position.
+  entities, each with its own state machine and position. Rover power
+  is constrained to 0–150 with default 150.
+- `marscolony_buildings` includes `was_broken_before_burial` (boolean,
+  default false) to persist prior broken state across dust storm burials.
 - Battery cells, mining sites, the active asteroid, and the seed
   itself stay as JSONB columns on `marscolony_colonies`. None of them
   need row-level access on their own — mining sites are three fixed
