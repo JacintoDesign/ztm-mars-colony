@@ -135,6 +135,7 @@ const renderer = new IsometricRenderer({
 // Active session tracking & timers
 let activeUserId: string | null = null;
 let activeColonyId: string | null = null;
+let isInitializingUserId: string | null = null;
 let clientProjectionInterval: number | null = null;
 let serverSyncInterval: number | null = null;
 let realtimeChannel: RealtimeChannel | null = null;
@@ -253,6 +254,7 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
     stopSimulationLoops();
     activeUserId = null;
     activeColonyId = null;
+    isInitializingUserId = null;
     store.setPersistenceHandler(null);
     store.setRestartHandler(null);
     store.reset();
@@ -268,6 +270,13 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
   const isGuest = authState.isGuest;
   const userDisplay = isGuest ? `guest-${user.id.slice(0, 6)}` : (user.email ?? user.id.slice(0, 8));
 
+  // If already active or currently initializing for this exact user, avoid re-triggering
+  if (activeUserId === user.id || isInitializingUserId === user.id) {
+    store.loadState({ signedInAccount: userDisplay });
+    return;
+  }
+
+  isInitializingUserId = user.id;
   authModal.hide();
   toolbar.setStatus('Establishing Uplink...', 'nominal');
 
@@ -351,6 +360,8 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
     toolbar.setStatus(`Colony Load Error: ${err.message}`, 'critical');
     authModal.setStatus(`Failed to load colony: ${err.message}`, true);
     authModal.show();
+  } finally {
+    isInitializingUserId = null;
   }
 }
 

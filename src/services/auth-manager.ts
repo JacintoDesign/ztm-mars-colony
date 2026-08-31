@@ -13,9 +13,10 @@ export class AuthManager {
   private currentUser: User | null = null;
   private currentSession: Session | null = null;
   private listeners: Set<AuthStateChangeCallback> = new Set();
+  private lastNotifiedKey: string | null = null;
 
   constructor() {
-    // Listen for auth state transitions
+    // Listen for auth state transitions as single source of truth
     supabase.auth.onAuthStateChange((_event, session) => {
       this.currentSession = session;
       this.currentUser = session?.user ?? null;
@@ -67,9 +68,6 @@ export class AuthManager {
     this.currentUser = data.user;
     this.currentSession = data.session;
     const needsEmailConfirmation = !data.session && Boolean(data.user);
-    if (data.session) {
-      this.notify();
-    }
     return {
       user: data.user,
       session: data.session,
@@ -88,7 +86,6 @@ export class AuthManager {
     }
     this.currentUser = data.user;
     this.currentSession = data.session;
-    this.notify();
     return { user: data.user, error: null };
   }
 
@@ -99,7 +96,6 @@ export class AuthManager {
     }
     this.currentUser = data.user;
     this.currentSession = data.session;
-    this.notify();
     return { user: data.user, error: null };
   }
 
@@ -112,7 +108,6 @@ export class AuthManager {
       return { user: null, error: error.message };
     }
     this.currentUser = data.user;
-    this.notify();
     return { user: data.user, error: null };
   }
 
@@ -129,6 +124,12 @@ export class AuthManager {
 
   private notify(): void {
     const state = this.getState();
+    const currentKey = `${state.user?.id ?? 'none'}:${state.isGuest}:${state.user?.email ?? ''}`;
+    if (this.lastNotifiedKey === currentKey) {
+      return;
+    }
+    this.lastNotifiedKey = currentKey;
+
     for (const listener of this.listeners) {
       listener(state);
     }

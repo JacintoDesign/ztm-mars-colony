@@ -47,11 +47,29 @@ export interface ColonyData {
 }
 
 export class ColonyService {
+  private inFlightColonyLoads: Map<string, Promise<ColonyData>> = new Map();
+
   /**
    * Loads an existing colony for the authenticated user, or creates one if it's the first sign-in.
    * Performs authoritative offline catch-up (capped at 28,800 ticks).
    */
   public async loadOrCreateColony(userId: string): Promise<ColonyData> {
+    const existing = this.inFlightColonyLoads.get(userId);
+    if (existing) {
+      return existing;
+    }
+
+    const loadPromise = this.performLoadOrCreateColony(userId);
+    this.inFlightColonyLoads.set(userId, loadPromise);
+
+    try {
+      return await loadPromise;
+    } finally {
+      this.inFlightColonyLoads.delete(userId);
+    }
+  }
+
+  private async performLoadOrCreateColony(userId: string): Promise<ColonyData> {
     // 1. Fetch user account profile (best_sols_survived)
     let bestSolsSurvived = 0;
     const { data: userProfile } = await supabase
