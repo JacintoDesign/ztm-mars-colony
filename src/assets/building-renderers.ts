@@ -9,6 +9,7 @@ export interface DrawBuildingOptions {
   isPreview?: boolean;
   isPowered?: boolean;
   isProducing?: boolean;
+  dockedRovers?: number;
 }
 
 /**
@@ -20,10 +21,10 @@ export function drawColonist(
   center: ScreenPoint,
   health: number,
   age = 0,
-  lifespan = 15000
+  lifespan = 15000,
+  halfW = 32
 ): void {
-  const cx = center.x;
-  const cy = center.y + 2;
+  const s = halfW / 32;
   const healthFraction = Math.max(0, Math.min(1, health / 100));
   const isAged = age >= lifespan * 0.75;
 
@@ -33,51 +34,53 @@ export function drawColonist(
   const leanX = slump * 3; // Leans forward in exhaustion
 
   ctx.save();
+  ctx.translate(center.x, center.y + 2 * s);
+  ctx.scale(s, s);
 
   // Ground contact shadow
   ctx.fillStyle = 'rgba(10, 5, 2, 0.6)';
   ctx.beginPath();
-  ctx.ellipse(cx, cy, 4, 2, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, 4, 2, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // Suit legs
   ctx.strokeStyle = '#475569';
   ctx.lineWidth = 1.6;
   ctx.beginPath();
-  ctx.moveTo(cx - 2, cy);
-  ctx.lineTo(cx - 1.5, cy - standH * 0.4);
-  ctx.moveTo(cx + 2, cy);
-  ctx.lineTo(cx + 1.5, cy - standH * 0.4);
+  ctx.moveTo(-2, 0);
+  ctx.lineTo(-1.5, -standH * 0.4);
+  ctx.moveTo(2, 0);
+  ctx.lineTo(1.5, -standH * 0.4);
   ctx.stroke();
 
   // Suit torso
-  const torsoY = cy - standH * 0.75;
+  const torsoY = -standH * 0.75;
   ctx.fillStyle = healthFraction > 0.3 ? '#cbd5e1' : '#94a3b8';
   ctx.strokeStyle = '#334155';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.rect(cx - 3 + leanX * 0.5, torsoY, 6, standH * 0.45);
+  ctx.rect(-3 + leanX * 0.5, torsoY, 6, standH * 0.45);
   ctx.fill();
   ctx.stroke();
 
   // Life support backpack
   ctx.fillStyle = '#1e293b';
-  ctx.fillRect(cx - 4.5 + leanX * 0.3, torsoY + 1, 2, standH * 0.35);
+  ctx.fillRect(-4.5 + leanX * 0.3, torsoY + 1, 2, standH * 0.35);
 
   // Helmet / Head
-  const helmetY = cy - standH;
+  const helmetY = -standH;
   ctx.fillStyle = isAged ? '#94a3b8' : '#f8fafc'; // Greyed tone for aged colonists
   ctx.strokeStyle = '#475569';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.arc(cx + leanX, helmetY, 3.2, 0, Math.PI * 2);
+  ctx.arc(leanX, helmetY, 3.2, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
   // Helmet visor (Cyan at full health, Amber/Red when low health)
   ctx.fillStyle = healthFraction > 0.4 ? '#38bdf8' : healthFraction > 0.15 ? '#E0A030' : '#D94F3D';
   ctx.beginPath();
-  ctx.arc(cx + 1 + leanX, helmetY, 1.8, 0, Math.PI * 2);
+  ctx.arc(1 + leanX, helmetY, 1.8, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.restore();
@@ -86,21 +89,23 @@ export function drawColonist(
 /**
  * Draws the Habitat structure: low-profile, rounded composite biodome with airlock and cupola.
  */
-export function drawHabitat(ctx: CanvasRenderingContext2D, center: ScreenPoint, halfW: number, halfH: number): void {
-  const cx = center.x;
-  const cy = center.y;
-
-  const baseW = halfW * 0.72;
-  const baseH = halfH * 0.72;
+export function drawHabitat(ctx: CanvasRenderingContext2D, center: ScreenPoint, halfW: number, _halfH: number): void {
+  const s = halfW / 32;
+  const baseW = 32 * 0.72;
+  const baseH = 16 * 0.72;
   const wallH = 13;
   const domeH = 15;
+
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.scale(s, s);
 
   // 1. Ground pad
   ctx.fillStyle = '#2b170d';
   ctx.strokeStyle = '#180b05';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.ellipse(cx, cy + 2, baseW * 1.15, baseH * 1.15, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 2, baseW * 1.15, baseH * 1.15, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
@@ -109,37 +114,37 @@ export function drawHabitat(ctx: CanvasRenderingContext2D, center: ScreenPoint, 
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx - baseW, cy);
-  ctx.lineTo(cx, cy + baseH);
-  ctx.lineTo(cx, cy + baseH - wallH);
-  ctx.lineTo(cx - baseW, cy - wallH);
+  ctx.moveTo(-baseW, 0);
+  ctx.lineTo(0, baseH);
+  ctx.lineTo(0, baseH - wallH);
+  ctx.lineTo(-baseW, -wallH);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
   ctx.fillStyle = '#64748b';
   ctx.beginPath();
-  ctx.moveTo(cx, cy + baseH);
-  ctx.lineTo(cx + baseW, cy);
-  ctx.lineTo(cx + baseW, cy - wallH);
-  ctx.lineTo(cx, cy + baseH - wallH);
+  ctx.moveTo(0, baseH);
+  ctx.lineTo(baseW, 0);
+  ctx.lineTo(baseW, -wallH);
+  ctx.lineTo(0, baseH - wallH);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
   // 3. Dome
-  const domeBaseY = cy - wallH;
+  const domeBaseY = -wallH;
   ctx.fillStyle = '#94a3b8';
   ctx.strokeStyle = '#334155';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.ellipse(cx, domeBaseY, baseW, baseH, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, domeBaseY, baseW, baseH, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
   ctx.fillStyle = '#cbd5e1';
   ctx.beginPath();
-  ctx.ellipse(cx, domeBaseY - domeH * 0.45, baseW * 0.75, baseH * 0.75, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, domeBaseY - domeH * 0.45, baseW * 0.75, baseH * 0.75, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
@@ -148,37 +153,39 @@ export function drawHabitat(ctx: CanvasRenderingContext2D, center: ScreenPoint, 
   ctx.strokeStyle = '#94a3b8';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.ellipse(cx, domeBaseY - domeH * 0.75, baseW * 0.28, baseH * 0.28, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, domeBaseY - domeH * 0.75, baseW * 0.28, baseH * 0.28, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
   ctx.fillStyle = '#38bdf8';
   ctx.beginPath();
-  ctx.ellipse(cx - 1, domeBaseY - domeH * 0.75 - 1, baseW * 0.12, baseH * 0.12, 0, 0, Math.PI * 2);
+  ctx.ellipse(-1, domeBaseY - domeH * 0.75 - 1, baseW * 0.12, baseH * 0.12, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // 4. Airlock
   const alW = baseW * 0.38;
   const alH = 9;
-  const alY = cy + baseH;
+  const alY = baseH;
 
   ctx.fillStyle = '#334155';
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx - alW * 0.5, alY - 3);
-  ctx.lineTo(cx + alW * 0.5, alY + 3);
-  ctx.lineTo(cx + alW * 0.5, alY + 3 - alH);
-  ctx.lineTo(cx - alW * 0.5, alY - 3 - alH);
+  ctx.moveTo(-alW * 0.5, alY - 3);
+  ctx.lineTo(alW * 0.5, alY + 3);
+  ctx.lineTo(alW * 0.5, alY + 3 - alH);
+  ctx.lineTo(-alW * 0.5, alY - 3 - alH);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
   ctx.fillStyle = '#0f172a';
-  ctx.fillRect(cx - 3, alY - alH + 3, 6, alH - 2);
+  ctx.fillRect(-3, alY - alH + 3, 6, alH - 2);
 
   ctx.fillStyle = '#22c55e';
-  ctx.fillRect(cx - 1, alY - alH + 1, 2, 2);
+  ctx.fillRect(-1, alY - alH + 1, 2, 2);
+
+  ctx.restore();
 }
 
 /**
@@ -188,18 +195,21 @@ export function drawSolar(
   ctx: CanvasRenderingContext2D,
   center: ScreenPoint,
   halfW: number,
-  halfH: number,
+  _halfH: number,
   isPowered = true
 ): void {
-  const cx = center.x;
-  const cy = center.y;
+  const s = halfW / 32;
+
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.scale(s, s);
 
   // Ground anchor pad
   ctx.fillStyle = '#2a160d';
   ctx.strokeStyle = '#150a04';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.ellipse(cx, cy + 3, 11, 5.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 3, 11, 5.5, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
@@ -209,23 +219,23 @@ export function drawSolar(
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx - 3, cy + 3);
-  ctx.lineTo(cx + 3, cy + 3);
-  ctx.lineTo(cx + 2.5, cy - pylonH);
-  ctx.lineTo(cx - 2.5, cy - pylonH);
+  ctx.moveTo(-3, 3);
+  ctx.lineTo(3, 3);
+  ctx.lineTo(2.5, -pylonH);
+  ctx.lineTo(-2.5, -pylonH);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
-  const hubY = cy - pylonH;
-  const spanW = halfW * 0.95;
-  const spanH = halfH * 0.95;
+  const hubY = -pylonH;
+  const spanW = 32 * 0.95;
+  const spanH = 16 * 0.95;
 
   ctx.strokeStyle = '#475569';
   ctx.lineWidth = 2.5;
   ctx.beginPath();
-  ctx.moveTo(cx - spanW * 0.85, hubY);
-  ctx.lineTo(cx + spanW * 0.85, hubY);
+  ctx.moveTo(-spanW * 0.85, hubY);
+  ctx.lineTo(spanW * 0.85, hubY);
   ctx.stroke();
 
   // Gimbal hub
@@ -233,7 +243,7 @@ export function drawSolar(
   ctx.strokeStyle = '#334155';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.arc(cx, hubY, 3.5, 0, Math.PI * 2);
+  ctx.arc(0, hubY, 3.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
@@ -244,8 +254,8 @@ export function drawSolar(
 
   const drawWing = (isRight: boolean) => {
     const sign = isRight ? 1 : -1;
-    const xIn = cx + sign * gap;
-    const xOut = cx + sign * pw;
+    const xIn = sign * gap;
+    const xOut = sign * pw;
 
     const pTopIn = { x: xIn, y: hubY - ph - panelTiltY };
     const pBotIn = { x: xIn, y: hubY + ph };
@@ -322,8 +332,10 @@ export function drawSolar(
   // Central power indicator dot
   ctx.fillStyle = isPowered ? '#0284c7' : '#334155';
   ctx.beginPath();
-  ctx.arc(cx, hubY, 1.8, 0, Math.PI * 2);
+  ctx.arc(0, hubY, 1.8, 0, Math.PI * 2);
   ctx.fill();
+
+  ctx.restore();
 }
 
 /**
@@ -336,27 +348,29 @@ export function drawScrubber(
   ctx: CanvasRenderingContext2D,
   center: ScreenPoint,
   halfW: number,
-  halfH: number,
+  _halfH: number,
   isProducing = true
 ): void {
-  const cx = center.x;
-  const cy = center.y;
-
+  const s = halfW / 32;
   const totalH = 54;
-  const baseW = halfW * 0.55;
-  const baseH = halfH * 0.55;
-  const towerW = halfW * 0.34;
-  const towerH = halfH * 0.34;
+  const baseW = 32 * 0.55;
+  const baseH = 16 * 0.55;
+  const towerW = 32 * 0.34;
+  const towerH = 16 * 0.34;
+
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.scale(s, s);
 
   // 1. Reinforced heavy foundation plinth
   ctx.fillStyle = '#1e110a';
   ctx.strokeStyle = '#0f0804';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx, cy - baseH * 1.25);
-  ctx.lineTo(cx + baseW * 1.25, cy);
-  ctx.lineTo(cx, cy + baseH * 1.25);
-  ctx.lineTo(cx - baseW * 1.25, cy);
+  ctx.moveTo(0, -baseH * 1.25);
+  ctx.lineTo(baseW * 1.25, 0);
+  ctx.lineTo(0, baseH * 1.25);
+  ctx.lineTo(-baseW * 1.25, 0);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -368,10 +382,10 @@ export function drawScrubber(
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx - baseW, cy);
-  ctx.lineTo(cx, cy + baseH);
-  ctx.lineTo(cx, cy + baseH - lowerH);
-  ctx.lineTo(cx - baseW, cy - lowerH);
+  ctx.moveTo(-baseW, 0);
+  ctx.lineTo(0, baseH);
+  ctx.lineTo(0, baseH - lowerH);
+  ctx.lineTo(-baseW, -lowerH);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -379,10 +393,10 @@ export function drawScrubber(
   // Right light face
   ctx.fillStyle = '#334155';
   ctx.beginPath();
-  ctx.moveTo(cx, cy + baseH);
-  ctx.lineTo(cx + baseW, cy);
-  ctx.lineTo(cx + baseW, cy - lowerH);
-  ctx.lineTo(cx, cy + baseH - lowerH);
+  ctx.moveTo(0, baseH);
+  ctx.lineTo(baseW, 0);
+  ctx.lineTo(baseW, -lowerH);
+  ctx.lineTo(0, baseH - lowerH);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -391,24 +405,24 @@ export function drawScrubber(
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx - baseW * 0.85, cy + baseH * 0.5 - lowerH * 0.5);
-  ctx.lineTo(cx, cy + baseH - lowerH * 0.5);
-  ctx.lineTo(cx + baseW * 0.85, cy + baseH * 0.5 - lowerH * 0.5);
+  ctx.moveTo(-baseW * 0.85, baseH * 0.5 - lowerH * 0.5);
+  ctx.lineTo(0, baseH - lowerH * 0.5);
+  ctx.lineTo(baseW * 0.85, baseH * 0.5 - lowerH * 0.5);
   ctx.stroke();
 
   // 3. Main vertical filtration column (Upper Stage)
-  const gantryY = cy - lowerH;
-  const colTopY = cy - totalH;
+  const gantryY = -lowerH;
+  const colTopY = -totalH;
 
   // Left shadow face
   ctx.fillStyle = '#334155';
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx - towerW, gantryY);
-  ctx.lineTo(cx, gantryY + towerH);
-  ctx.lineTo(cx, colTopY + towerH);
-  ctx.lineTo(cx - towerW, colTopY);
+  ctx.moveTo(-towerW, gantryY);
+  ctx.lineTo(0, gantryY + towerH);
+  ctx.lineTo(0, colTopY + towerH);
+  ctx.lineTo(-towerW, colTopY);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -416,10 +430,10 @@ export function drawScrubber(
   // Right illuminated face
   ctx.fillStyle = '#64748b';
   ctx.beginPath();
-  ctx.moveTo(cx, gantryY + towerH);
-  ctx.lineTo(cx + towerW, gantryY);
-  ctx.lineTo(cx + towerW, colTopY);
-  ctx.lineTo(cx, colTopY + towerH);
+  ctx.moveTo(0, gantryY + towerH);
+  ctx.lineTo(towerW, gantryY);
+  ctx.lineTo(towerW, colTopY);
+  ctx.lineTo(0, colTopY + towerH);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -428,7 +442,7 @@ export function drawScrubber(
   ctx.strokeStyle = '#94a3b8';
   ctx.lineWidth = 1;
   for (let f = 0.25; f <= 0.75; f += 0.25) {
-    const rx = cx + towerW * f;
+    const rx = towerW * f;
     const ry1 = gantryY + towerH * (1 - f);
     const ry2 = colTopY + towerH * (1 - f);
     ctx.beginPath();
@@ -441,8 +455,8 @@ export function drawScrubber(
   ctx.strokeStyle = '#38bdf8';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(cx - 2, gantryY + towerH - 2);
-  ctx.lineTo(cx - 2, colTopY + towerH - 2);
+  ctx.moveTo(-2, gantryY + towerH - 2);
+  ctx.lineTo(-2, colTopY + towerH - 2);
   ctx.stroke();
 
   // 4. Top exhaust chimney and aperture
@@ -451,10 +465,10 @@ export function drawScrubber(
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx, colTopY - towerH * 0.9);
-  ctx.lineTo(cx + towerW * 1.1, colTopY);
-  ctx.lineTo(cx, colTopY + towerH * 0.9);
-  ctx.lineTo(cx - towerW * 1.1, colTopY);
+  ctx.moveTo(0, colTopY - towerH * 0.9);
+  ctx.lineTo(towerW * 1.1, colTopY);
+  ctx.lineTo(0, colTopY + towerH * 0.9);
+  ctx.lineTo(-towerW * 1.1, colTopY);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -466,18 +480,18 @@ export function drawScrubber(
 
   // Left shadow stack face
   ctx.fillStyle = '#334155';
-  ctx.fillRect(cx - stackW, stackY - stackH, stackW, stackH);
+  ctx.fillRect(-stackW, stackY - stackH, stackW, stackH);
 
   // Right light stack face
   ctx.fillStyle = '#94a3b8';
-  ctx.fillRect(cx, stackY - stackH, stackW, stackH);
+  ctx.fillRect(0, stackY - stackH, stackW, stackH);
 
   // Dark circular exhaust vent aperture with cyan status ring
   ctx.fillStyle = '#090d16';
   ctx.strokeStyle = '#38bdf8';
   ctx.lineWidth = 0.8;
   ctx.beginPath();
-  ctx.ellipse(cx, stackY - stackH, stackW, 3.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, stackY - stackH, stackW, 3.5, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
@@ -485,14 +499,16 @@ export function drawScrubber(
   if (isProducing) {
     ctx.fillStyle = 'rgba(217, 221, 224, 0.35)';
     ctx.beginPath();
-    ctx.ellipse(cx, stackY - stackH - 4, stackW * 0.8, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, stackY - stackH - 4, stackW * 0.8, 3, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = 'rgba(217, 221, 224, 0.18)';
     ctx.beginPath();
-    ctx.ellipse(cx, stackY - stackH - 9, stackW * 1.2, 4.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, stackY - stackH - 9, stackW * 1.2, 4.5, 0, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  ctx.restore();
 }
 
 /**
@@ -506,41 +522,43 @@ export function drawExtractor(
   ctx: CanvasRenderingContext2D,
   center: ScreenPoint,
   halfW: number,
-  halfH: number,
+  _halfH: number,
   isProducing = true
 ): void {
-  const cx = center.x;
-  const cy = center.y;
-
-  const w = halfW * 0.84;
-  const h = halfH * 0.84;
+  const s = halfW / 32;
+  const w = 32 * 0.84;
+  const h = 16 * 0.84;
   const wallH = 15;
+
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.scale(s, s);
 
   // 1. Reinforced Ground Plinth Pad
   ctx.fillStyle = '#221209';
   ctx.strokeStyle = '#100602';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx, cy - h * 1.12);
-  ctx.lineTo(cx + w * 1.12, cy);
-  ctx.lineTo(cx, cy + h * 1.12);
-  ctx.lineTo(cx - w * 1.12, cy);
+  ctx.moveTo(0, -h * 1.12);
+  ctx.lineTo(w * 1.12, 0);
+  ctx.lineTo(0, h * 1.12);
+  ctx.lineTo(-w * 1.12, 0);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
   // 2. Main Industrial Machine Chassis (Extruded Isometric Diamond Body)
-  const deckY = cy - wallH;
+  const deckY = -wallH;
 
   // Left shadow flank (slope = +0.5)
   ctx.fillStyle = '#334155';
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx - w, cy);
-  ctx.lineTo(cx, cy + h);
-  ctx.lineTo(cx, deckY + h);
-  ctx.lineTo(cx - w, deckY);
+  ctx.moveTo(-w, 0);
+  ctx.lineTo(0, h);
+  ctx.lineTo(0, deckY + h);
+  ctx.lineTo(-w, deckY);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -548,10 +566,10 @@ export function drawExtractor(
   // Right illuminated flank (slope = -0.5)
   ctx.fillStyle = '#475569';
   ctx.beginPath();
-  ctx.moveTo(cx, cy + h);
-  ctx.lineTo(cx + w, cy);
-  ctx.lineTo(cx + w, deckY);
-  ctx.lineTo(cx, deckY + h);
+  ctx.moveTo(0, h);
+  ctx.lineTo(w, 0);
+  ctx.lineTo(w, deckY);
+  ctx.lineTo(0, deckY + h);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -561,10 +579,10 @@ export function drawExtractor(
   ctx.strokeStyle = '#334155';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx, deckY - h);
-  ctx.lineTo(cx + w, deckY);
-  ctx.lineTo(cx, deckY + h);
-  ctx.lineTo(cx - w, deckY);
+  ctx.moveTo(0, deckY - h);
+  ctx.lineTo(w, deckY);
+  ctx.lineTo(0, deckY + h);
+  ctx.lineTo(-w, deckY);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -580,10 +598,10 @@ export function drawExtractor(
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx - genW, genCenterY);
-  ctx.lineTo(cx, genCenterY + genH);
-  ctx.lineTo(cx, genCenterY + genH - genHgt);
-  ctx.lineTo(cx - genW, genCenterY - genHgt);
+  ctx.moveTo(-genW, genCenterY);
+  ctx.lineTo(0, genCenterY + genH);
+  ctx.lineTo(0, genCenterY + genH - genHgt);
+  ctx.lineTo(-genW, genCenterY - genHgt);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -591,10 +609,10 @@ export function drawExtractor(
   // Right illuminated wall of generator
   ctx.fillStyle = '#334155';
   ctx.beginPath();
-  ctx.moveTo(cx, genCenterY + genH);
-  ctx.lineTo(cx + genW, genCenterY);
-  ctx.lineTo(cx + genW, genCenterY - genHgt);
-  ctx.lineTo(cx, genCenterY + genH - genHgt);
+  ctx.moveTo(0, genCenterY + genH);
+  ctx.lineTo(genW, genCenterY);
+  ctx.lineTo(genW, genCenterY - genHgt);
+  ctx.lineTo(0, genCenterY + genH - genHgt);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -604,10 +622,10 @@ export function drawExtractor(
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx, genCenterY - genH - genHgt);
-  ctx.lineTo(cx + genW, genCenterY - genHgt);
-  ctx.lineTo(cx, genCenterY + genH - genHgt);
-  ctx.lineTo(cx - genW, genCenterY - genHgt);
+  ctx.moveTo(0, genCenterY - genH - genHgt);
+  ctx.lineTo(genW, genCenterY - genHgt);
+  ctx.lineTo(0, genCenterY + genH - genHgt);
+  ctx.lineTo(-genW, genCenterY - genHgt);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -620,9 +638,9 @@ export function drawExtractor(
   for (const sDy of slatDyList) {
     const tStart = 0.22;
     const tEnd = 0.78;
-    const sx1 = cx + genW * tStart;
+    const sx1 = genW * tStart;
     const sy1 = genCenterY + genH * (1 - tStart) - genHgt + sDy;
-    const sx2 = cx + genW * tEnd;
+    const sx2 = genW * tEnd;
     const sy2 = genCenterY + genH * (1 - tEnd) - genHgt + sDy;
 
     ctx.beginPath();
@@ -635,7 +653,7 @@ export function drawExtractor(
   if (isProducing) {
     ctx.fillStyle = 'rgba(245, 158, 11, 0.2)';
     ctx.beginPath();
-    ctx.ellipse(cx + genW * 0.5, genCenterY + genH * 0.5 - genHgt - 3, genW * 0.6, genH * 0.35, 0, 0, Math.PI * 2);
+    ctx.ellipse(genW * 0.5, genCenterY + genH * 0.5 - genHgt - 3, genW * 0.6, genH * 0.35, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -649,10 +667,10 @@ export function drawExtractor(
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx, bayY - bayH);
-  ctx.lineTo(cx + bayW, bayY);
-  ctx.lineTo(cx, bayY + bayH);
-  ctx.lineTo(cx - bayW, bayY);
+  ctx.moveTo(0, bayY - bayH);
+  ctx.lineTo(bayW, bayY);
+  ctx.lineTo(0, bayY + bayH);
+  ctx.lineTo(-bayW, bayY);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -660,35 +678,35 @@ export function drawExtractor(
   // Martian ore chunks in crushing bay
   ctx.fillStyle = isProducing ? '#c2410c' : '#7c2d12';
   ctx.beginPath();
-  ctx.moveTo(cx - bayW * 0.6, bayY);
-  ctx.lineTo(cx, bayY - bayH * 0.5);
-  ctx.lineTo(cx + bayW * 0.6, bayY);
-  ctx.lineTo(cx, bayY + bayH * 0.5);
+  ctx.moveTo(-bayW * 0.6, bayY);
+  ctx.lineTo(0, bayY - bayH * 0.5);
+  ctx.lineTo(bayW * 0.6, bayY);
+  ctx.lineTo(0, bayY + bayH * 0.5);
   ctx.closePath();
   ctx.fill();
 
   ctx.fillStyle = isProducing ? '#ea580c' : '#9a3412';
-  ctx.fillRect(cx - 3, bayY - 2, 6, 4);
+  ctx.fillRect(-3, bayY - 2, 6, 4);
   if (isProducing) {
     ctx.fillStyle = '#f59e0b';
-    ctx.fillRect(cx - 1, bayY - 1, 2, 2);
+    ctx.fillRect(-1, bayY - 1, 2, 2);
   }
 
   // 5. Bold 3D Forward-Sloping Heavy Excavator Scoop
   const sw = w * 0.94;
   const sh = h * 0.94;
-  const scoopFrontX = cx;
-  const scoopFrontY = cy + h * 1.08;
+  const scoopFrontX = 0;
+  const scoopFrontY = h * 1.08;
   const sDepth = 12;
 
   // Key scoop corner vertices
-  const botLeft = { x: cx - sw, y: scoopFrontY - sh };
+  const botLeft = { x: -sw, y: scoopFrontY - sh };
   const botTip = { x: scoopFrontX, y: scoopFrontY };
-  const botRight = { x: cx + sw, y: scoopFrontY - sh };
+  const botRight = { x: sw, y: scoopFrontY - sh };
 
-  const topLeft = { x: cx - sw, y: scoopFrontY - sh - sDepth };
+  const topLeft = { x: -sw, y: scoopFrontY - sh - sDepth };
   const topTip = { x: scoopFrontX, y: scoopFrontY - sDepth };
-  const topRight = { x: cx + sw, y: scoopFrontY - sh - sDepth };
+  const topRight = { x: sw, y: scoopFrontY - sh - sDepth };
 
   // Left shadow cheek plate (slope = +0.5)
   ctx.fillStyle = '#1e293b';
@@ -754,11 +772,13 @@ export function drawExtractor(
   ctx.strokeStyle = '#94a3b8';
   ctx.lineWidth = 2.2;
   ctx.beginPath();
-  ctx.moveTo(cx - w * 0.72, deckY + 1);
+  ctx.moveTo(-w * 0.72, deckY + 1);
   ctx.lineTo(botLeft.x + sw * 0.35, botLeft.y + sh * 0.35 - sDepth * 0.5);
-  ctx.moveTo(cx + w * 0.72, deckY + 1);
+  ctx.moveTo(w * 0.72, deckY + 1);
   ctx.lineTo(botRight.x - sw * 0.35, botRight.y + sh * 0.35 - sDepth * 0.5);
   ctx.stroke();
+
+  ctx.restore();
 }
 
 /**
@@ -769,24 +789,27 @@ export function drawFarm(
   ctx: CanvasRenderingContext2D,
   center: ScreenPoint,
   halfW: number,
-  halfH: number,
+  _halfH: number,
   isProducing: boolean
 ): void {
-  const cx = center.x;
-  const cy = center.y;
-  const w = halfW * 0.85;
-  const h = halfH * 0.85;
+  const s = halfW / 32;
+  const w = 32 * 0.85;
+  const h = 16 * 0.85;
   const wallH = 8;
+
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.scale(s, s);
 
   // 1. Foundation slab
   ctx.fillStyle = '#22150c';
   ctx.strokeStyle = '#110a05';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx, cy - h - wallH);
-  ctx.lineTo(cx + w, cy - wallH);
-  ctx.lineTo(cx, cy + h - wallH);
-  ctx.lineTo(cx - w, cy - wallH);
+  ctx.moveTo(0, -h - wallH);
+  ctx.lineTo(w, -wallH);
+  ctx.lineTo(0, h - wallH);
+  ctx.lineTo(-w, -wallH);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -794,20 +817,20 @@ export function drawFarm(
   // Foundation drop walls
   ctx.fillStyle = '#170c07';
   ctx.beginPath();
-  ctx.moveTo(cx - w, cy - wallH);
-  ctx.lineTo(cx, cy + h - wallH);
-  ctx.lineTo(cx, cy + h);
-  ctx.lineTo(cx - w, cy);
+  ctx.moveTo(-w, -wallH);
+  ctx.lineTo(0, h - wallH);
+  ctx.lineTo(0, h);
+  ctx.lineTo(-w, 0);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
   ctx.fillStyle = '#110804';
   ctx.beginPath();
-  ctx.moveTo(cx, cy + h - wallH);
-  ctx.lineTo(cx + w, cy - wallH);
-  ctx.lineTo(cx + w, cy);
-  ctx.lineTo(cx, cy + h);
+  ctx.moveTo(0, h - wallH);
+  ctx.lineTo(w, -wallH);
+  ctx.lineTo(w, 0);
+  ctx.lineTo(0, h);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -818,10 +841,10 @@ export function drawFarm(
 
   ctx.fillStyle = bedColor;
   ctx.beginPath();
-  ctx.moveTo(cx, cy - h - wallH + 2);
-  ctx.lineTo(cx + w - 4, cy - wallH);
-  ctx.lineTo(cx, cy + h - wallH - 2);
-  ctx.lineTo(cx - w + 4, cy - wallH);
+  ctx.moveTo(0, -h - wallH + 2);
+  ctx.lineTo(w - 4, -wallH);
+  ctx.lineTo(0, h - wallH - 2);
+  ctx.lineTo(-w + 4, -wallH);
   ctx.closePath();
   ctx.fill();
 
@@ -832,10 +855,10 @@ export function drawFarm(
   for (let i = 1; i < gridSteps; i++) {
     const frac = i / gridSteps;
     // Left-to-right grid line
-    const x1 = cx * (1 - frac) + (cx - w + 4) * frac;
-    const y1 = (cy - h - wallH + 2) * (1 - frac) + (cy - wallH) * frac;
-    const x2 = (cx + w - 4) * (1 - frac) + cx * frac;
-    const y2 = (cy - wallH) * (1 - frac) + (cy + h - wallH - 2) * frac;
+    const x1 = (-w + 4) * frac;
+    const y1 = (-h - wallH + 2) * (1 - frac) + (-wallH) * frac;
+    const x2 = (w - 4) * (1 - frac);
+    const y2 = (-wallH) * (1 - frac) + (h - wallH - 2) * frac;
 
     ctx.beginPath();
     ctx.moveTo(x1, y1);
@@ -847,13 +870,15 @@ export function drawFarm(
   if (isProducing) {
     ctx.fillStyle = 'rgba(74, 222, 128, 0.25)';
     ctx.beginPath();
-    ctx.moveTo(cx, cy - h - wallH);
-    ctx.lineTo(cx + w, cy - wallH);
-    ctx.lineTo(cx, cy + h - wallH);
-    ctx.lineTo(cx - w, cy - wallH);
+    ctx.moveTo(0, -h - wallH);
+    ctx.lineTo(w, -wallH);
+    ctx.lineTo(0, h - wallH);
+    ctx.lineTo(-w, -wallH);
     ctx.closePath();
     ctx.fill();
   }
+
+  ctx.restore();
 }
 
 /**
@@ -864,25 +889,28 @@ export function drawGarage(
   ctx: CanvasRenderingContext2D,
   center: ScreenPoint,
   halfW: number,
-  halfH: number,
+  _halfH: number,
   isPowered: boolean,
   dockedRovers: number = 2
 ): void {
-  const cx = center.x;
-  const cy = center.y;
-  const w = halfW * 0.85;
-  const h = halfH * 0.65;
-  const height = Math.max(18, Math.round(halfH * 1.15));
+  const s = halfW / 32;
+  const w = 32 * 0.85;
+  const h = 16 * 0.65;
+  const height = 18;
+
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.scale(s, s);
 
   // 1. Concrete Ground Foundation Pad
   ctx.fillStyle = '#1e0e07';
   ctx.strokeStyle = '#100603';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx, cy - h - 2);
-  ctx.lineTo(cx + w + 3, cy);
-  ctx.lineTo(cx, cy + h + 2);
-  ctx.lineTo(cx - w - 3, cy);
+  ctx.moveTo(0, -h - 2);
+  ctx.lineTo(w + 3, 0);
+  ctx.lineTo(0, h + 2);
+  ctx.lineTo(-w - 3, 0);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -893,10 +921,10 @@ export function drawGarage(
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx - w, cy);
-  ctx.lineTo(cx, cy + h);
-  ctx.lineTo(cx, cy + h - height);
-  ctx.lineTo(cx - w, cy - height);
+  ctx.moveTo(-w, 0);
+  ctx.lineTo(0, h);
+  ctx.lineTo(0, h - height);
+  ctx.lineTo(-w, -height);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -904,10 +932,10 @@ export function drawGarage(
   // Right Wall (Hangar Bay Entry Face)
   ctx.fillStyle = '#334155';
   ctx.beginPath();
-  ctx.moveTo(cx, cy + h);
-  ctx.lineTo(cx + w, cy);
-  ctx.lineTo(cx + w, cy - height);
-  ctx.lineTo(cx, cy + h - height);
+  ctx.moveTo(0, h);
+  ctx.lineTo(w, 0);
+  ctx.lineTo(w, -height);
+  ctx.lineTo(0, h - height);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -915,10 +943,10 @@ export function drawGarage(
   // 3. Top Roof Deck
   ctx.fillStyle = '#475569';
   ctx.beginPath();
-  ctx.moveTo(cx, cy - h - height);
-  ctx.lineTo(cx + w, cy - height);
-  ctx.lineTo(cx, cy + h - height);
-  ctx.lineTo(cx - w, cy - height);
+  ctx.moveTo(0, -h - height);
+  ctx.lineTo(w, -height);
+  ctx.lineTo(0, h - height);
+  ctx.lineTo(-w, -height);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -926,12 +954,12 @@ export function drawGarage(
   // 4. Large Hangar Bay Entryway with Roll-up Door & Hazard Stripes
   const t0 = 0.18;
   const t1 = 0.82;
-  const doorX0 = cx + t0 * w;
-  const doorX1 = cx + t1 * w;
-  const doorY0Bottom = cy + (1 - t0) * h - 2;
-  const doorY1Bottom = cy + (1 - t1) * h - 2;
-  const doorY0Top = cy - height + (1 - t0) * h + 5;
-  const doorY1Top = cy - height + (1 - t1) * h + 5;
+  const doorX0 = t0 * w;
+  const doorX1 = t1 * w;
+  const doorY0Bottom = (1 - t0) * h - 2;
+  const doorY1Bottom = (1 - t1) * h - 2;
+  const doorY0Top = -height + (1 - t0) * h + 5;
+  const doorY1Top = -height + (1 - t1) * h + 5;
 
   ctx.fillStyle = '#090d16';
   ctx.strokeStyle = '#020617';
@@ -953,7 +981,7 @@ export function drawGarage(
   ctx.lineTo(doorX1, doorY1Top);
   ctx.stroke();
 
-  // Subtle roll-up door horizontal slat grooves (parallel along vector (+w, -h))
+  // Subtle roll-up door horizontal slat grooves
   ctx.strokeStyle = 'rgba(71, 85, 105, 0.4)';
   ctx.lineWidth = 0.8;
   for (const fraction of [0.33, 0.66]) {
@@ -970,7 +998,7 @@ export function drawGarage(
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.rect(cx - 8, cy - height - 8, 5, 5);
+  ctx.rect(-8, -height - 8, 5, 5);
   ctx.fill();
   ctx.stroke();
 
@@ -978,7 +1006,7 @@ export function drawGarage(
   const rightBeaconColor = dockedRovers >= 2 && isPowered ? '#38bdf8' : '#1e293b';
   ctx.fillStyle = rightBeaconColor;
   ctx.beginPath();
-  ctx.rect(cx + 3, cy - height - 8, 5, 5);
+  ctx.rect(3, -height - 8, 5, 5);
   ctx.fill();
   ctx.stroke();
 
@@ -986,11 +1014,13 @@ export function drawGarage(
   ctx.strokeStyle = '#94a3b8';
   ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.moveTo(cx - 5, cy - height - 8);
-  ctx.lineTo(cx - 5, cy - height - 16);
-  ctx.moveTo(cx + 6, cy - height - 8);
-  ctx.lineTo(cx + 6, cy - height - 16);
+  ctx.moveTo(-5, -height - 8);
+  ctx.lineTo(-5, -height - 16);
+  ctx.moveTo(6, -height - 8);
+  ctx.lineTo(6, -height - 16);
   ctx.stroke();
+
+  ctx.restore();
 }
 
 /**
@@ -1002,26 +1032,27 @@ export function drawRefinery(
   ctx: CanvasRenderingContext2D,
   center: ScreenPoint,
   halfW: number,
-  halfH: number,
+  _halfH: number,
   isPowered: boolean
 ): void {
-  const cx = center.x;
-  const cy = center.y;
-  const w = halfW * 0.82;
-  const h = halfH * 0.65;
-  const height = Math.max(18, Math.round(halfH * 1.15));
+  const s = halfW / 32;
+  const w = 32 * 0.82;
+  const h = 16 * 0.65;
+  const height = 18;
 
   ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.scale(s, s);
 
   // 1. Steel Composite Ground Foundation Frame (Flush with terrain, zero dirt slab)
   ctx.fillStyle = '#0f172a';
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx, cy - h - 2);
-  ctx.lineTo(cx + w + 3, cy);
-  ctx.lineTo(cx, cy + h + 2);
-  ctx.lineTo(cx - w - 3, cy);
+  ctx.moveTo(0, -h - 2);
+  ctx.lineTo(w + 3, 0);
+  ctx.lineTo(0, h + 2);
+  ctx.lineTo(-w - 3, 0);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -1032,10 +1063,10 @@ export function drawRefinery(
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx - w, cy);
-  ctx.lineTo(cx, cy + h);
-  ctx.lineTo(cx, cy + h - height);
-  ctx.lineTo(cx - w, cy - height);
+  ctx.moveTo(-w, 0);
+  ctx.lineTo(0, h);
+  ctx.lineTo(0, h - height);
+  ctx.lineTo(-w, -height);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -1043,10 +1074,10 @@ export function drawRefinery(
   // Right Wall (Illuminated)
   ctx.fillStyle = '#334155';
   ctx.beginPath();
-  ctx.moveTo(cx, cy + h);
-  ctx.lineTo(cx + w, cy);
-  ctx.lineTo(cx + w, cy - height);
-  ctx.lineTo(cx, cy + h - height);
+  ctx.moveTo(0, h);
+  ctx.lineTo(w, 0);
+  ctx.lineTo(w, -height);
+  ctx.lineTo(0, h - height);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -1056,10 +1087,10 @@ export function drawRefinery(
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx, cy - h - height);
-  ctx.lineTo(cx + w, cy - height);
-  ctx.lineTo(cx, cy + h - height);
-  ctx.lineTo(cx - w, cy - height);
+  ctx.moveTo(0, -h - height);
+  ctx.lineTo(w, -height);
+  ctx.lineTo(0, h - height);
+  ctx.lineTo(-w, -height);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -1067,12 +1098,12 @@ export function drawRefinery(
   // 3. Central Molten Smelting Hearth (on Left Wall, facing down-left)
   const tL0 = 0.2;
   const tL1 = 0.8;
-  const hearthX0 = cx - w * (1 - tL0);
-  const hearthX1 = cx - w * (1 - tL1);
-  const hearthY0Bot = cy + tL0 * h - 3;
-  const hearthY1Bot = cy + tL1 * h - 3;
-  const hearthY0Top = cy - height + tL0 * h + 5;
-  const hearthY1Top = cy - height + tL1 * h + 5;
+  const hearthX0 = -w * (1 - tL0);
+  const hearthX1 = -w * (1 - tL1);
+  const hearthY0Bot = tL0 * h - 3;
+  const hearthY1Bot = tL1 * h - 3;
+  const hearthY0Top = -height + tL0 * h + 5;
+  const hearthY1Top = -height + tL1 * h + 5;
 
   ctx.fillStyle = isPowered ? '#ea580c' : '#090d16';
   ctx.strokeStyle = isPowered ? '#fbbf24' : '#1e293b';
@@ -1102,8 +1133,8 @@ export function drawRefinery(
   const ventRadius = 4.5;
   const ventHeight = 16;
   const vents = [
-    { x: cx - 6, y: cy - height - 4 },
-    { x: cx + 7, y: cy - height + 2 },
+    { x: -6, y: -height - 4 },
+    { x: 7, y: -height + 2 },
   ];
 
   for (const v of vents) {
@@ -1143,10 +1174,10 @@ export function drawRefinery(
   // 5. Gold Material Transfer Conduit Pipe along right wall
   const tR0 = 0.2;
   const tR1 = 0.8;
-  const pX0 = cx + tR0 * w;
-  const pX1 = cx + tR1 * w;
-  const pY0 = cy - height + (1 - tR0) * h + 8;
-  const pY1 = cy - height + (1 - tR1) * h + 8;
+  const pX0 = tR0 * w;
+  const pX1 = tR1 * w;
+  const pY0 = -height + (1 - tR0) * h + 8;
+  const pY1 = -height + (1 - tR1) * h + 8;
 
   ctx.strokeStyle = '#E0A030';
   ctx.lineWidth = 1.8;
@@ -1158,7 +1189,7 @@ export function drawRefinery(
   // 6. Battery Power Status LED on Right Wall
   ctx.fillStyle = isPowered ? '#38bdf8' : '#475569';
   ctx.beginPath();
-  ctx.arc(cx + w * 0.5, cy + h * 0.5 - 4, 1.6, 0, Math.PI * 2);
+  ctx.arc(w * 0.5, h * 0.5 - 4, 1.6, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.restore();
@@ -1171,16 +1202,18 @@ export function drawLandingPad(
   ctx: CanvasRenderingContext2D,
   center: ScreenPoint,
   halfW: number,
-  halfH: number
+  _halfH: number
 ): void {
-  const cx = center.x;
-  const cy = center.y;
+  const s = halfW / 32;
 
   ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.scale(s, s);
+
   ctx.strokeStyle = '#7fd4e0';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.ellipse(cx, cy, halfW * 0.45, halfH * 0.45, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, 32 * 0.45, 16 * 0.45, 0, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }
@@ -1196,17 +1229,19 @@ export function drawRover(
   ctx: CanvasRenderingContext2D,
   center: ScreenPoint,
   power: number,
-  occupants: number = 1
+  occupants: number = 1,
+  halfW = 32
 ): void {
-  const cx = center.x;
-  const cy = center.y;
+  const s = halfW / 32;
 
   ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.scale(s, s);
 
   // 1. Ground contact shadow (isometric alignment under chassis)
   ctx.fillStyle = 'rgba(10, 5, 2, 0.6)';
   ctx.beginPath();
-  ctx.ellipse(cx, cy + 4, 18, 9, 0.46, 0, Math.PI * 2);
+  ctx.ellipse(0, 4, 18, 9, 0.46, 0, Math.PI * 2);
   ctx.fill();
 
   // 2. Far-Side Circular Wheels (Rear-Right and Front-Right - drawn behind chassis)
@@ -1216,53 +1251,38 @@ export function drawRover(
   ];
 
   for (const w of farWheels) {
-    const wx = cx + w.x;
-    const wy = cy + w.y;
-
     // Dark rubber tire (perfect circle)
     ctx.fillStyle = '#0f172a';
     ctx.strokeStyle = '#020617';
     ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.arc(wx, wy, 3.5, 0, Math.PI * 2);
+    ctx.arc(w.x, w.y, 3.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
     // Wheel rim
     ctx.fillStyle = '#475569';
     ctx.beginPath();
-    ctx.arc(wx, wy, 2.1, 0, Math.PI * 2);
+    ctx.arc(w.x, w.y, 2.1, 0, Math.PI * 2);
     ctx.fill();
 
     // Metallic hubcap
     ctx.fillStyle = '#94a3b8';
     ctx.beginPath();
-    ctx.arc(wx, wy, 1.1, 0, Math.PI * 2);
+    ctx.arc(w.x, w.y, 1.1, 0, Math.PI * 2);
     ctx.fill();
   }
 
   // 3. Isometric Buggy Chassis & Body Frame (Facing Down-Right)
-  // Longitudinal forward axis: (+12, +6), Transverse axis: (+8, -4), Height: 5px
-  // Bottom chassis corners:
-  //   Rear-Left:   (cx - 20, cy - 2)
-  //   Front-Left:  (cx + 4, cy + 10)
-  //   Front-Right: (cx + 20, cy + 2)
-  //   Rear-Right:  (cx - 4, cy - 10)
-  // Top chassis corners (raised by 5px):
-  //   Top Rear-Left:   (cx - 20, cy - 7)
-  //   Top Front-Left:  (cx + 4, cy + 5)
-  //   Top Front-Right: (cx + 20, cy - 3)
-  //   Top Rear-Right:  (cx - 4, cy - 15)
-
   // Left Chassis Flank
   ctx.fillStyle = '#334155';
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.moveTo(cx - 20, cy - 2);
-  ctx.lineTo(cx + 4, cy + 10);
-  ctx.lineTo(cx + 4, cy + 5);
-  ctx.lineTo(cx - 20, cy - 7);
+  ctx.moveTo(-20, -2);
+  ctx.lineTo(4, 10);
+  ctx.lineTo(4, 5);
+  ctx.lineTo(-20, -7);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -1272,10 +1292,10 @@ export function drawRover(
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.moveTo(cx + 4, cy + 10);
-  ctx.lineTo(cx + 20, cy + 2);
-  ctx.lineTo(cx + 20, cy - 3);
-  ctx.lineTo(cx + 4, cy + 5);
+  ctx.moveTo(4, 10);
+  ctx.lineTo(20, 2);
+  ctx.lineTo(20, -3);
+  ctx.lineTo(4, 5);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -1285,30 +1305,25 @@ export function drawRover(
   ctx.strokeStyle = '#334155';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx - 20, cy - 7);
-  ctx.lineTo(cx + 4, cy + 5);
-  ctx.lineTo(cx + 20, cy - 3);
-  ctx.lineTo(cx - 4, cy - 15);
+  ctx.moveTo(-20, -7);
+  ctx.lineTo(4, 5);
+  ctx.lineTo(20, -3);
+  ctx.lineTo(-4, -15);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
   // 4. Front Headlights (Centered & Symmetrically spaced on the front bumper)
-  // Left Headlight at 25% across bumper: (cx + 8, cy + 6.5)
-  // Right Headlight at 75% across bumper: (cx + 16, cy + 2.5)
   const headlights = [
     { x: 8, y: 6.5 },
     { x: 16, y: 2.5 },
   ];
 
   for (const hl of headlights) {
-    const hx = cx + hl.x;
-    const hy = cy + hl.y;
-
     // Outer housing bezel
     ctx.fillStyle = '#1e293b';
     ctx.beginPath();
-    ctx.arc(hx, hy, 1.8, 0, Math.PI * 2);
+    ctx.arc(hl.x, hl.y, 1.8, 0, Math.PI * 2);
     ctx.fill();
 
     // Bright illuminated lens
@@ -1316,7 +1331,7 @@ export function drawRover(
     ctx.strokeStyle = '#ca8a04';
     ctx.lineWidth = 0.6;
     ctx.beginPath();
-    ctx.arc(hx, hy, 1.2, 0, Math.PI * 2);
+    ctx.arc(hl.x, hl.y, 1.2, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   }
@@ -1328,41 +1343,36 @@ export function drawRover(
   ];
 
   for (const w of nearWheels) {
-    const wx = cx + w.x;
-    const wy = cy + w.y;
-
     // Dark rubber tire (perfect circle)
     ctx.fillStyle = '#0f172a';
     ctx.strokeStyle = '#020617';
     ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.arc(wx, wy, 3.6, 0, Math.PI * 2);
+    ctx.arc(w.x, w.y, 3.6, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
     // Wheel rim
     ctx.fillStyle = '#475569';
     ctx.beginPath();
-    ctx.arc(wx, wy, 2.2, 0, Math.PI * 2);
+    ctx.arc(w.x, w.y, 2.2, 0, Math.PI * 2);
     ctx.fill();
 
     // Metallic hubcap
     ctx.fillStyle = '#94a3b8';
     ctx.beginPath();
-    ctx.arc(wx, wy, 1.2, 0, Math.PI * 2);
+    ctx.arc(w.x, w.y, 1.2, 0, Math.PI * 2);
     ctx.fill();
   }
 
   // 6. Dual Cockpit Bucket Seats & Seated Astronauts
-  // Driver Seat (Left) at (cx - 2, cy - 2)
-  // Passenger Seat (Right) at (cx + 6, cy - 6)
   const seats = [
-    { x: cx - 2, y: cy - 2 }, // Driver (Left)
-    { x: cx + 6, y: cy - 6 }, // Passenger (Right)
+    { x: -2, y: -2 }, // Driver (Left)
+    { x: 6, y: -6 },  // Passenger (Right)
   ];
 
   for (let i = 0; i < 2; i++) {
-    const s = seats[i];
+    const sPos = seats[i];
     const isOccupied = occupants > i;
 
     // Seat backrest (angled transversely parallel to bumper)
@@ -1370,69 +1380,66 @@ export function drawRover(
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(s.x - 3, s.y + 1.5);
-    ctx.lineTo(s.x + 3, s.y - 1.5);
-    ctx.lineTo(s.x + 3, s.y - 7.5);
-    ctx.lineTo(s.x - 3, s.y - 4.5);
+    ctx.moveTo(sPos.x - 3, sPos.y + 1.5);
+    ctx.lineTo(sPos.x + 3, sPos.y - 1.5);
+    ctx.lineTo(sPos.x + 3, sPos.y - 7.5);
+    ctx.lineTo(sPos.x - 3, sPos.y - 4.5);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
     if (isOccupied) {
       // Seated Astronaut facing Forward-Right (Down-Right)
-      // Torso & arms reaching forward
       ctx.fillStyle = '#f8fafc';
       ctx.strokeStyle = '#cbd5e1';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(s.x - 2, s.y - 1);
-      ctx.lineTo(s.x + 3, s.y + 1.5);
-      ctx.lineTo(s.x + 3, s.y - 4.5);
-      ctx.lineTo(s.x - 2, s.y - 7);
+      ctx.moveTo(sPos.x - 2, sPos.y - 1);
+      ctx.lineTo(sPos.x + 3, sPos.y + 1.5);
+      ctx.lineTo(sPos.x + 3, sPos.y - 4.5);
+      ctx.lineTo(sPos.x - 2, sPos.y - 7);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
 
       // Red chest mission badge
       ctx.fillStyle = '#dc2626';
-      ctx.fillRect(s.x + 1, s.y - 3.5, 1.8, 1.8);
+      ctx.fillRect(sPos.x + 1, sPos.y - 3.5, 1.8, 1.8);
 
       // White Helmet (facing forward-right)
       ctx.fillStyle = '#f8fafc';
       ctx.strokeStyle = '#cbd5e1';
       ctx.beginPath();
-      ctx.arc(s.x, s.y - 8.5, 3.2, 0, Math.PI * 2);
+      ctx.arc(sPos.x, sPos.y - 8.5, 3.2, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
 
-      // Gold reflective helmet visor (pointing forward-right towards the windshield)
+      // Gold reflective helmet visor
       ctx.fillStyle = '#eab308';
       ctx.strokeStyle = '#ca8a04';
       ctx.lineWidth = 0.8;
       ctx.beginPath();
-      ctx.ellipse(s.x + 1.2, s.y - 8.5, 1.8, 2.2, 0.4, 0, Math.PI * 2);
+      ctx.ellipse(sPos.x + 1.2, sPos.y - 8.5, 1.8, 2.2, 0.4, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
 
       // Visor white reflection gleam
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(s.x + 1.4, s.y - 9.5, 0.7, 0, Math.PI * 2);
+      ctx.arc(sPos.x + 1.4, sPos.y - 9.5, 0.7, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  // 7. Full-Width Aligned Windshield Visor (Spans across entire front cockpit parallel to front bumper)
-  // Base line (on hood deck, set back from bumper): (cx + 1, cy + 3.5) to (cx + 17, cy - 4.5)
-  // Top line (angled up & rearward): (cx - 1, cy - 5.5) to (cx + 15, cy - 13.5)
+  // 7. Full-Width Aligned Windshield Visor
   ctx.fillStyle = 'rgba(125, 211, 252, 0.65)';
   ctx.strokeStyle = '#0284c7';
   ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.moveTo(cx + 1, cy + 3.5);
-  ctx.lineTo(cx + 17, cy - 4.5);
-  ctx.lineTo(cx + 15, cy - 13.5);
-  ctx.lineTo(cx - 1, cy - 5.5);
+  ctx.moveTo(1, 3.5);
+  ctx.lineTo(17, -4.5);
+  ctx.lineTo(15, -13.5);
+  ctx.lineTo(-1, -5.5);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -1441,25 +1448,25 @@ export function drawRover(
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx + 3, cy - 1);
-  ctx.lineTo(cx + 5, cy - 9);
-  ctx.moveTo(cx + 9, cy - 4);
-  ctx.lineTo(cx + 11, cy - 12);
+  ctx.moveTo(3, -1);
+  ctx.lineTo(5, -9);
+  ctx.moveTo(9, -4);
+  ctx.lineTo(11, -12);
   ctx.stroke();
 
   // 8. Rear Antenna Mast & Battery LED Indicator
   ctx.strokeStyle = '#94a3b8';
   ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.moveTo(cx - 11, cy - 9);
-  ctx.lineTo(cx - 11, cy - 18);
+  ctx.moveTo(-11, -9);
+  ctx.lineTo(-11, -18);
   ctx.stroke();
 
   // Battery status LED
   const ledColor = power > 25 ? '#38bdf8' : (power > 0 ? '#E0A030' : '#D94F3D');
   ctx.fillStyle = ledColor;
   ctx.beginPath();
-  ctx.arc(cx - 11, cy - 19, 1.4, 0, Math.PI * 2);
+  ctx.arc(-11, -19, 1.4, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.restore();
@@ -1475,29 +1482,30 @@ export function drawLandingCapsule(
   ctx: CanvasRenderingContext2D,
   center: ScreenPoint,
   halfW: number,
-  halfH: number,
+  _halfH: number,
   ticksRemaining: number
 ): void {
-  const cx = center.x;
-  const cy = center.y;
+  const s = halfW / 32;
   const isUrgent = ticksRemaining <= 30;
 
   ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.scale(s, s);
 
   // 1. Landing Legs (4 angled struts with circular footpads)
   const legOffsets = [
-    { x: -halfW * 0.35, y: -halfH * 0.25 },
-    { x: halfW * 0.35, y: -halfH * 0.25 },
-    { x: -halfW * 0.25, y: halfH * 0.35 },
-    { x: halfW * 0.25, y: halfH * 0.35 },
+    { x: -32 * 0.35, y: -16 * 0.25 },
+    { x: 32 * 0.35, y: -16 * 0.25 },
+    { x: -32 * 0.25, y: 16 * 0.35 },
+    { x: 32 * 0.25, y: 16 * 0.35 },
   ];
 
   ctx.strokeStyle = '#64748b';
   ctx.lineWidth = 1.5;
   for (const leg of legOffsets) {
     ctx.beginPath();
-    ctx.moveTo(cx, cy - 5);
-    ctx.lineTo(cx + leg.x, cy + leg.y);
+    ctx.moveTo(0, -5);
+    ctx.lineTo(leg.x, leg.y);
     ctx.stroke();
 
     // Circular footpad
@@ -1505,13 +1513,13 @@ export function drawLandingCapsule(
     ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(cx + leg.x, cy + leg.y, 1.8, 0, Math.PI * 2);
+    ctx.arc(leg.x, leg.y, 1.8, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   }
 
   // 2. Heat Shield Base Rim (Elliptical bottom)
-  const baseY = cy - 3;
+  const baseY = -3;
   const baseRx = 11;
   const baseRy = 5;
 
@@ -1519,72 +1527,61 @@ export function drawLandingCapsule(
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.ellipse(cx, baseY, baseRx + 1, baseRy, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, baseY, baseRx + 1, baseRy, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
   // 3. Rounded Aerodynamic Cone Capsule Body
-  // Top apex at cy - 24 with rounded dome nosecone
-  const apexY = cy - 24;
+  const apexY = -24;
   const domeRadius = 2.8;
 
-  // Main Capsule Body Path with Smooth Curved Sides and Rounded Dome Apex
   ctx.beginPath();
-  // Start from bottom-left heat shield edge
-  ctx.moveTo(cx - baseRx, baseY);
-  // Curve up along the left hull to the left of the rounded dome nose
-  ctx.quadraticCurveTo(cx - baseRx * 0.75, cy - 13, cx - domeRadius, apexY + 1.5);
-  // Rounded Dome Nosecone Arc
-  ctx.arc(cx, apexY + 1.5, domeRadius, Math.PI, 0, false);
-  // Curve down along the right hull to the bottom-right heat shield edge
-  ctx.quadraticCurveTo(cx + baseRx * 0.75, cy - 13, cx + baseRx, baseY);
-  // Close along the bottom heat shield curve
-  ctx.ellipse(cx, baseY, baseRx, baseRy * 0.6, 0, 0, Math.PI, false);
+  ctx.moveTo(-baseRx, baseY);
+  ctx.quadraticCurveTo(-baseRx * 0.75, -13, -domeRadius, apexY + 1.5);
+  ctx.arc(0, apexY + 1.5, domeRadius, Math.PI, 0, false);
+  ctx.quadraticCurveTo(baseRx * 0.75, -13, baseRx, baseY);
+  ctx.ellipse(0, baseY, baseRx, baseRy * 0.6, 0, 0, Math.PI, false);
   ctx.closePath();
 
-  // Smooth thermal tile white finish
   ctx.fillStyle = '#f1f5f9';
   ctx.fill();
   ctx.strokeStyle = '#475569';
   ctx.lineWidth = 1.2;
   ctx.stroke();
 
-  // 4. Volumetric Curved Shading (Right half of the rounded cone)
+  // 4. Volumetric Curved Shading
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(cx - baseRx, baseY);
-  ctx.quadraticCurveTo(cx - baseRx * 0.75, cy - 13, cx - domeRadius, apexY + 1.5);
-  ctx.arc(cx, apexY + 1.5, domeRadius, Math.PI, 0, false);
-  ctx.quadraticCurveTo(cx + baseRx * 0.75, cy - 13, cx + baseRx, baseY);
-  ctx.ellipse(cx, baseY, baseRx, baseRy * 0.6, 0, 0, Math.PI, false);
+  ctx.moveTo(-baseRx, baseY);
+  ctx.quadraticCurveTo(-baseRx * 0.75, -13, -domeRadius, apexY + 1.5);
+  ctx.arc(0, apexY + 1.5, domeRadius, Math.PI, 0, false);
+  ctx.quadraticCurveTo(baseRx * 0.75, -13, baseRx, baseY);
+  ctx.ellipse(0, baseY, baseRx, baseRy * 0.6, 0, 0, Math.PI, false);
   ctx.closePath();
   ctx.clip();
 
-  // Shaded right hemisphere
   ctx.fillStyle = 'rgba(148, 163, 184, 0.45)';
   ctx.beginPath();
-  ctx.moveTo(cx, apexY);
-  ctx.lineTo(cx + baseRx + 2, apexY);
-  ctx.lineTo(cx + baseRx + 2, baseY + 6);
-  ctx.lineTo(cx, baseY + 6);
+  ctx.moveTo(0, apexY);
+  ctx.lineTo(baseRx + 2, apexY);
+  ctx.lineTo(baseRx + 2, baseY + 6);
+  ctx.lineTo(0, baseY + 6);
   ctx.closePath();
   ctx.fill();
 
-  // Curved thermal panel seams
   ctx.strokeStyle = 'rgba(71, 85, 105, 0.35)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.ellipse(cx, cy - 10, baseRx * 0.65, 2.5, 0, 0, Math.PI * 2);
-  ctx.ellipse(cx, cy - 17, baseRx * 0.4, 1.8, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, -10, baseRx * 0.65, 2.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, -17, baseRx * 0.4, 1.8, 0, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 
   // 5. Circular Central Porthole Window
-  const portX = cx;
-  const portY = cy - 12;
+  const portX = 0;
+  const portY = -12;
   const portR = 2.6;
 
-  // Bezel ring
   ctx.fillStyle = '#0f172a';
   ctx.strokeStyle = '#38bdf8';
   ctx.lineWidth = 0.8;
@@ -1593,13 +1590,11 @@ export function drawLandingCapsule(
   ctx.fill();
   ctx.stroke();
 
-  // Cyan Glass
   ctx.fillStyle = '#0284c7';
   ctx.beginPath();
   ctx.arc(portX, portY, portR, 0, Math.PI * 2);
   ctx.fill();
 
-  // Glass reflection glint
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
   ctx.arc(portX - 0.8, portY - 0.8, 0.8, 0, Math.PI * 2);
@@ -1611,7 +1606,7 @@ export function drawLandingCapsule(
   ctx.strokeStyle = badgeColor;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.rect(cx - 28, apexY - 15, 56, 11);
+  ctx.rect(-28, apexY - 15, 56, 11);
   ctx.fill();
   ctx.stroke();
 
@@ -1619,7 +1614,7 @@ export function drawLandingCapsule(
   ctx.font = 'bold 8px Chakra Petch, monospace, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`ESCORT: ${ticksRemaining}s`, cx, apexY - 9);
+  ctx.fillText(`ESCORT: ${ticksRemaining}s`, 0, apexY - 9);
 
   ctx.restore();
 }
@@ -1628,29 +1623,30 @@ export function drawLandingCapsule(
  * Draws an active Asteroid: a volumetric, multi-faceted 3D cratered meteorite
  * with crater rims, faceted planar shading, and glowing mineral veins.
  */
-export function drawAsteroid(ctx: CanvasRenderingContext2D, center: ScreenPoint, halfW: number, halfH: number): void {
-  const cx = center.x;
-  const cy = center.y;
+export function drawAsteroid(ctx: CanvasRenderingContext2D, center: ScreenPoint, halfW: number, _halfH: number): void {
+  const s = halfW / 32;
 
   ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.scale(s, s);
+
   // 1. Impact scorch mark
   ctx.fillStyle = 'rgba(26, 14, 8, 0.85)';
   ctx.beginPath();
-  ctx.ellipse(cx, cy + 2, halfW * 0.75, halfH * 0.75, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 2, 32 * 0.75, 16 * 0.75, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // 2. Multi-Faceted 3D Meteorite Body
-  // Base shadow facet
   ctx.fillStyle = '#1c130c';
   ctx.strokeStyle = '#0a0604';
   ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.moveTo(cx - 14, cy);
-  ctx.lineTo(cx - 4, cy + 8);
-  ctx.lineTo(cx + 12, cy + 4);
-  ctx.lineTo(cx + 14, cy - 8);
-  ctx.lineTo(cx + 2, cy - 20);
-  ctx.lineTo(cx - 12, cy - 14);
+  ctx.moveTo(-14, 0);
+  ctx.lineTo(-4, 8);
+  ctx.lineTo(12, 4);
+  ctx.lineTo(14, -8);
+  ctx.lineTo(2, -20);
+  ctx.lineTo(-12, -14);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -1658,36 +1654,34 @@ export function drawAsteroid(ctx: CanvasRenderingContext2D, center: ScreenPoint,
   // Illuminated top facet
   ctx.fillStyle = '#3e2c1e';
   ctx.beginPath();
-  ctx.moveTo(cx - 12, cy - 14);
-  ctx.lineTo(cx + 2, cy - 20);
-  ctx.lineTo(cx + 6, cy - 6);
-  ctx.lineTo(cx - 4, cy - 3);
+  ctx.moveTo(-12, -14);
+  ctx.lineTo(2, -20);
+  ctx.lineTo(6, -6);
+  ctx.lineTo(-4, -3);
   ctx.closePath();
   ctx.fill();
 
   // Front facet
   ctx.fillStyle = '#2d1f15';
   ctx.beginPath();
-  ctx.moveTo(cx - 4, cy - 3);
-  ctx.lineTo(cx + 6, cy - 6);
-  ctx.lineTo(cx + 12, cy + 4);
-  ctx.lineTo(cx - 4, cy + 8);
+  ctx.moveTo(-4, -3);
+  ctx.lineTo(6, -6);
+  ctx.lineTo(12, 4);
+  ctx.lineTo(-4, 8);
   ctx.closePath();
   ctx.fill();
 
   // 3. Impact Craters with Depressions
-  // Crater 1
   ctx.fillStyle = '#120b06';
   ctx.strokeStyle = '#4e3826';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.ellipse(cx - 3, cy - 8, 3.5, 2.2, -0.3, 0, Math.PI * 2);
+  ctx.ellipse(-3, -8, 3.5, 2.2, -0.3, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
-  // Crater 2
   ctx.beginPath();
-  ctx.ellipse(cx + 5, cy + 1, 2.8, 1.8, 0.2, 0, Math.PI * 2);
+  ctx.ellipse(5, 1, 2.8, 1.8, 0.2, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
@@ -1701,22 +1695,23 @@ export function drawBuildingConditionOverlay(
   ctx: CanvasRenderingContext2D,
   center: ScreenPoint,
   halfW: number,
-  halfH: number,
+  _halfH: number,
   condition: 'operational' | 'broken' | 'buried' | 'deactivated'
 ): void {
-  const cx = center.x;
-  const cy = center.y;
+  const s = halfW / 32;
+
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.scale(s, s);
 
   if (condition === 'broken') {
-    // Fault indicator: yellow/amber warning hazard marker
-    ctx.save();
     ctx.fillStyle = '#E0A030';
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(cx, cy - 24);
-    ctx.lineTo(cx + 6, cy - 14);
-    ctx.lineTo(cx - 6, cy - 14);
+    ctx.moveTo(0, -24);
+    ctx.lineTo(6, -14);
+    ctx.lineTo(-6, -14);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
@@ -1725,32 +1720,26 @@ export function drawBuildingConditionOverlay(
     ctx.font = 'bold 8px Orbitron, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('!', cx, cy - 17);
-    ctx.restore();
+    ctx.fillText('!', 0, -17);
   } else if (condition === 'buried') {
-    // Buried sand mound overlay matching Martian terrain
-    ctx.save();
     ctx.fillStyle = 'rgba(108, 53, 28, 0.85)';
     ctx.strokeStyle = '#4a2110';
     ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.ellipse(cx, cy - 4, halfW * 0.85, halfH * 0.85, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, -4, 32 * 0.85, 16 * 0.85, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = '#d9dde0';
     ctx.font = 'bold 7px Chakra Petch, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('BURIED', cx, cy - 4);
-    ctx.restore();
+    ctx.fillText('BURIED', 0, -4);
   } else if (condition === 'deactivated') {
-    // Standby / Deactivated icon badge (grey/amber power off indicator)
-    ctx.save();
     ctx.fillStyle = 'rgba(20, 24, 30, 0.85)';
     ctx.strokeStyle = '#64748b';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(cx - 16, cy - 24, 32, 12, 3);
+    ctx.roundRect(-16, -24, 32, 12, 3);
     ctx.fill();
     ctx.stroke();
 
@@ -1758,23 +1747,10 @@ export function drawBuildingConditionOverlay(
     ctx.font = 'bold 6.5px Chakra Petch, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('OFF', cx, cy - 18);
-    ctx.restore();
+    ctx.fillText('OFF', 0, -18);
   }
-}
 
-/**
- * Main procedural dispatcher to draw any building type.
- */
-export interface DrawBuildingOptions {
-  type: BuildingType;
-  x: number;
-  y: number;
-  config: IsoConfig;
-  isPreview?: boolean;
-  isPowered?: boolean;
-  isProducing?: boolean;
-  dockedRovers?: number;
+  ctx.restore();
 }
 
 export function drawBuilding(ctx: CanvasRenderingContext2D, options: DrawBuildingOptions): void {

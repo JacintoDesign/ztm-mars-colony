@@ -663,12 +663,12 @@ export class IsometricRenderer {
       } else if (item.kind === 'colonist') {
         const c = item.colonist;
         const v = getTileVertices(c.x, c.y, this.config);
-        drawColonist(ctx, v.center, c.health, c.age, c.lifespan);
+        drawColonist(ctx, v.center, c.health, c.age, c.lifespan, halfW);
       } else if (item.kind === 'rover') {
         const r = item.rover;
         const v = getTileVertices(r.x, r.y, this.config);
         const occupants = r.occupants ?? (r.state === 'idle_at_base' ? 0 : 1);
-        drawRover(ctx, v.center, r.power, occupants);
+        drawRover(ctx, v.center, r.power, occupants, halfW);
       } else if (item.kind === 'asteroid') {
         const a = item.asteroid!;
         const v = getTileVertices(a.x, a.y, this.config);
