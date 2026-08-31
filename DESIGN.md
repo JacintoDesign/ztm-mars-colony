@@ -61,8 +61,8 @@ Each building type is identifiable by shape alone, no labels needed:
 - extractor: wide and low, with an angled scoop silhouette
 - scrubber: tall and narrow
 - farm: broad and flat, a grid-like surface pattern rather than a solid mass
-- garage: boxy and squared-off, wider than tall
-- refinery: tall and industrial, distinct from the extractor's scoop — a stack shape rather than a scoop
+- garage: boxy and squared-off, with straightened isometric geometry; roof features twin beacon indicators displaying parked rover occupancy at a glance (0, 1, or 2 docked rovers)
+- refinery: grounded heavy industrial furnace anchored to the terrain bedrock with a tall refining stack, catalytic reaction vessel, and battery storage manifold
 
 All seven must read as distinct from one another at a glance.
 
@@ -73,11 +73,13 @@ All seven must read as distinct from one another at a glance.
 - Extractors show a faint vent glow while producing ore; the glow stops the instant that tile's deposit is exhausted, even though the building keeps drawing power
 - Farms show a faint green tint while producing food; the tint fades when power fails, same logic as the other producers
 - Scene tints with oxygen level — clear when healthy, dusty haze as it drops
-- Colonists stand upright at full health; slump as health falls; a colonist past three-quarters of their own seeded lifespan shows visibly greyed hair or an equivalent aging cue, distinct from health-based slumping — each colonist ages on their own clock, so this triggers at a different tick for every one of them
+- Colonists stand upright at full health; slump as health falls; a colonist past three-quarters of their own seeded lifespan shows visibly greyed hair or an equivalent aging cue, distinct from health-based slumping — each colonist ages on their own clock, so this triggers at a different tick for every one of them. Colonists walk steadily at 1 tile per 5 ticks
 - A broken building shows its normal silhouette with a small fault indicator — a flickering marker, not a colour change, since colour is reserved for the warning/critical palette
 - A buried building is mostly obscured by a terrain-coloured overlay matching the surrounding tint; its silhouette should still be barely legible underneath, not fully hidden
-- A rover shows as a small distinct sprite, visible only while traveling or mining — idle rovers are implied by the garage, not separately rendered
-- An active asteroid renders on its tile with a visibly different silhouette from any building — it isn't placed, so nothing about its shape should read as buildable
+- Tile (0, 0) features a permanent designated Landing Pad (a clean, minimalist circular ring on the tile). Building on tile (0, 0) is strictly blocked
+- When a transport ship arrives, a simple conical landing capsule with small landing legs and a circular blue viewport rests on tile (0, 0), cleanly covering the landing pad circle
+- A rover renders as a simple 4-wheeled car/buggy with dual seats dynamically rendering 0, 1 (driver in spacesuit with gold visor), or 2 (driver and passenger in spacesuits with gold visors) seated colonists
+- An active asteroid renders as a multi-faceted 3D cratered meteorite with surface impact depressions and glowing mineral veins
 - All of these read from state. None animate on their own timer.
 
 ## Components

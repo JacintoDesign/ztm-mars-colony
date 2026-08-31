@@ -1,7 +1,20 @@
 import { supabase } from '../lib/supabase';
-import { Building, BuildingType, Colonist, ColonyState } from '../simulation/types';
+import {
+  Building,
+  BuildingType,
+  Colonist,
+  ColonyState,
+  Rover,
+  OreDeposit,
+  PendingArrival,
+  BatteryCell,
+  MiningSite,
+  Asteroid,
+} from '../simulation/types';
 import { applyTicks } from '../simulation/tick';
 import { CONTRACT_RULES } from '../simulation/contract-rules';
+import { SeededPRNG, generateInitialSeed } from '../simulation/prng';
+import { generateOreDistribution } from '../simulation/ore-generator';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface ColonyRecord {
@@ -9,8 +22,14 @@ export interface ColonyRecord {
   owner: string;
   oxygen: number;
   power: number;
+  food?: number;
   ore: number;
-  ore_reserve: number;
+  electronics?: number;
+  seed?: number;
+  battery_cells?: BatteryCell[];
+  mining_sites?: MiningSite[];
+  active_asteroid?: Asteroid | null;
+  pending_arrivals?: PendingArrival[];
   tick: number;
   last_tick_at: string;
   status: 'active' | 'game_over';
@@ -22,13 +41,15 @@ export interface ColonyData {
   colony: ColonyRecord;
   buildings: Building[];
   colonists: Colonist[];
+  rovers: Rover[];
+  oreDeposits: OreDeposit[];
   bestSolsSurvived: number;
 }
 
 export class ColonyService {
   /**
    * Loads an existing colony for the authenticated user, or creates one if it's the first sign-in.
-   * Performs authoritative offline catch-up (capped at 10,000 ticks).
+   * Performs authoritative offline catch-up (capped at 28,800 ticks).
    */
   public async loadOrCreateColony(userId: string): Promise<ColonyData> {
     // 1. Fetch user account profile (best_sols_survived)
@@ -42,7 +63,6 @@ export class ColonyService {
     if (userProfile) {
       bestSolsSurvived = userProfile.best_sols_survived ?? 0;
     } else {
-      // Upsert profile if missing
       await supabase
         .from('marscolony_users')
         .upsert({ id: userId, best_sols_survived: 0 }, { onConflict: 'id' });
@@ -60,19 +80,31 @@ export class ColonyService {
     }
 
     let colony: ColonyRecord;
+    let isNewColony = false;
 
     if (existingColonies && existingColonies.length > 0) {
       colony = existingColonies[0] as ColonyRecord;
     } else {
-      // First sign-in: create exactly one fresh colony with starting contract values
+      // First sign-in: generate fresh seed and 500-ore distribution
+      const initialSeed = generateInitialSeed();
+      const prng = new SeededPRNG(initialSeed);
+      const { oreDeposits: generatedDeposits, miningSites: generatedMiningSites } = generateOreDistribution(prng);
+
+      isNewColony = true;
       const { data: newColony, error: createColonyError } = await supabase
         .from('marscolony_colonies')
         .insert({
           owner: userId,
           oxygen: 50,
           power: 50,
+          food: 50,
           ore: 0,
-          ore_reserve: 500,
+          electronics: 0,
+          seed: initialSeed,
+          battery_cells: [],
+          mining_sites: generatedMiningSites,
+          active_asteroid: null,
+          pending_arrivals: [],
           tick: 0,
           status: 'active',
           last_tick_at: new Date().toISOString(),
@@ -81,7 +113,6 @@ export class ColonyService {
         .single();
 
       if (createColonyError) {
-        // Fallback in case of race condition
         const { data: retryColonies } = await supabase
           .from('marscolony_colonies')
           .select('*')
@@ -95,6 +126,18 @@ export class ColonyService {
         }
       } else {
         colony = newColony as ColonyRecord;
+      }
+
+      // Insert initial ore deposits
+      if (isNewColony && generatedDeposits.length > 0) {
+        const depositRows = generatedDeposits.map((d) => ({
+          colony_id: colony.id,
+          owner: userId,
+          x: d.x,
+          y: d.y,
+          remaining: d.remaining,
+        }));
+        await supabase.from('marscolony_ore_deposits').insert(depositRows);
       }
     }
 
@@ -110,6 +153,9 @@ export class ColonyService {
       type: b.type as BuildingType,
       x: b.x,
       y: b.y,
+      condition: b.condition ?? 'operational',
+      repairProgress: b.repair_progress ?? 0,
+      digProgress: b.dig_progress ?? 0,
     }));
 
     // 4. Load colonists
@@ -123,16 +169,63 @@ export class ColonyService {
       x: c.x,
       y: c.y,
       health: c.health,
+      age: c.age ?? 0,
+      lifespan: c.lifespan ?? 15000,
       destination: c.destination,
+      destinationType: c.destination_type ?? 'habitat',
+      targetEntityId: null,
       route: c.route || [],
     }));
 
-    // 5. Authoritative Catch-up computation on load
+    // 5. Load rovers
+    const { data: roversData } = await supabase
+      .from('marscolony_rovers')
+      .select('*')
+      .eq('colony_id', colony.id);
+
+    let rovers: Rover[] = (roversData || []).map((r) => ({
+      id: r.id,
+      garageX: r.garage_x,
+      garageY: r.garage_y,
+      x: r.x,
+      y: r.y,
+      state: r.state,
+      power: r.power,
+      cargo: r.cargo,
+      destination: r.destination,
+      onSiteTicksRemaining: 0,
+      route: r.route || [],
+    }));
+
+    // 6. Load ore deposits
+    const { data: depositsData } = await supabase
+      .from('marscolony_ore_deposits')
+      .select('*')
+      .eq('colony_id', colony.id);
+
+    let oreDeposits: OreDeposit[] = (depositsData || []).map((d) => ({
+      id: d.id,
+      x: d.x,
+      y: d.y,
+      remaining: d.remaining,
+    }));
+
+    // If existing colony had no ore deposits generated yet, generate them now
+    if (oreDeposits.length === 0) {
+      const seed = colony.seed ?? generateInitialSeed();
+      const prng = new SeededPRNG(seed);
+      const generated = generateOreDistribution(prng);
+      oreDeposits = generated.oreDeposits;
+      colony.mining_sites = generated.miningSites;
+      colony.seed = seed;
+    }
+
+    // 7. Authoritative Catch-up computation on load
     if (colony.status === 'active' && colony.last_tick_at) {
       const lastTickTime = new Date(colony.last_tick_at).getTime();
       const now = Date.now();
       const elapsedSeconds = Math.max(0, Math.floor((now - lastTickTime) / 1000));
-      const ticksToApply = Math.min(elapsedSeconds, CONTRACT_RULES.maxCatchUpTicks); // Cap at 28,800 ticks per CONTRACT.md
+      const ticksToApply = Math.min(elapsedSeconds, CONTRACT_RULES.maxCatchUpTicks);
 
       if (ticksToApply > 0) {
         const initialState: ColonyState = {
@@ -140,12 +233,20 @@ export class ColonyService {
           tick: colony.tick,
           oxygen: colony.oxygen,
           power: colony.power,
+          food: colony.food ?? 50,
           ore: colony.ore,
-          oreReserve: colony.ore_reserve,
-          signedInAccount: userId,
-          colonyOwner: userId,
+          electronics: colony.electronics ?? 0,
+          seed: colony.seed ?? 133742,
+          oreDeposits,
           buildings,
           colonists,
+          pendingArrivals: colony.pending_arrivals ?? [],
+          rovers,
+          batteryCells: colony.battery_cells ?? [],
+          miningSites: colony.mining_sites ?? [],
+          activeAsteroid: colony.active_asteroid ?? null,
+          signedInAccount: userId,
+          colonyOwner: userId,
           status: colony.status,
           bestSolsSurvived,
           lastAppliedTick: colony.last_tick_at,
@@ -153,18 +254,24 @@ export class ColonyService {
 
         const caughtUpState = applyTicks(initialState, ticksToApply);
 
-        // Update local object references
+        // Update local records
         colony.oxygen = caughtUpState.oxygen;
         colony.power = caughtUpState.power;
+        colony.food = caughtUpState.food;
         colony.ore = caughtUpState.ore;
-        colony.ore_reserve = caughtUpState.oreReserve;
+        colony.electronics = caughtUpState.electronics;
+        colony.seed = caughtUpState.seed;
+        colony.battery_cells = caughtUpState.batteryCells;
+        colony.pending_arrivals = caughtUpState.pendingArrivals;
+        colony.active_asteroid = caughtUpState.activeAsteroid;
         colony.tick = caughtUpState.tick;
         colony.status = caughtUpState.status;
         colony.last_tick_at = new Date().toISOString();
         colonists = caughtUpState.colonists;
+        rovers = caughtUpState.rovers;
+        oreDeposits = caughtUpState.oreDeposits;
         bestSolsSurvived = caughtUpState.bestSolsSurvived;
 
-        // Persist authoritative catch-up result
         await this.syncColonyState(caughtUpState, userId);
       }
     }
@@ -173,12 +280,14 @@ export class ColonyService {
       colony,
       buildings,
       colonists,
+      rovers,
+      oreDeposits,
       bestSolsSurvived,
     };
   }
 
   /**
-   * Persists a placed building to the database and deducts resource costs.
+   * Persists a placed building to the database.
    */
   public async placeBuilding(
     colonyId: string,
@@ -197,12 +306,48 @@ export class ColonyService {
         type: buildingType,
         x,
         y,
+        condition: 'operational',
+        repair_progress: 0,
+        dig_progress: 0,
       })
       .select()
       .single();
 
     if (insertError) {
       throw new Error(`Failed to place building: ${insertError.message}`);
+    }
+
+    // If placed garage, insert 2 rovers
+    if (buildingType === 'garage') {
+      const roverRows = [
+        {
+          colony_id: colonyId,
+          owner: userId,
+          garage_x: x,
+          garage_y: y,
+          x,
+          y,
+          state: 'idle_at_base',
+          power: 100,
+          cargo: null,
+          destination: null,
+          route: [],
+        },
+        {
+          colony_id: colonyId,
+          owner: userId,
+          garage_x: x,
+          garage_y: y,
+          x,
+          y,
+          state: 'idle_at_base',
+          power: 100,
+          cargo: null,
+          destination: null,
+          route: [],
+        },
+      ];
+      await supabase.from('marscolony_rovers').insert(roverRows);
     }
 
     // Deduct cost and update colony
@@ -222,6 +367,9 @@ export class ColonyService {
       type: buildingRecord.type as BuildingType,
       x: buildingRecord.x,
       y: buildingRecord.y,
+      condition: 'operational',
+      repairProgress: 0,
+      digProgress: 0,
     };
   }
 
@@ -237,8 +385,14 @@ export class ColonyService {
       .update({
         oxygen: state.oxygen,
         power: state.power,
+        food: state.food,
         ore: state.ore,
-        ore_reserve: state.oreReserve,
+        electronics: state.electronics,
+        seed: state.seed,
+        battery_cells: state.batteryCells,
+        mining_sites: state.miningSites,
+        active_asteroid: state.activeAsteroid,
+        pending_arrivals: state.pendingArrivals,
         tick: state.tick,
         status: state.status,
         last_tick_at: new Date().toISOString(),
@@ -247,7 +401,21 @@ export class ColonyService {
       .eq('id', state.colonyId)
       .eq('owner', userId);
 
-    // 2. Sync colonists in database
+    // 2. Sync buildings conditions
+    for (const b of state.buildings) {
+      if (b.id && !b.id.startsWith('bld-')) {
+        await supabase
+          .from('marscolony_buildings')
+          .update({
+            condition: b.condition,
+            repair_progress: b.repairProgress,
+            dig_progress: b.digProgress,
+          })
+          .eq('id', b.id);
+      }
+    }
+
+    // 3. Sync colonists in database
     await supabase
       .from('marscolony_colonists')
       .delete()
@@ -260,14 +428,40 @@ export class ColonyService {
         x: c.x,
         y: c.y,
         health: c.health,
+        age: c.age,
+        lifespan: c.lifespan,
         destination: c.destination,
+        destination_type: c.destinationType,
         route: c.route || [],
       }));
 
       await supabase.from('marscolony_colonists').insert(rows);
     }
 
-    // 3. If game_over occurred, update best_sols_survived if beaten
+    // 4. Sync rovers in database
+    await supabase
+      .from('marscolony_rovers')
+      .delete()
+      .eq('colony_id', state.colonyId);
+
+    if (state.rovers.length > 0) {
+      const roverRows = state.rovers.map((r) => ({
+        colony_id: state.colonyId,
+        owner: userId,
+        garage_x: r.garageX,
+        garage_y: r.garageY,
+        x: r.x,
+        y: r.y,
+        state: r.state,
+        power: r.power,
+        cargo: r.cargo,
+        destination: r.destination,
+        route: r.route || [],
+      }));
+      await supabase.from('marscolony_rovers').insert(roverRows);
+    }
+
+    // 5. Update best_sols_survived on game over
     if (state.status === 'game_over') {
       const solsSurvived = Math.floor(state.tick / 1000);
       const { data: userRow } = await supabase
@@ -288,32 +482,41 @@ export class ColonyService {
 
   /**
    * Restarts a colony from game_over state.
-   * Resets oxygen (50), power (50), ore (0), reserve (500), clears buildings and colonists.
-   * best_sols_survived is untouched.
    */
   public async restartColony(colonyId: string, userId: string): Promise<void> {
-    // 1. Delete all placed buildings for this colony
-    await supabase
-      .from('marscolony_buildings')
-      .delete()
-      .eq('colony_id', colonyId)
-      .eq('owner', userId);
+    const initialSeed = generateInitialSeed();
+    const prng = new SeededPRNG(initialSeed);
+    const { oreDeposits, miningSites } = generateOreDistribution(prng);
 
-    // 2. Delete all colonists
-    await supabase
-      .from('marscolony_colonists')
-      .delete()
-      .eq('colony_id', colonyId)
-      .eq('owner', userId);
+    await supabase.from('marscolony_buildings').delete().eq('colony_id', colonyId);
+    await supabase.from('marscolony_colonists').delete().eq('colony_id', colonyId);
+    await supabase.from('marscolony_rovers').delete().eq('colony_id', colonyId);
+    await supabase.from('marscolony_ore_deposits').delete().eq('colony_id', colonyId);
 
-    // 3. Reset colony row to starting values
-    const { error: resetColonyError } = await supabase
+    // Insert new ore deposits
+    const depositRows = oreDeposits.map((d) => ({
+      colony_id: colonyId,
+      owner: userId,
+      x: d.x,
+      y: d.y,
+      remaining: d.remaining,
+    }));
+    await supabase.from('marscolony_ore_deposits').insert(depositRows);
+
+    // Reset colony row
+    await supabase
       .from('marscolony_colonies')
       .update({
         oxygen: 50,
         power: 50,
+        food: 50,
         ore: 0,
-        ore_reserve: 500,
+        electronics: 0,
+        seed: initialSeed,
+        battery_cells: [],
+        mining_sites: miningSites,
+        active_asteroid: null,
+        pending_arrivals: [],
         tick: 0,
         status: 'active',
         last_tick_at: new Date().toISOString(),
@@ -321,15 +524,8 @@ export class ColonyService {
       })
       .eq('id', colonyId)
       .eq('owner', userId);
-
-    if (resetColonyError) {
-      throw new Error(`Failed to reset colony: ${resetColonyError.message}`);
-    }
   }
 
-  /**
-   * Subscribes to realtime updates on this colony so multiple tabs stay in sync.
-   */
   public subscribeToColony(colonyId: string, onUpdate: (payload: any) => void): RealtimeChannel {
     return supabase
       .channel(`colony-${colonyId}`)

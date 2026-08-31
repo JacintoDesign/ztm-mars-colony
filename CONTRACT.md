@@ -83,7 +83,8 @@
 - garage: 30 power, 10 ore
 - refinery: 25 power, 15 ore
 - A placement is rejected if the account cannot afford its cost. Cost is deducted server-side the instant placement succeeds
-- A placement is also rejected if the target tile currently holds a building, is buried, or (for extractor specifically) has zero ore in its deposit — placing an extractor on a dry tile is legal but pointless, and the game does not prevent it
+- A placement is also rejected if the target tile currently holds a building, is buried, or is tile (0, 0). Tile (0, 0) is the permanent designated Landing Pad, and no buildings may be placed on it
+- For extractor specifically: placing an extractor on a dry tile (zero ore) is legal but pointless, and the game does not prevent it
 
 ### Health
 - If oxygen is 0 OR power is 0 OR food is 0 at end of tick: every colonist loses 5 health
@@ -97,13 +98,15 @@
 - 1 sol = 1000 ticks. Sols survived is the tick count at the moment of game over, divided by 1000, rounded down
 - At the moment of game over, compare sols survived against the account's bestSolsSurvived. If higher, update it. If not, leave it unchanged
 
-### Colonist Arrivals
+### Colonist Arrivals & Landing Pad
+- Tile (0, 0) is the colony's permanent Landing Pad. When no transport is on-site, the landing pad is visible with tarmac markings, hazard borders, and approach guidance beacons. Building on tile (0, 0) is strictly prohibited
 - A ship lands every 300 ticks — capped by total habitat capacity (2 colonists per habitat). No landing occurs if capacity is already full
+- The transport ship is a compact single-tile descent capsule that rests directly on the (0, 0) landing pad
 - A landed colonist is not yet a colonist in the sense the rest of this document uses the word. They join `pendingArrivals`, not `colonists` — no health, no age, no life-support draw, because they're not in the colony's care yet
 - The ship also carries 2 electronics, held with the pending arrival until escort succeeds or fails
 - A rover dispatched to the landing zone — a third rover destination, alongside a mining site and an asteroid — picks up the waiting colonist and the electronics and returns them to its garage. On arrival, the arrival moves from `pendingArrivals` into `colonists`, assigned a habitat exactly as arrivals always were, and the electronics join the colony's stockpile
 - Each entry in `pendingArrivals` has 150 ticks from landing to be escorted. If no rover reaches them in that window, the entry is removed — the colonist and the electronics are both lost, nothing recovered
-- 150 ticks is generous for travel — a rover crosses the entire 20×20 grid in about 8 ticks at 5 tiles/tick. The real constraint is never having a rover free to send, not the distance
+- 150 ticks is generous for travel — a rover crosses the entire 20×20 grid in about 20 ticks at 1 tile/tick. The real constraint is never having a rover free to send, not the distance
 - Nothing about escort is automatic. A ship landing during a large catch-up jump, with nobody actively dispatching, times out exactly like one landing while you watch and choosing not to act — there is no auto-dispatch fallback. This is deliberate: leaving the colony to run unattended for long stretches has a real demographic cost, the same way it has a real maintenance cost from Building Condition and Weather. Checking in periodically isn't a suggestion, it's how population actually grows
 
 ### Electronics
@@ -112,19 +115,23 @@
 - Electronics fund building repair (see Building Condition). Ore funds placement and battery cells. The two are not interchangeable
 
 ### Colonist movement
-- Colonists move one tile per tick toward a destination building, stopping adjacent
+- Colonists move one tile every 5 ticks toward a destination building, stopping adjacent (0.2 tiles/tick)
 - A colonist can be assigned four kinds of destination: a habitat on arrival, a broken building to repair, a buried building to dig out, or a stranded rover to recover. Only one at a time — a colonist already assigned to any of the four isn't pulled to a second one until the first finishes
 - Movement advances inside the tick function, not in rendering
 - Every movement choice must be deterministic — no fresh random numbers
 - A newly-landed colonist is assigned a destination — the nearest habitat with unclaimed capacity — in the same tick it's created. Capacity is claimed on assignment, not on arrival
-- Rovers move 5 tiles per tick along the same grid, walking's deterministic tie-break rules included. A trip that takes a colonist 40 ticks on foot takes a rover 8
+- Rovers move 1 tile per tick along the same grid (1.0 tile/tick), walking's deterministic tie-break rules included. A trip that takes a colonist 50 ticks on foot takes a rover 10
 
 ### Rovers
-- A garage holds up to 2 rovers. A rover exists the moment a garage is placed with room for one; rovers are not placed individually
+- A garage holds up to 2 rovers, with a visible top-down roof status indicator showing docked rover capacity at a glance. A rover exists the moment a garage is placed with room for one; rovers are not placed individually
+- Each rover is an open-cockpit crewed planetary rover with dual passenger seating capable of holding up to 2 colonists (empty, 1 colonist, or 2 colonists):
+  - 0 occupants: unmanned parked rover
+  - 1 occupant: single colonist driver (standard transit, mining dispatch, or outbound escort)
+  - 2 occupants: driver + passenger colonist (e.g. returning from landing zone with the escorted colonist)
 - Rover state: idle_at_base, traveling_out, on_site, traveling_back, stranded. `on_site` covers mining a site or asteroid and picking up a pending arrival alike — what happens during it depends on the dispatch, the state name doesn't
 - Rover power: 0–100, its own pool, separate from colony power. Recharges 5/tick while idle_at_base, nowhere else
 - Dispatch costs 1 battery cell, consumed on departure. No cell, no dispatch
-- Once dispatched: travel_out_ticks + on_site_ticks + travel_back_ticks, at 5 tiles/tick for the travel legs. A mining or asteroid dispatch sets on_site_ticks to that site's fixed mining duration; a landing-zone dispatch sets it to a fixed 5 ticks, just long enough to represent loading a passenger rather than mining ore. Rover power drains 2/tick for the whole round trip regardless of what it's doing on site
+- Once dispatched: travel_out_ticks + on_site_ticks + travel_back_ticks, at 1 tile/tick for the travel legs. A mining or asteroid dispatch sets on_site_ticks to that site's fixed mining duration; a landing-zone dispatch sets it to a fixed 5 ticks, just long enough to represent loading a passenger rather than mining ore. Rover power drains 2/tick for the whole round trip regardless of what it's doing on site
 - Cargo is one of two shapes depending on the dispatch: `{ type: 'ore', amount }` from a mining or asteroid trip, or `{ type: 'arrival' }` from a landing-zone trip, carrying whichever pending arrival was picked up along with their electronics
 - If rover power reaches 0 before the rover returns to base: stranded. Its cargo is lost — ore forfeited, or a rescued arrival lost exactly as if the escort had never happened. A stranded rover is recovered by a colonist walking to it and returning it to the nearest garage with room — the same movement system, a fourth kind of destination
 - On successful return: ore cargo joins the colony's ore stockpile; an arrival cargo moves the pending arrival into `colonists` and adds their electronics to the stockpile, exactly as a completed escort does

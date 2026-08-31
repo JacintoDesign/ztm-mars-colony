@@ -20,7 +20,7 @@ const readout = new InternalReadout();
 readout.update(store.getState());
 
 const resourcePanel = new ResourcePanel();
-resourcePanel.update(store.getState());
+resourcePanel.updateFromState(store.getState());
 
 // Initialize help modal
 const helpModal = new HelpModal();
@@ -30,6 +30,68 @@ const toolbar = new Toolbar({
   containerId: 'toolbar',
   onSelectTool: (tool) => {
     renderer.setSelectedTool(tool);
+  },
+  onRefineCell: () => {
+    const res = store.dispatch({ type: 'REFINE_CELL' });
+    if (res.success) {
+      toolbar.setStatus('Cell Refined (+1 Battery Cell)', 'nominal');
+    } else {
+      toolbar.setStatus(res.reason ? `Refine Failed: ${res.reason}` : 'Refine Failed', 'warning');
+    }
+  },
+  onDispatchEscort: () => {
+    const state = store.getState();
+    const idleRover = state.rovers.find((r) => r.state === 'idle_at_base');
+    if (!idleRover) {
+      toolbar.setStatus('Escort Failed: No Idle Rovers', 'warning');
+      return;
+    }
+    if (state.batteryCells.length === 0) {
+      toolbar.setStatus('Escort Failed: No Battery Cells', 'warning');
+      return;
+    }
+    const res = store.dispatch({
+      type: 'DISPATCH_ROVER',
+      roverId: idleRover.id,
+      destinationType: 'landing_zone',
+    });
+    if (res.success) {
+      toolbar.setStatus('Rover Dispatched to Landing Zone', 'nominal');
+    } else {
+      toolbar.setStatus(res.reason ? `Dispatch Failed: ${res.reason}` : 'Dispatch Failed', 'warning');
+    }
+  },
+  onDispatchMining: () => {
+    const state = store.getState();
+    const idleRover = state.rovers.find((r) => r.state === 'idle_at_base');
+    if (!idleRover) {
+      toolbar.setStatus('Mining Failed: No Idle Rovers', 'warning');
+      return;
+    }
+    if (state.batteryCells.length === 0) {
+      toolbar.setStatus('Mining Failed: No Battery Cells', 'warning');
+      return;
+    }
+    // Prefer asteroid if active, else first mining site with remaining ore
+    let destType: 'asteroid' | 'mining_site' = 'mining_site';
+    let targetTile = state.miningSites.length > 0 ? { x: state.miningSites[0].x, y: state.miningSites[0].y } : { x: 15, y: 15 };
+
+    if (state.activeAsteroid) {
+      destType = 'asteroid';
+      targetTile = { x: state.activeAsteroid.x, y: state.activeAsteroid.y };
+    }
+
+    const res = store.dispatch({
+      type: 'DISPATCH_ROVER',
+      roverId: idleRover.id,
+      destinationType: destType,
+      targetTile,
+    });
+    if (res.success) {
+      toolbar.setStatus(`Rover Dispatched to ${destType === 'asteroid' ? 'Asteroid' : 'Mining Site'}`, 'nominal');
+    } else {
+      toolbar.setStatus(res.reason ? `Dispatch Failed: ${res.reason}` : 'Dispatch Failed', 'warning');
+    }
   },
 });
 
@@ -44,7 +106,12 @@ const renderer = new IsometricRenderer({
   store,
   gridSize: 20,
   onHoverTile: (tile) => {
-    toolbar.setHoveredTile(tile);
+    if (tile) {
+      const tileOre = store.getTileOre(tile.x, tile.y);
+      toolbar.setHoveredTile(tile, tileOre);
+    } else {
+      toolbar.setHoveredTile(null);
+    }
   },
   onStatusChange: (message, level) => {
     toolbar.setStatus(message, level);
@@ -57,6 +124,7 @@ const renderer = new IsometricRenderer({
 (window as any).__COLONY_SERVICE__ = colonyService;
 (window as any).__COLONY_RESOURCE_PANEL__ = resourcePanel;
 (window as any).__COLONY_HELP_MODAL__ = helpModal;
+(window as any).__COLONY_TOOLBAR__ = toolbar;
 
 // Active session tracking & timers
 let activeUserId: string | null = null;
@@ -86,7 +154,7 @@ const gameOverModal = new GameOverModal({
 // Subscribe readout, resource panel and game over screen to store updates
 store.subscribe((state) => {
   readout.update(state);
-  resourcePanel.update(state);
+  resourcePanel.updateFromState(state);
 
   if (state.status === 'game_over') {
     const solsSurvived = Math.floor(state.tick / 1000);
@@ -209,9 +277,16 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
       colonyOwner: colonyData.colony.owner,
       oxygen: colonyData.colony.oxygen,
       power: colonyData.colony.power,
+      food: colonyData.colony.food ?? 50,
       ore: colonyData.colony.ore,
-      oreReserve: colonyData.colony.ore_reserve,
-      tick: colonyData.colony.tick,
+      electronics: colonyData.colony.electronics ?? 0,
+      seed: colonyData.colony.seed ?? 133742,
+      oreDeposits: colonyData.oreDeposits,
+      miningSites: colonyData.colony.mining_sites ?? [],
+      activeAsteroid: colonyData.colony.active_asteroid ?? null,
+      pendingArrivals: colonyData.colony.pending_arrivals ?? [],
+      batteryCells: colonyData.colony.battery_cells ?? [],
+      rovers: colonyData.rovers,
       buildings: colonyData.buildings,
       colonists: colonyData.colonists,
       status: colonyData.colony.status,
@@ -251,8 +326,10 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
         store.loadState({
           oxygen: row.oxygen,
           power: row.power,
+          food: row.food,
           ore: row.ore,
-          oreReserve: row.ore_reserve,
+          electronics: row.electronics,
+          seed: row.seed,
           tick: Math.max(store.getState().tick, row.tick),
           status: row.status,
         });

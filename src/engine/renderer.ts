@@ -1,7 +1,15 @@
 import { getTileVertices, IsoConfig, GridPoint, screenToGrid } from './iso-math';
 import { ColonyStore } from '../simulation/store';
 import { BuildingType } from '../simulation/types';
-import { drawBuilding, drawColonist } from '../assets/building-renderers';
+import {
+  drawBuilding,
+  drawColonist,
+  drawRover,
+  drawAsteroid,
+  drawBuildingConditionOverlay,
+  drawLandingCapsule,
+  drawLandingPad,
+} from '../assets/building-renderers';
 import { StatusLevel } from '../ui/toolbar';
 
 export interface RendererOptions {
@@ -108,26 +116,41 @@ export class IsometricRenderer {
       if (this.canvas.parentElement) {
         this.resizeObserver.observe(this.canvas.parentElement);
       }
+      this.resizeObserver.observe(document.body);
     }
   }
 
   private handleResize(): void {
-    const rect = this.canvas.getBoundingClientRect();
-    const width = Math.max(300, rect.width || window.innerWidth);
-    const height = Math.max(300, rect.height || window.innerHeight);
+    const width = Math.max(window.innerWidth, document.documentElement.clientWidth || 0);
+    const height = Math.max(window.innerHeight, document.documentElement.clientHeight || 0);
 
     this.dpr = window.devicePixelRatio || 1;
     this.canvas.width = Math.floor(width * this.dpr);
     this.canvas.height = Math.floor(height * this.dpr);
+    this.canvas.style.width = '100%';
+    this.canvas.style.height = '100%';
 
-    const tileW = 64;
-    const tileH = 32;
+    // Compute scale so the 20x20 isometric board stays centered and fills the screen smoothly
+    const baseTileW = 64;
+    const baseTileH = 32;
+    const totalW = this.config.gridSize * baseTileW; // 1280
+    const totalH = this.config.gridSize * baseTileH; // 640
+
+    // Leave margin for header (64px) and toolbar (64px)
+    const topMargin = 64;
+    const bottomMargin = 64;
+    const availableW = Math.max(300, width - 32);
+    const availableH = Math.max(300, height - topMargin - bottomMargin);
+    const scale = Math.max(0.5, Math.min(availableW / totalW, availableH / (totalH + 40)));
+
+    const tileW = Math.floor(baseTileW * scale);
+    const tileH = Math.floor(baseTileH * scale);
     this.config.tileWidth = tileW;
     this.config.tileHeight = tileH;
 
     this.config.originX = Math.floor(width / 2);
     const totalGridH = this.config.gridSize * tileH;
-    this.config.originY = Math.max(16, Math.floor((height - totalGridH) / 2 - 8));
+    this.config.originY = Math.max(10, Math.floor(topMargin + (availableH - totalGridH) / 2));
 
     this.render();
   }
@@ -328,52 +351,115 @@ export class IsometricRenderer {
         ctx.strokeStyle = '#3d2417';
         ctx.lineWidth = 1;
         ctx.stroke();
+
+        // Draw Landing Pad simple circle on (0, 0) ONLY if no ship is currently landed
+        if (gx === 0 && gy === 0 && this.store.getState().pendingArrivals.length === 0) {
+          drawLandingPad(ctx, v.center, this.config.tileWidth / 2, this.config.tileHeight / 2);
+        }
       }
     }
   }
 
   /**
-   * Renders placed buildings and colonists sorted back-to-front by depth (x + y).
+   * Renders placed buildings, colonists, rovers, asteroids, and landing zone pending arrivals sorted back-to-front by depth (x + y).
    */
   private renderEntities(ctx: CanvasRenderingContext2D): void {
     const state = this.store.getState();
     const isPowered = state.power > 0;
-    const isExtracting = state.oreReserve > 0 && state.power >= 4;
-    const isScrubbing = state.power >= 3;
+    const halfW = this.config.tileWidth / 2;
+    const halfH = this.config.tileHeight / 2;
 
     // Combined entity list for unified depth sorting
     type RenderItem =
-      | { kind: 'building'; x: number; y: number; type: BuildingType }
-      | { kind: 'colonist'; x: number; y: number; health: number };
+      | { kind: 'building'; x: number; y: number; building: typeof state.buildings[0] }
+      | { kind: 'colonist'; x: number; y: number; colonist: typeof state.colonists[0] }
+      | { kind: 'rover'; x: number; y: number; rover: typeof state.rovers[0] }
+      | { kind: 'asteroid'; x: number; y: number; asteroid: typeof state.activeAsteroid };
 
     const entities: RenderItem[] = [
-      ...state.buildings.map((b) => ({ kind: 'building' as const, x: b.x, y: b.y, type: b.type })),
-      ...(state.colonists || []).map((c) => ({ kind: 'colonist' as const, x: c.x, y: c.y, health: c.health })),
+      ...state.buildings.map((b) => ({ kind: 'building' as const, x: b.x, y: b.y, building: b })),
+      ...state.colonists.map((c) => ({ kind: 'colonist' as const, x: c.x, y: c.y, colonist: c })),
+      ...state.rovers
+        .filter((r) => r.state !== 'idle_at_base')
+        .map((r) => ({ kind: 'rover' as const, x: r.x, y: r.y, rover: r })),
     ];
 
+    if (state.activeAsteroid) {
+      entities.push({
+        kind: 'asteroid',
+        x: state.activeAsteroid.x,
+        y: state.activeAsteroid.y,
+        asteroid: state.activeAsteroid,
+      });
+    }
+
+    // Depth sort entities back-to-front by isometric distance (x + y)
     entities.sort((a, b) => {
       const depthA = a.x + a.y;
       const depthB = b.x + b.y;
-      if (depthA !== depthB) return depthA - depthB;
-      if (a.x !== b.x) return a.x - b.x;
+      if (depthA !== depthB) {
+        return depthA - depthB;
+      }
       return a.y - b.y;
     });
 
     for (const item of entities) {
       if (item.kind === 'building') {
+        const b = item.building;
+        const isOperational = b.condition === 'operational';
+        const tileDeposit = this.store.getTileOre(b.x, b.y);
+
+        let isProducing = false;
+        let dockedRovers = 2;
+
+        if (b.type === 'garage') {
+          dockedRovers = state.rovers.filter((r) => r.state === 'idle_at_base' && r.garageX === b.x && r.garageY === b.y).length;
+        }
+
+        if (isOperational) {
+          if (b.type === 'solar') isProducing = isPowered;
+          else if (b.type === 'scrubber') isProducing = state.power >= 3;
+          else if (b.type === 'extractor') isProducing = tileDeposit > 0 && state.power >= 4;
+          else if (b.type === 'farm') isProducing = state.power >= 2;
+        }
+
         drawBuilding(ctx, {
-          type: item.type,
-          x: item.x,
-          y: item.y,
+          type: b.type,
+          x: b.x,
+          y: b.y,
           config: this.config,
           isPreview: false,
-          isPowered,
-          isProducing: item.type === 'extractor' ? isExtracting : (item.type === 'scrubber' ? isScrubbing : true),
+          isPowered: isPowered && isOperational,
+          isProducing,
+          dockedRovers,
         });
-      } else {
-        const v = getTileVertices(item.x, item.y, this.config);
-        drawColonist(ctx, v.center, item.health);
+
+        // Condition overlay if broken or buried
+        if (b.condition !== 'operational') {
+          const v = getTileVertices(b.x, b.y, this.config);
+          drawBuildingConditionOverlay(ctx, v.center, halfW, halfH, b.condition);
+        }
+      } else if (item.kind === 'colonist') {
+        const c = item.colonist;
+        const v = getTileVertices(c.x, c.y, this.config);
+        drawColonist(ctx, v.center, c.health, c.age, c.lifespan);
+      } else if (item.kind === 'rover') {
+        const r = item.rover;
+        const v = getTileVertices(r.x, r.y, this.config);
+        const occupants = r.occupants ?? (r.state === 'idle_at_base' ? 0 : 1);
+        drawRover(ctx, v.center, r.power, occupants);
+      } else if (item.kind === 'asteroid') {
+        const a = item.asteroid!;
+        const v = getTileVertices(a.x, a.y, this.config);
+        drawAsteroid(ctx, v.center, halfW, halfH);
       }
+    }
+
+    // Render Landing Zone (0, 0) pending arrivals with compact lunar/mars landing capsule
+    if (state.pendingArrivals.length > 0) {
+      const v0 = getTileVertices(0, 0, this.config);
+      const arrival = state.pendingArrivals[0];
+      drawLandingCapsule(ctx, v0.center, halfW, halfH, arrival.ticksRemaining);
     }
   }
 

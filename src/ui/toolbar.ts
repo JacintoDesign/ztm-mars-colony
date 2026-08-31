@@ -6,19 +6,30 @@ export type StatusLevel = 'nominal' | 'warning' | 'critical';
 export interface ToolbarOptions {
   containerId?: string;
   onSelectTool: (tool: BuildingType | null) => void;
+  onRefineCell?: () => void;
+  onDispatchEscort?: () => void;
+  onDispatchMining?: () => void;
 }
 
 export class Toolbar {
   private container: HTMLElement;
   private currentTool: BuildingType | null = null;
   private hoveredCoords: GridPoint | null = null;
+  private hoveredTileOre: number | null = null;
   private currentStatus: string = 'Standby';
   private currentStatusLevel: StatusLevel = 'nominal';
   private onSelectTool: (tool: BuildingType | null) => void;
+  private onRefineCell?: () => void;
+  private onDispatchEscort?: () => void;
+  private onDispatchMining?: () => void;
   public static readonly CONTAINER_ID = 'toolbar';
 
   constructor(options: ToolbarOptions) {
     this.onSelectTool = options.onSelectTool;
+    this.onRefineCell = options.onRefineCell;
+    this.onDispatchEscort = options.onDispatchEscort;
+    this.onDispatchMining = options.onDispatchMining;
+
     const existing = document.getElementById(options.containerId ?? Toolbar.CONTAINER_ID);
     if (existing) {
       this.container = existing;
@@ -51,14 +62,16 @@ export class Toolbar {
     }
   }
 
-  public setHoveredTile(coords: GridPoint | null): void {
+  public setHoveredTile(coords: GridPoint | null, oreRemaining: number | null = null): void {
     this.hoveredCoords = coords;
+    this.hoveredTileOre = oreRemaining;
     const coordsEl = this.container.querySelector<HTMLElement>('#toolbar-coords');
     if (coordsEl) {
       if (coords) {
         const padX = String(coords.x).padStart(2, '0');
         const padY = String(coords.y).padStart(2, '0');
-        coordsEl.textContent = `[${padX}, ${padY}]`;
+        const oreStr = oreRemaining !== null ? ` (ORE: ${oreRemaining})` : '';
+        coordsEl.textContent = `[${padX}, ${padY}]${oreStr}`;
         coordsEl.classList.add('active');
       } else {
         coordsEl.textContent = `[--, --]`;
@@ -70,7 +83,17 @@ export class Toolbar {
   private render(): void {
     this.container.innerHTML = '';
 
-    // 1. Tool selection group (Habitat, Solar, Scrubber, Extractor)
+    const tools: Array<{ type: BuildingType; name: string; cost: string }> = [
+      { type: 'habitat', name: 'Habitat', cost: '20P, 10 Ore' },
+      { type: 'solar', name: 'Solar', cost: '10P, 5 Ore' },
+      { type: 'scrubber', name: 'Scrubber', cost: '15P, 8 Ore' },
+      { type: 'extractor', name: 'Extractor', cost: '25P, 15 Ore' },
+      { type: 'farm', name: 'Farm', cost: '30P, 20 Ore' },
+      { type: 'garage', name: 'Garage', cost: '40P, 30 Ore' },
+      { type: 'refinery', name: 'Refinery', cost: '50P, 40 Ore' },
+    ];
+
+    // 1. Tool selection group (All 7 buildings)
     const toolsGroup = document.createElement('div');
     toolsGroup.className = 'toolbar-group';
 
@@ -79,12 +102,9 @@ export class Toolbar {
     label.textContent = 'BUILD:';
     toolsGroup.appendChild(label);
 
-    const tools: Array<{ type: BuildingType; name: string }> = [
-      { type: 'habitat', name: 'Habitat' },
-      { type: 'solar', name: 'Solar' },
-      { type: 'scrubber', name: 'Scrubber' },
-      { type: 'extractor', name: 'Extractor' },
-    ];
+    // 1a. Buttons View (Wide screens)
+    const buttonsView = document.createElement('div');
+    buttonsView.className = 'toolbar-buttons-view';
 
     for (const tool of tools) {
       const btn = document.createElement('button');
@@ -102,12 +122,139 @@ export class Toolbar {
         }
       });
 
-      toolsGroup.appendChild(btn);
+      buttonsView.appendChild(btn);
     }
+    toolsGroup.appendChild(buttonsView);
+
+    // 1b. Dropdown View (Narrow / Compact screens)
+    const dropdownView = document.createElement('div');
+    dropdownView.className = 'toolbar-dropdown-view';
+
+    const buildSelect = document.createElement('select');
+    buildSelect.id = 'toolbar-build-dropdown';
+    buildSelect.className = 'toolbar-select';
+
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = '';
+    defaultOpt.textContent = '[ BUILD STRUCTURE... ]';
+    buildSelect.appendChild(defaultOpt);
+
+    for (const tool of tools) {
+      const opt = document.createElement('option');
+      opt.value = tool.type;
+      opt.textContent = `${tool.name} (${tool.cost})`;
+      if (this.currentTool === tool.type) {
+        opt.selected = true;
+      }
+      buildSelect.appendChild(opt);
+    }
+
+    buildSelect.addEventListener('change', () => {
+      const val = buildSelect.value as BuildingType | '';
+      if (val) {
+        this.setTool(val);
+      } else {
+        this.setTool(null);
+        this.setStatus('Standby', 'nominal');
+      }
+    });
+
+    dropdownView.appendChild(buildSelect);
+    toolsGroup.appendChild(dropdownView);
 
     this.container.appendChild(toolsGroup);
 
-    // 2. Status Bar section
+    // 2. Actions Group (Refine Cell, Dispatch Escort, Dispatch Mining)
+    const actionsGroup = document.createElement('div');
+    actionsGroup.className = 'toolbar-group toolbar-actions-group';
+
+    const actLabel = document.createElement('span');
+    actLabel.className = 'toolbar-label';
+    actLabel.textContent = 'ACTIONS:';
+    actionsGroup.appendChild(actLabel);
+
+    // 2a. Buttons View
+    const actButtonsView = document.createElement('div');
+    actButtonsView.className = 'toolbar-buttons-view';
+
+    const refineBtn = document.createElement('button');
+    refineBtn.type = 'button';
+    refineBtn.className = 'toolbar-btn toolbar-action-btn';
+    refineBtn.id = 'action-refine-cell';
+    refineBtn.textContent = 'Refine Cell (10 Ore)';
+    refineBtn.addEventListener('click', () => {
+      if (this.onRefineCell) this.onRefineCell();
+    });
+    actButtonsView.appendChild(refineBtn);
+
+    const escortBtn = document.createElement('button');
+    escortBtn.type = 'button';
+    escortBtn.className = 'toolbar-btn toolbar-action-btn';
+    escortBtn.id = 'action-dispatch-escort';
+    escortBtn.textContent = 'Dispatch Escort';
+    escortBtn.addEventListener('click', () => {
+      if (this.onDispatchEscort) this.onDispatchEscort();
+    });
+    actButtonsView.appendChild(escortBtn);
+
+    const miningBtn = document.createElement('button');
+    miningBtn.type = 'button';
+    miningBtn.className = 'toolbar-btn toolbar-action-btn';
+    miningBtn.id = 'action-dispatch-mining';
+    miningBtn.textContent = 'Dispatch Mining';
+    miningBtn.addEventListener('click', () => {
+      if (this.onDispatchMining) this.onDispatchMining();
+    });
+    actButtonsView.appendChild(miningBtn);
+
+    actionsGroup.appendChild(actButtonsView);
+
+    // 2b. Dropdown View
+    const actDropdownView = document.createElement('div');
+    actDropdownView.className = 'toolbar-dropdown-view';
+
+    const actSelect = document.createElement('select');
+    actSelect.id = 'toolbar-actions-dropdown';
+    actSelect.className = 'toolbar-select';
+
+    const defaultActOpt = document.createElement('option');
+    defaultActOpt.value = '';
+    defaultActOpt.textContent = '[ SELECT ACTION... ]';
+    actSelect.appendChild(defaultActOpt);
+
+    const refineOpt = document.createElement('option');
+    refineOpt.value = 'refine';
+    refineOpt.textContent = 'Refine Cell (10 Ore)';
+    actSelect.appendChild(refineOpt);
+
+    const escortOpt = document.createElement('option');
+    escortOpt.value = 'escort';
+    escortOpt.textContent = 'Dispatch Escort';
+    actSelect.appendChild(escortOpt);
+
+    const miningOpt = document.createElement('option');
+    miningOpt.value = 'mining';
+    miningOpt.textContent = 'Dispatch Mining';
+    actSelect.appendChild(miningOpt);
+
+    actSelect.addEventListener('change', () => {
+      const val = actSelect.value;
+      if (val === 'refine' && this.onRefineCell) {
+        this.onRefineCell();
+      } else if (val === 'escort' && this.onDispatchEscort) {
+        this.onDispatchEscort();
+      } else if (val === 'mining' && this.onDispatchMining) {
+        this.onDispatchMining();
+      }
+      actSelect.selectedIndex = 0;
+    });
+
+    actDropdownView.appendChild(actSelect);
+    actionsGroup.appendChild(actDropdownView);
+
+    this.container.appendChild(actionsGroup);
+
+    // 3. Status Bar section
     const statusGroup = document.createElement('div');
     statusGroup.className = 'toolbar-group toolbar-status-group';
 
@@ -124,7 +271,7 @@ export class Toolbar {
 
     this.container.appendChild(statusGroup);
 
-    // 3. Coordinate Telemetry section
+    // 4. Coordinate Telemetry section
     const coordsGroup = document.createElement('div');
     coordsGroup.className = 'toolbar-group toolbar-coords-group';
 
@@ -139,7 +286,8 @@ export class Toolbar {
     if (this.hoveredCoords) {
       const padX = String(this.hoveredCoords.x).padStart(2, '0');
       const padY = String(this.hoveredCoords.y).padStart(2, '0');
-      coordsValue.textContent = `[${padX}, ${padY}]`;
+      const oreStr = this.hoveredTileOre !== null ? ` (ORE: ${this.hoveredTileOre})` : '';
+      coordsValue.textContent = `[${padX}, ${padY}]${oreStr}`;
       coordsValue.classList.add('active');
     } else {
       coordsValue.textContent = `[--, --]`;
