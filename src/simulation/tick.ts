@@ -48,12 +48,14 @@ export function applySingleTick(state: ColonyState): ColonyState {
     }
   }
 
-  // 2. Building Breakage (Applies to operational & deactivated structures from Martian environment)
-  for (const b of updatedBuildings) {
-    if (b.condition === 'operational' || b.condition === 'deactivated') {
-      if (prng.chance(mSpecs.breakageChancePerTick)) {
-        b.condition = 'broken';
-        b.repairProgress = 0;
+  // 2. Building Breakage (Applies to operational & deactivated structures after initial 500-tick grace period)
+  if (nextTick >= 500) {
+    for (const b of updatedBuildings) {
+      if (b.condition === 'operational' || b.condition === 'deactivated') {
+        if (prng.chance(mSpecs.breakageChancePerTick)) {
+          b.condition = 'broken';
+          b.repairProgress = 0;
+        }
       }
     }
   }

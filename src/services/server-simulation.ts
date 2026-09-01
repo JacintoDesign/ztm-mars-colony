@@ -1042,7 +1042,7 @@ export async function executeAuthoritativeAction(
           power: 50,
           food: 50,
           ore: CONTRACT_RULES.starting.ore ?? 25,
-          electronics: 0,
+          electronics: CONTRACT_RULES.starting.electronics ?? 2,
           seed: initialSeed,
           battery_cells: [],
           mining_sites: freshSites,
@@ -1060,7 +1060,7 @@ export async function executeAuthoritativeAction(
       colony.power = 50;
       colony.food = 50;
       colony.ore = CONTRACT_RULES.starting.ore ?? 25;
-      colony.electronics = 0;
+      colony.electronics = CONTRACT_RULES.starting.electronics ?? 2;
       colony.seed = initialSeed;
       colony.battery_cells = [];
       colony.mining_sites = freshSites;

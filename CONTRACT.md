@@ -43,6 +43,7 @@
 - power and food are pools, 0–100, clamped at both ends
 - oxygen is a scalable life support pool (0 to dynamic max: **100 base + 5 per operational Scrubber**)
 - Each colonist consumes 3 oxygen/tick and 3 food/tick
+- **Colony Starting Stockpile**: Every new colony begins with 50 Oxygen, 50 Power, 50 Food, 25 Ore, and **2 Electronics** (Emergency Avionics & Spare Parts Kit in the pioneer lander).
 
 ### Ore
 - ore is a stockpile, not a pool: 0 or above, no upper clamp
@@ -61,9 +62,10 @@
 - With 2 colonists consuming 6 food/tick: 1 Farm produces 5 food/tick (a mild net -1/tick deficit), causing food reserves to steadily tick down and providing a fair challenge to establish secondary agricultural modules. 2 Farms produce 10 food/tick (+4 surplus), fully restocking the granary.
 - food joins the life-support check: if oxygen is 0 OR power is 0 OR food is 0 at the end of a tick, every colonist loses 2 health. All three pools are read; any one hitting 0 is sufficient
 
-### Building Condition
+### Building Condition & Maintenance
 - Every building has a condition: operational, broken, buried, or deactivated
-- Each tick, each operational or deactivated building has a small seeded chance of becoming broken — 1-in-4,000 per building per tick. Unpowered buildings remain vulnerable to Martian sub-zero temperatures and structural stress.
+- **Breakage Grace Period**: To ensure a fair initial setup and avoid unavoidable early-game RNG deaths before ship retrieval is possible, mechanical wear and breakage rolls only activate **from tick 500 onwards** (after the first transport arrival cycle at tick 300).
+- From tick 500+, each operational or deactivated building has a small seeded chance of becoming broken — 1-in-4,000 per building per tick. Unpowered buildings remain vulnerable to Martian sub-zero temperatures and structural stress.
 - A broken building produces and draws nothing until repaired
 - Repair requires colonist labor presence adjacent to or on the building's tile for 50 ticks of labor (30 ticks for scrubbers), plus an electronics cost deducted upon completion — 1 electronics for habitat, solar, scrubber, and farm; 2 electronics for extractor, garage, and refinery
 - Repair labor and repair material come from different places on purpose. Colonists are locally renewable — arrivals, if you keep the pipeline running. Electronics are not — the colony cannot manufacture them, only receive them, which is what makes ship traffic worth the escort risk rather than a formality

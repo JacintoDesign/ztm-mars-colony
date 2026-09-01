@@ -80,7 +80,7 @@ Given: a colony in game_over status, with buildings in various
        previous run.
 When:  the account restarts from the game-over screen.
 Then:  - oxygen, power, and food return to starting values (50 each)
-       - ore returns to 25 and electronics to 0
+       - ore returns to 25 and electronics to 2
        - starter habitat (7, 7), starter solar (5, 7), starter scrubber (9, 7),
          and 2 pioneer colonists are created; no pending arrivals, no rovers, and
          battery storage is empty
@@ -301,3 +301,13 @@ Then:  - food production is 5 food/tick against 6 food consumed (net -1 food/tic
        - food reserves visibly tick down at -1/tick, providing an active life-support challenge
 When:  the player constructs a 2nd Hydroponic Farm (+10 food/tick total).
 Then:  - food production is 10 food/tick (net +4 food/tick surplus), steadily refilling the granary to 100/100
+
+## Scenario 31: Emergency spare parts kit and early breakage grace period
+Given: a fresh colony at tick 0 with 2 pioneer colonists and 3 starter buildings.
+When:  the simulation runs from tick 0 to tick 499.
+Then:  - starting inventory includes 2 Electronics (Emergency Spare Parts Kit)
+       - building breakage rolls are suppressed (0% chance of random mechanical breakage before tick 500)
+       - the colony is guaranteed an opportunity to construct a Garage and escort the first supply transport ship arriving at tick 300
+When:  the simulation reaches tick 500+.
+Then:  - environmental mechanical wear rolls activate (1-in-4,000 per building/tick)
+       - any damaged structure can be immediately repaired using the 2 starting electronics or newly escorted ship supplies

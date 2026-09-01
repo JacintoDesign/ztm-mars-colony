@@ -30,7 +30,7 @@ export const CONTRACT_RULES = {
     power: 50,
     food: 50,
     ore: 25,
-    electronics: 0,
+    electronics: 2,
     totalOreDistribution: 500,
     starterHabitat: { x: 7, y: 7 },
     starterSolar: { x: 5, y: 7 },

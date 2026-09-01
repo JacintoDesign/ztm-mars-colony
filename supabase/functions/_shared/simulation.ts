@@ -191,7 +191,7 @@ export const CONTRACT_RULES = {
     power: 50,
     food: 50,
     ore: 25,
-    electronics: 0,
+    electronics: 2,
     totalOreDistribution: 500,
     starterHabitat: { x: 7, y: 7 },
     starterSolar: { x: 5, y: 7 },
@@ -655,12 +655,14 @@ export function applySingleTick(state: ColonyState): ColonyState {
     }
   }
 
-  // 2. Building Breakage (Applies to operational & deactivated structures from Martian environment)
-  for (const b of updatedBuildings) {
-    if (b.condition === 'operational' || b.condition === 'deactivated') {
-      if (prng.chance(mSpecs.breakageChancePerTick)) {
-        b.condition = 'broken';
-        b.repairProgress = 0;
+  // 2. Building Breakage (Applies to operational & deactivated structures after initial 500-tick grace period)
+  if (nextTick >= 500) {
+    for (const b of updatedBuildings) {
+      if (b.condition === 'operational' || b.condition === 'deactivated') {
+        if (prng.chance(mSpecs.breakageChancePerTick)) {
+          b.condition = 'broken';
+          b.repairProgress = 0;
+        }
       }
     }
   }
@@ -2128,7 +2130,7 @@ export async function executeAuthoritativeAction(
           power: 50,
           food: 50,
           ore: CONTRACT_RULES.starting.ore ?? 25,
-          electronics: 0,
+          electronics: CONTRACT_RULES.starting.electronics ?? 2,
           seed: initialSeed,
           battery_cells: [],
           mining_sites: freshSites,
@@ -2146,7 +2148,7 @@ export async function executeAuthoritativeAction(
       colony.power = 50;
       colony.food = 50;
       colony.ore = CONTRACT_RULES.starting.ore ?? 25;
-      colony.electronics = 0;
+      colony.electronics = CONTRACT_RULES.starting.electronics ?? 2;
       colony.seed = initialSeed;
       colony.battery_cells = [];
       colony.mining_sites = freshSites;
