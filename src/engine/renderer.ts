@@ -18,6 +18,7 @@ export interface RendererOptions {
   gridSize?: number;
   onHoverTile?: (tile: GridPoint | null) => void;
   onStatusChange?: (message: string, level: StatusLevel) => void;
+  onSelectBuilding?: (buildingId: string | null) => void;
 }
 
 function tileColorHash(gx: number, gy: number): number {
@@ -37,6 +38,7 @@ export class IsometricRenderer {
   private relocatingBuildingId: string | null = null;
   private onHoverTile?: (tile: GridPoint | null) => void;
   private onStatusChange?: (message: string, level: StatusLevel) => void;
+  private onSelectBuilding?: (buildingId: string | null) => void;
   private dpr = 1;
   private animationFrameId: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
@@ -63,6 +65,7 @@ export class IsometricRenderer {
     this.store = options.store;
     this.onHoverTile = options.onHoverTile;
     this.onStatusChange = options.onStatusChange;
+    this.onSelectBuilding = options.onSelectBuilding;
 
     const gridSize = options.gridSize ?? 20;
 
@@ -132,6 +135,9 @@ export class IsometricRenderer {
 
   public setSelectedBuildingId(id: string | null): void {
     this.selectedBuildingId = id;
+    if (this.onSelectBuilding) {
+      this.onSelectBuilding(id);
+    }
     this.requestRender();
   }
 
@@ -416,7 +422,7 @@ export class IsometricRenderer {
     // 3. Selection Mode (No tool active)
     const building = this.store.getState().buildings.find((b) => b.x === tile.x && b.y === tile.y);
     if (building) {
-      this.selectedBuildingId = building.id;
+      this.setSelectedBuildingId(building.id);
       // Compute neighbors for spacing telemetry
       const neighbors = this.store.getState().buildings.filter(
         (other) => other.id !== building.id && Math.abs(building.x - other.x) + Math.abs(building.y - other.y) === 1
@@ -429,7 +435,7 @@ export class IsometricRenderer {
         );
       }
     } else {
-      this.selectedBuildingId = null;
+      this.setSelectedBuildingId(null);
     }
     this.requestRender();
   }

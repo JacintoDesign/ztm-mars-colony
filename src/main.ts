@@ -9,6 +9,7 @@ import { AuthModal } from './ui/auth-modal';
 import { HeaderBar } from './ui/header-bar';
 import { GameOverModal } from './ui/game-over-modal';
 import { TelemetryBanner } from './ui/telemetry-banner';
+import { BuildingInspector } from './ui/building-inspector';
 import { authManager, AuthState } from './services/auth-manager';
 import { colonyService } from './services/colony-service';
 import { RealtimeChannel } from '@supabase/supabase-js';
@@ -135,6 +136,27 @@ const renderer = new IsometricRenderer({
   onStatusChange: (message, level) => {
     toolbar.setStatus(message, level);
   },
+  onSelectBuilding: (buildingId) => {
+    if (buildingId) {
+      buildingInspector.showBuilding(buildingId);
+    } else {
+      buildingInspector.hide();
+    }
+  },
+});
+
+// Initialize Building Inspector Card
+const buildingInspector = new BuildingInspector({
+  store,
+  onTogglePower: (buildingId) => {
+    renderer.toggleBuildingPower(buildingId);
+  },
+  onRelocate: (buildingId) => {
+    renderer.startRelocateBuilding(buildingId);
+  },
+  onClose: () => {
+    renderer.setSelectedBuildingId(null);
+  },
 });
 
 // Expose on window for debugging & automated playtesting
@@ -145,6 +167,7 @@ const renderer = new IsometricRenderer({
 (window as any).__COLONY_HELP_MODAL__ = helpModal;
 (window as any).__COLONY_TOOLBAR__ = toolbar;
 (window as any).__COLONY_TELEMETRY_BANNER__ = telemetryBanner;
+(window as any).__COLONY_BUILDING_INSPECTOR__ = buildingInspector;
 
 // Active session tracking & timers
 let activeUserId: string | null = null;

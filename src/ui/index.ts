@@ -6,3 +6,4 @@ export * from './game-over-modal';
 export * from './resource-panel';
 export * from './help-modal';
 export * from './telemetry-banner';
+export * from './building-inspector';
