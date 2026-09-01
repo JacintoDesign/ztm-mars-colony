@@ -14,10 +14,16 @@ This skill is purely about playing the game. **Never modify, patch, or fix game 
 
 ## Workflow Instructions
 
-### 1. Setup & Starting Move
-1. Sign in as a disposable test account (e.g. anonymous guest or fresh test operator) to start from a brand new, empty colony.
-2. Use the `/browser` subagent to place the **first Habitat** on the isometric canvas.
-   - *Rationale:* No transport ship will land or deposit colonists without habitat capacity to shelter them (2 colonists per habitat).
+### 1. Setup & Starting Move (Sol 0)
+1. Sign in as a disposable test account (e.g. anonymous guest or fresh test operator) to start from a brand new colony.
+2. The colony begins with 1 starter Habitat at (7, 7), 1 starter Solar Array at (5, 7), and 2 Pioneer Colonists.
+   - *Life Support Urgency:* 2 colonists consume 6 O2/tick and 4 Food/tick. With starting pools of 50 O2 and 50 Food, life support failure occurs within 58 ticks unless life support infrastructure is built immediately.
+3. **Immediate Sol 0 Sequence**:
+   - Place an **Extractor (25 PWR)** on an adjacent ore deposit.
+   - Advance 5–10 ticks to accumulate at least 10 Ore.
+   - Place a **Scrubber (15 PWR, 5 Ore)** (+4 O2/tick) and **Farm (20 PWR, 5 Ore)** (+4 Food/tick).
+   - Place additional **Solar Arrays (15 PWR)** to maintain positive power balance.
+   - Place a **Garage (30 PWR, 10 Ore)** and **Refinery (25 PWR, 15 Ore)** before Tick 300 to prepare for the first incoming transport ship.
 
 ### 2. Time-Compressed Play Loop (10-Minute Limit)
 Run the loop for up to **10 minutes of real time** or until the colony reaches `game_over`.
@@ -25,50 +31,54 @@ Run the loop for up to **10 minutes of real time** or until the colony reaches `
 In each round:
 
 1. **Advance Simulation via Catch-up**:
-   - **Before a Garage exists**:
-     - Advance in chunks up to **5,000 ticks** (approx. 83 simulation minutes). There is no rover to dispatch yet, so speed costs nothing here.
-   - **Once a Garage exists**:
-     - Cap chunks at **300 ticks**, matching the transport ship landing interval exactly.
+   - **During Sol 0 Early Setup**:
+     - Advance in short micro-chunks of **10–30 ticks** until Scrubber, Farm, and Solar balance are firmly positive.
+   - **Once Stable & Garage Exists**:
+     - Cap chunks at exactly **300 ticks**, matching the transport ship landing interval.
      - Advance the simulation by setting `last_tick_at` backwards by 300 seconds and triggering catch-up reload.
+     - *Monotonic Tick Guarantee:* The simulation engine enforces monotonic tick progression (`Math.max(localTick, serverTick)`), guaranteeing ticks never rewind.
 
-2. **Immediate Post-Chunk Action (When Garage Exists)**:
+2. **Immediate Post-Chunk Action (Escort & Arrival Handling)**:
    - Immediately after each catch-up chunk, inspect whether a pending arrival exists in `pending_arrivals` (or on the landing zone).
    - If a pending arrival exists and at least one rover is idle (`state === 'idle_at_base'`):
-     - Check battery cell inventory (`battery_cells`). If no cell is available but ore is sufficient (>= 10), refine a cell via the `#action-refine-cell` button.
+     - Check battery cell inventory (`battery_cells`). If no cell is available but ore is sufficient (&ge; 10), refine a cell via the `#action-refine-cell` button.
      - Dispatch the rover immediately to the landing zone (`#action-dispatch-escort`) **before advancing further**.
-     - *Rationale:* Pending arrivals expire and are permanently lost after 150 ticks without rover pickup. Dispatching immediately upon landing secures incoming colonists and their +2 electronics stockpile.
+     - *Rationale:* Pending arrivals expire and are permanently lost after 150 ticks without rover pickup. Dispatching immediately upon landing secures incoming colonists, maintains the workforce needed to construct further buildings, and gains +2 electronics per arrival.
 
 3. **Check State via Supabase CLI**:
    - Query colony tables directly via Supabase CLI (`supabase` or SQL query commands) rather than opening the browser between every round. This minimizes browser overhead and maximizes rounds within the 10-minute real-time budget.
    - Inspect:
      - `marscolony_colonies`: `tick`, `status`, `oxygen`, `power`, `food`, `ore`, `electronics`, `pending_arrivals`, `battery_cells`, `active_asteroid`, `mining_sites`
-     - `marscolony_buildings`: placed structures, coordinates `(x, y)`, `condition` (`operational`, `broken`, `buried`), `repair_progress`, `dig_progress`
+     - `marscolony_buildings`: placed structures, coordinates `(x, y)`, `condition` (`operational`, `broken`, `buried`, `deactivated`), `repair_progress`, `dig_progress`
      - `marscolony_colonists`: living colonists count, individual `health`, `age`, `lifespan`, `destination_type`
      - `marscolony_rovers`: rovers count, `state` (`idle_at_base`, `traveling_out`, `on_site`, `traveling_back`, `stranded`), `power`, `cargo`
      - `marscolony_ore_deposits`: local tile ore reserves `(x, y, remaining)`
 
 4. **Analyze Balance & Determine Next Move**:
    - Evaluate life support, power, food, and maintenance balances using exact numbers from [CONTRACT.md](../../CONTRACT.md):
+     - **Workforce Constraint:** Placing new structures and operating industrial facilities (Extractors, Farms, Scrubbers, Refineries) strictly requires living colonists (`colonists.length >= 1`).
      - **Power Balance:** Solar (+5 PWR/tick) vs. Habitat (-2), Scrubber (-3), Extractor (-4), Farm (-2), Garage (-1), Refinery (-5).
-     - **Oxygen Balance:** Scrubber (+4 O2/tick) vs. Colonists (-3 O2/tick per living colonist).
+     - **Oxygen Balance:** Scrubber (+4 O2/tick) vs. Colonists (-3 O2/tick per living colonist). Dynamic Oxygen capacity buffer scales: base 100 + 25 max capacity per operational Scrubber.
      - **Food Balance:** Farm (+4 Food/tick) vs. Colonists (-2 Food/tick per living colonist).
-     - **Life Support Health Rule:** If oxygen is 0 OR power is 0 OR food is 0 at the end of a tick, every colonist loses 5 health. Otherwise, colonists recover 1 health/tick (up to 100).
+     - **Life Support Health Rule:** If oxygen is 0 OR power is 0 OR food is 0 at the end of a tick, every colonist loses 2 health (50-tick survival buffer). Otherwise, colonists recover 1 health/tick (up to 100).
+     - **Colony Spacing & Buffer Zones:** Structures with $\le 1$ adjacent orthogonal neighbor operate at 100% full nominal output. Overcrowded structures with $\ge 2$ neighbors suffer -1 output per additional neighbor (min 0).
      - **Arrival Cadence & Capacity:** 1 colonist arrives every 300 ticks carrying 2 electronics, capped at total habitat capacity (`2 * numHabitats`).
-     - **Building Costs:**
+     - **Rover Specs & Speed:** Rovers travel at 1 tile per tick (`1.0 tile/tick`), draining 1.5 PWR/tick. Dispatch fuels rover to full charge (150 PWR) using 1 Battery Cell.
+     - **Building Costs & Controls:**
        - Habitat: `20 PWR`
        - Solar: `15 PWR`
        - Scrubber: `15 PWR, 5 ORE`
-       - Extractor: `25 PWR` (mines 3 ore/tick from local tile deposit until tile reaches 0)
+       - Extractor: `25 PWR` (mines 3 ore/tick from local tile deposit until tile reaches 0). Can be deactivated (0 PWR draw) and relocated to fresh deposits for `10 PWR`.
        - Farm: `20 PWR, 5 ORE`
        - Garage: `30 PWR, 10 ORE` (houses up to 2 rovers)
        - Refinery: `25 PWR, 15 ORE` (converts 10 ore to 1 battery cell, max 20 capacity, decays -1 efficiency/tick)
      - **Maintenance Pressures:**
-       - Breakage: 1-in-15,000 chance per operational building per tick (requires idle colonist + electronics: 1 for habitat/solar/scrubber/farm, 2 for extractor/garage/refinery).
+       - Breakage: 1-in-15,000 chance per operational building per tick (requires adjacent colonist labor: 30 ticks for scrubbers, 50 ticks for others, plus electronics: 1 for habitat/solar/scrubber/farm, 2 for extractor/garage/refinery).
        - Dust Storms: 20% chance every 5,000 ticks to bury up to 3 buildings (requires colonist for 100 ticks to dig out).
        - Aging Attrition: Colonists die of old age between 12,000 and 18,000 ticks (avg 15,000).
 
 5. **Place Structures & Execute Actions via Browser**:
-   - If a building is affordable and required to prevent starvation, support incoming colonists, supply power/oxygen, or establish rover operations, invoke `/browser` to place the building.
+   - If a building is affordable and required to prevent starvation, support incoming colonists, supply power/oxygen, or establish rover operations, invoke `/browser` to place the building with spacing buffers.
    - Refine battery cells or dispatch rovers for mining / asteroid extraction when rovers are idle and resources permit.
 
 6. **Check Termination**:
@@ -85,7 +95,7 @@ When the run concludes, generate a comprehensive report:
 2. **Colony Status & Snapshot**:
    - Final status (`active` or `game_over`).
    - Final resource pools (`oxygen`, `power`, `food`, `ore`, `electronics`).
-   - Final structure counts (`habitats`, `solars`, `scrubbers`, `extractors`, `farms`, `garages`, `refineries`) and conditions (`operational`, `broken`, `buried`).
+   - Final structure counts (`habitats`, `solars`, `scrubbers`, `extractors`, `farms`, `garages`, `refineries`) and conditions (`operational`, `broken`, `buried`, `deactivated`).
    - Final colonist population, average age, and health metrics.
    - Rover fleet state and stored battery cells.
    - What the colony was doing at the moment it stopped.

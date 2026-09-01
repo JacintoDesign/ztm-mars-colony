@@ -17,6 +17,7 @@ import {
   executeAuthoritativeTick,
   executeAuthoritativeAction,
 } from './server-simulation';
+import { CONTRACT_RULES } from '../simulation/contract-rules';
 
 export interface ColonyRecord {
   id: string;
@@ -153,6 +154,68 @@ export class ColonyService {
         }));
         await supabase.from('marscolony_ore_deposits').insert(depositRows);
       }
+
+      // Insert initial starter buildings (Habitat + Solar Array)
+      const { starting, colonists: cSpecs } = CONTRACT_RULES;
+      const habX = starting.starterHabitat?.x ?? 7;
+      const habY = starting.starterHabitat?.y ?? 7;
+      const solX = starting.starterSolar?.x ?? 5;
+      const solY = starting.starterSolar?.y ?? 7;
+
+      const starterBuildingRows = [
+        {
+          colony_id: colonyId,
+          owner: userId,
+          type: 'habitat',
+          x: habX,
+          y: habY,
+          condition: 'operational',
+          repair_progress: 0,
+          dig_progress: 0,
+          was_broken_before_burial: false,
+        },
+        {
+          colony_id: colonyId,
+          owner: userId,
+          type: 'solar',
+          x: solX,
+          y: solY,
+          condition: 'operational',
+          repair_progress: 0,
+          dig_progress: 0,
+          was_broken_before_burial: false,
+        },
+      ];
+      await supabase.from('marscolony_buildings').insert(starterBuildingRows);
+
+      // Insert initial pioneer colonists
+      const starterColonistRows = [
+        {
+          colony_id: colonyId,
+          owner: userId,
+          x: habX,
+          y: habY,
+          health: cSpecs.maxHealth,
+          age: 0,
+          lifespan: prng.nextInt(cSpecs.minLifespanTicks, cSpecs.maxLifespanTicks),
+          destination: { x: habX, y: habY },
+          destination_type: 'habitat',
+          route: [],
+        },
+        {
+          colony_id: colonyId,
+          owner: userId,
+          x: habX,
+          y: habY,
+          health: cSpecs.maxHealth,
+          age: 0,
+          lifespan: prng.nextInt(cSpecs.minLifespanTicks, cSpecs.maxLifespanTicks),
+          destination: { x: habX, y: habY },
+          destination_type: 'habitat',
+          route: [],
+        },
+      ];
+      await supabase.from('marscolony_colonists').insert(starterColonistRows);
     }
 
     // 3. Authoritative server tick execution on load (catch-up calculation and state persistence)

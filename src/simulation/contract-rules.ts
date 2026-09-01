@@ -32,6 +32,9 @@ export const CONTRACT_RULES = {
     ore: 0,
     electronics: 0,
     totalOreDistribution: 500,
+    starterHabitat: { x: 7, y: 7 },
+    starterSolar: { x: 5, y: 7 },
+    starterColonistsCount: 2,
   },
 
   // Resource Pool limits

@@ -10,7 +10,7 @@
 - One colony per account. A colony is created on first sign-in and never reset thereafter, with one exception below.
 - Each account has its own row in a users table, separate from the colony's own state — matching the identity split DATABASE.md requires between this application and Waypoint. It holds bestSolsSurvived, the one piece of account-level data that outlives a colony restart.
 - A colony in `game_over` status may be restarted by the same account, from the game-over screen only. This is the one exception to "never reset" — a player's own deliberate action, not something the server or an agent triggers on its own.
-- Restarting generates a brand-new seed and a fresh colony, exactly as first sign-in would — new ore distribution, new mining site positions, oxygen/power/food back to starting values, no buildings, no colonists, no pending arrivals, no rovers, no stored battery cells. Status returns to `active`. bestSolsSurvived is untouched — it lives on the account, not the colony.
+- Restarting generates a brand-new seed and a fresh colony, exactly as first sign-in would — new ore distribution, new mining site positions, oxygen/power/food back to starting values, starter habitat, starter solar array, 2 pioneer colonists, no pending arrivals, no rovers, no stored battery cells. Status returns to `active`. bestSolsSurvived is untouched — it lives on the account, not the colony.
 
 ## Simulation Rules
 
@@ -21,16 +21,18 @@
 - Every random-seeming decision in this document — building breakage, storm timing and target, asteroid timing and position, ore distribution at creation, movement tie-breaks — draws from the same seeded generator stored in colony state, never Math.random(). This is what makes the line above possible for a system with this many moving parts, not just the tick arithmetic itself
 
 ### Starting State
-- A new colony starts with oxygen 50, power 50, food 50, no buildings, no colonists, ore 0, electronics 0, no pending arrivals, no rovers, no stored battery cells, and a fresh seed generating the colony's ore distribution and mining site positions
+- A new colony starts with oxygen 50, power 50, food 50, 1 starter Habitat at tile (7, 7), 1 starter Solar Array at tile (5, 7), 2 Pioneer Colonists living at the starter Habitat, ore 0, electronics 0, no pending arrivals, no rovers, no stored battery cells, and a fresh seed generating the colony's ore distribution and mining site positions
 
-### Buildings
+### Buildings & Workforce
+- All structures require active power and operational condition to function.
+- Industrial and life-support production structures (scrubbers, extractors, farms, refineries) require living colonists present in the colony to operate. If colonist population is 0, these structures produce 0 output.
 - habitat: houses 2 colonists, draws 2 power/tick
 - solar: produces 5 power/tick, draws 0
-- scrubber: produces 4 oxygen/tick, draws 3 power/tick
-- extractor: produces 3 ore/tick from its tile's local deposit, draws 4 power/tick. Can be deactivated (0 PWR draw) and relocated to fresh deposits for 10 PWR
-- farm: produces 4 food/tick, draws 2 power/tick
+- scrubber: produces 4 oxygen/tick when staffed, draws 3 power/tick
+- extractor: produces 3 ore/tick from its tile's local deposit when staffed, draws 4 power/tick. Can be deactivated (0 PWR draw) and relocated to fresh deposits for 10 PWR
+- farm: produces 4 food/tick when staffed, draws 2 power/tick
 - garage: holds up to 2 rovers, draws 1 power/tick, no production
-- refinery: converts ore to battery cells, draws 5 power/tick, no automatic production — refining is a player-initiated action, not continuous
+- refinery: converts ore to battery cells, draws 5 power/tick, requires colonist presence — refining is a player-initiated action, not continuous
 
 ### Colony Spacing & Buffer Zones
 - Heavy industrial and life support structures require ventilation, solar clearance, and ground isolation.
@@ -81,7 +83,7 @@
 - At the end of their lifespan, a colonist dies of old age and is removed, independent of health
 - Old-age death follows the same game-over rule as health-based death: if it leaves no colonists remaining, colony status becomes game_over
 
-### Placement Costs
+### Placement Costs & Construction Workforce
 - habitat: 20 power
 - solar: 15 power
 - scrubber: 15 power, 5 ore
@@ -89,6 +91,7 @@
 - farm: 20 power, 5 ore
 - garage: 30 power, 10 ore
 - refinery: 25 power, 15 ore
+- **Workforce Requirement**: Placing any structure beyond the initial starter colony requires at least 1 living colonist in the colony (`colonists.length >= 1`). If the colonist population is 0, building placement is rejected with reason "Colonist Workforce Required".
 - A placement is rejected if the account cannot afford its cost. Cost is deducted server-side the instant placement succeeds
 - A placement is also rejected if the target tile currently holds a building, is buried, or is tile (0, 0). Tile (0, 0) is the permanent designated Landing Pad, and no buildings may be placed on it
 - For extractor specifically: placing an extractor on a dry tile (zero ore) is legal but pointless, and the game does not prevent it
@@ -262,7 +265,7 @@ Fields that persist per account, separate from any single colony — outlives a 
 | Catch-up Handler | Catch-up Ceiling Reached | Cap catch-up computation at 28,800 ticks, display notice indicating simulation capped at maximum offline duration |
 | Tick Function | A Tile's Ore Deposit Exhausted | The extractor standing on it drops to 0 ore/tick; power draw continues unchanged; not an error state, this is expected behavior for that one tile — other tiles' deposits are unaffected |
 | Tick Function | Last Colonist Dies | Set colony status to game_over; stop applying further ticks, including catch-up; display sols survived on the Game Over Screen |
-| Tick Function | Restart Requested | Only honored when colony status is game_over and the request originates from the Start New Colony button; generates a brand-new seed and a fresh colony exactly as first sign-in would — new ore distribution, new mining site positions, oxygen/power/food back to starting values, no buildings, no colonists, no pending arrivals, no rovers, empty battery storage. bestSolsSurvived alone survives, since it lives on the account, not the colony |
+| Tick Function | Restart Requested | Only honored when colony status is game_over and the request originates from the Start New Colony button; generates a brand-new seed and a fresh colony exactly as first sign-in would — new ore distribution, new mining site positions, oxygen/power/food back to starting values, starter habitat, starter solar array, 2 pioneer colonists, no pending arrivals, no rovers, empty battery storage. bestSolsSurvived alone survives, since it lives on the account, not the colony |
 | Tick Function | Pending Arrival's Escort Window Expires | Remove the entry from pendingArrivals; the colonist and their electronics are both lost, nothing added to any stockpile. Not an error — a consequence of the rover fleet being elsewhere when the ship landed |
 
 ## TODOs

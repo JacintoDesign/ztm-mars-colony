@@ -69,9 +69,9 @@ All seven must read as distinct from one another at a glance.
 ## State on Screen
 
 - Solar arrays glow while power > 0; go dark when the grid fails
-- Scrubbers show a faint vent plume while producing oxygen
-- Extractors show a faint vent glow while producing ore; the glow stops the instant that tile's deposit is exhausted, even though the building keeps drawing power
-- Farms show a faint green tint while producing food; the tint fades when power fails, same logic as the other producers
+- Scrubbers show a faint vent plume while producing oxygen (requires power and living colonist workforce)
+- Extractors show a faint vent glow while producing ore (requires power, deposit ore, and living colonist workforce); the glow stops the instant that tile's deposit is exhausted or if workforce is absent, even though the building keeps drawing power
+- Farms show a faint green tint while producing food (requires power and living colonist workforce); the tint fades when power fails or workforce is absent, same logic as the other producers
 - Scene tints with oxygen level — clear when healthy, dusty haze as it drops
 - Colonists stand upright at full health; slump as health falls; a colonist past three-quarters of their own seeded lifespan shows visibly greyed hair or an equivalent aging cue, distinct from health-based slumping — each colonist ages on their own clock, so this triggers at a different tick for every one of them. Colonists walk steadily at 1 tile per 5 ticks
 - A broken building shows its normal silhouette with a small fault indicator — a flickering marker, not a colour change, since colour is reserved for the warning/critical palette

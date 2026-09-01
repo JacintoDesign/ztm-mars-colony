@@ -152,7 +152,7 @@ export interface ColonyState {
 
 export interface PlacementCheckResult {
   canPlace: boolean;
-  reason?: 'Insufficient Power' | 'Insufficient Ore' | 'Tile Occupied' | 'Invalid Coordinates' | 'Tile Buried' | 'Tile (0, 0) is reserved for Landing Pad';
+  reason?: 'Insufficient Power' | 'Insufficient Ore' | 'Tile Occupied' | 'Invalid Coordinates' | 'Tile Buried' | 'Tile (0, 0) is reserved for Landing Pad' | 'Colonist Workforce Required';
   cost: BuildingCost;
 }
 

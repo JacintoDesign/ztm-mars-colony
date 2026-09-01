@@ -79,10 +79,11 @@ Given: a colony in game_over status, with buildings in various
        battery cells, and drained oxygen, power, and food from a
        previous run.
 When:  the account restarts from the game-over screen.
-Then:  - oxygen, power, and food return to starting values
+Then:  - oxygen, power, and food return to starting values (50 each)
        - ore and electronics return to 0
-       - no buildings, colonists, pending arrivals, or rovers
-         remain, and battery storage is empty
+       - starter habitat (7, 7), starter solar (5, 7), and 2 pioneer
+         colonists are created; no pending arrivals, no rovers, and
+         battery storage is empty
        - the colony's seed is new — its ore distribution and
          mining site positions differ from the previous run's
        - colony status returns to active
@@ -246,3 +247,28 @@ Then:  - activeAsteroid returns to null at the expiry tick
        - a second colony seeded identically produces the same
          asteroid at the same position and tick, confirming the
          same seeded-generator determinism Scenario 4 protects
+
+## Scenario 25: Construction requires an active colonist workforce
+Given: a colony with 0 living colonists, power 100, ore 100.
+When:  the player or client attempts to place any building (e.g. extractor,
+       scrubber, farm, solar, habitat, garage, refinery).
+Then:  - the placement is rejected with blocker reason "Colonist Workforce Required"
+       - no building is added to buildings
+       - power and ore stockpiles are not deducted
+
+## Scenario 26: Industrial and life-support production requires living colonists
+Given: 1 operational extractor on a deposit with 100 ore, 1 operational
+       scrubber, 1 operational farm, power 100, and 0 living colonists.
+When:  the simulation runs 10 ticks.
+Then:  - the extractor produces 0 ore; the local deposit remains at 100
+       - the scrubber produces 0 oxygen
+       - the farm produces 0 food
+       - power draw continues for all operational structures
+
+## Scenario 27: Monotonic tick progression across client-server sync
+Given: a live colony running on client projection.
+When:  server ticks synchronize or actions are dispatched rapidly with
+       varying network latency.
+Then:  - the tick counter displayed in Life Support Telemetry and the
+         diagnostic panel never decrements or rewinds
+       - tick progression is strictly monotonic (next tick >= current tick)

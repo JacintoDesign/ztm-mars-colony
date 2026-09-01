@@ -5,6 +5,7 @@ import {
   BuildingType,
   BuildingCondition,
   ColonyState,
+  Colonist,
   PlacementCheckResult,
   SimulationAction,
   Rover,
@@ -23,13 +24,65 @@ export type StateListener = (state: ColonyState) => void;
 
 export interface DispatchResult {
   success: boolean;
-  reason?: 'Insufficient Power' | 'Insufficient Ore' | 'Tile Occupied' | 'Invalid Coordinates' | 'Tile Buried' | 'No Battery Cells' | 'Rover Busy' | 'Storage Full' | 'Tile (0, 0) is reserved for Landing Pad';
+  reason?: 'Insufficient Power' | 'Insufficient Ore' | 'Tile Occupied' | 'Invalid Coordinates' | 'Tile Buried' | 'No Battery Cells' | 'Rover Busy' | 'Storage Full' | 'Tile (0, 0) is reserved for Landing Pad' | 'Colonist Workforce Required';
   building?: Building;
 }
 
 export type BuildingPlacementCallback = (building: Building, cost: BuildingCost) => Promise<void>;
 export type RestartColonyCallback = () => Promise<void>;
 export type ServerActionCallback = (action: SimulationAction) => Promise<{ success: boolean; reason?: string }>;
+
+export function createStarterEntities(seed: number): { buildings: Building[]; colonists: Colonist[] } {
+  const prng = new SeededPRNG(seed);
+  const { starting, colonists: cSpecs } = CONTRACT_RULES;
+  const habX = starting.starterHabitat?.x ?? 7;
+  const habY = starting.starterHabitat?.y ?? 7;
+  const solX = starting.starterSolar?.x ?? 5;
+  const solY = starting.starterSolar?.y ?? 7;
+
+  const starterHabitat: Building = {
+    id: 'starter-habitat',
+    type: 'habitat',
+    x: habX,
+    y: habY,
+    condition: 'operational',
+    repairProgress: 0,
+    digProgress: 0,
+    wasBrokenBeforeBurial: false,
+  };
+  const starterSolar: Building = {
+    id: 'starter-solar',
+    type: 'solar',
+    x: solX,
+    y: solY,
+    condition: 'operational',
+    repairProgress: 0,
+    digProgress: 0,
+    wasBrokenBeforeBurial: false,
+  };
+
+  const starterColonists: Colonist[] = [];
+  const numPioneers = starting.starterColonistsCount ?? 2;
+  for (let i = 1; i <= numPioneers; i++) {
+    starterColonists.push({
+      id: `col-pioneer-${i}`,
+      x: habX,
+      y: habY,
+      health: cSpecs.maxHealth,
+      age: 0,
+      lifespan: prng.nextInt(cSpecs.minLifespanTicks, cSpecs.maxLifespanTicks),
+      destination: { x: habX, y: habY },
+      destinationType: 'habitat',
+      targetEntityId: 'starter-habitat',
+      route: [],
+    });
+  }
+
+  return {
+    buildings: [starterHabitat, starterSolar],
+    colonists: starterColonists,
+  };
+}
 
 export class ColonyStore {
   private state: ColonyState;
@@ -44,6 +97,7 @@ export class ColonyStore {
     const seed = initialState?.seed ?? generateInitialSeed();
     const prng = new SeededPRNG(seed);
     const { oreDeposits, miningSites } = generateOreDistribution(prng);
+    const { buildings: starterBuildings, colonists: starterColonists } = createStarterEntities(seed);
 
     this.state = {
       tick: 0,
@@ -54,8 +108,8 @@ export class ColonyStore {
       electronics: 0,
       seed,
       oreDeposits,
-      buildings: [],
-      colonists: [],
+      buildings: starterBuildings,
+      colonists: starterColonists,
       pendingArrivals: [],
       rovers: [],
       batteryCells: [],
@@ -95,9 +149,10 @@ export class ColonyStore {
   }
 
   public loadColonyData(data: { colony: any; buildings: Building[]; colonists: any[]; rovers: any[]; oreDeposits: any[]; bestSolsSurvived: number }, signedInAccount: string): void {
+    const monotonicTick = Math.max(this.state.tick, data.colony.tick ?? 0);
     this.state = {
       colonyId: data.colony.id,
-      tick: data.colony.tick,
+      tick: monotonicTick,
       oxygen: data.colony.oxygen,
       power: data.colony.power,
       food: data.colony.food ?? 50,
@@ -127,6 +182,7 @@ export class ColonyStore {
     const seed = generateInitialSeed();
     const prng = new SeededPRNG(seed);
     const { oreDeposits, miningSites } = generateOreDistribution(prng);
+    const { buildings: starterBuildings, colonists: starterColonists } = createStarterEntities(seed);
 
     this.state = {
       tick: 0,
@@ -137,8 +193,8 @@ export class ColonyStore {
       electronics: 0,
       seed,
       oreDeposits,
-      buildings: [],
-      colonists: [],
+      buildings: starterBuildings,
+      colonists: starterColonists,
       pendingArrivals: [],
       rovers: [],
       batteryCells: [],
@@ -208,6 +264,10 @@ export class ColonyStore {
 
     if (this.hasBuildingAt(x, y)) {
       return { canPlace: false, reason: 'Tile Occupied', cost };
+    }
+
+    if (this.state.colonists.length === 0) {
+      return { canPlace: false, reason: 'Colonist Workforce Required', cost };
     }
 
     if (this.state.power < cost.power) {
@@ -319,6 +379,10 @@ export class ColonyStore {
   }
 
   private handleRefineCell(): DispatchResult {
+    if (this.state.colonists.length === 0) {
+      return { success: false, reason: 'Colonist Workforce Required' };
+    }
+
     const oreCost = CONTRACT_RULES.refinery.oreCostPerCell;
     const maxCapacity = CONTRACT_RULES.refinery.maxCellCapacity;
 
@@ -425,6 +489,7 @@ export class ColonyStore {
     const seed = generateInitialSeed();
     const prng = new SeededPRNG(seed);
     const { oreDeposits, miningSites } = generateOreDistribution(prng);
+    const { buildings: starterBuildings, colonists: starterColonists } = createStarterEntities(seed);
 
     this.state = {
       ...this.state,
@@ -436,8 +501,8 @@ export class ColonyStore {
       seed,
       oreDeposits,
       miningSites,
-      buildings: [],
-      colonists: [],
+      buildings: starterBuildings,
+      colonists: starterColonists,
       pendingArrivals: [],
       rovers: [],
       batteryCells: [],

@@ -105,7 +105,7 @@ export function applySingleTick(state: ColonyState): ColonyState {
     blockedTiles.add(`${b.x},${b.y}`);
   }
 
-  // 7. Rover Simulation Loop (5 tiles/tick, power drain, landing zone pickup, mining cargo)
+  // 7. Rover Simulation Loop (1 tile/tick, power drain, landing zone pickup, mining cargo)
   let currentOre = state.ore;
   let currentElectronics = state.electronics;
   const newlyArrivedColonists: Colonist[] = [];
@@ -131,7 +131,7 @@ export function applySingleTick(state: ColonyState): ColonyState {
       return rover;
     }
 
-    // Moving along route (5 tiles/tick)
+    // Moving along route (1 tile/tick per CONTRACT.md)
     if (rover.state === 'traveling_out' || rover.state === 'traveling_back') {
       const stepsToTake = Math.min(rSpecs.speedTilesPerTick, rover.route.length);
       for (let s = 0; s < stepsToTake; s++) {
@@ -449,6 +449,8 @@ export function applySingleTick(state: ColonyState): ColonyState {
   });
 
   // 10. Production & Consumption (Only OPERATIONAL buildings produce / consume; Spacing rules apply)
+  // Industrial & life support structures (Scrubbers, Extractors, Farms) require living colonist workforce
+  const hasWorkforce = currentColonists.length > 0;
   let powerProduced = 0;
   let powerDrawn = 0;
   let oxygenProduced = 0;
@@ -471,17 +473,20 @@ export function applySingleTick(state: ColonyState): ColonyState {
     const spec = bSpecs[b.type];
     powerProduced += Math.max(0, spec.powerProduction - crowdingPenalty);
     powerDrawn += spec.powerDraw;
-    oxygenProduced += Math.max(0, spec.oxygenProduction - crowdingPenalty);
-    foodProduced += Math.max(0, spec.foodProduction - crowdingPenalty);
 
-    // Extractor: mines ore from local tile deposit
-    if (b.type === 'extractor') {
-      const deposit = updatedOreDeposits.find((d) => d.x === b.x && d.y === b.y);
-      if (deposit && deposit.remaining > 0) {
-        const effectiveOreProduction = Math.max(1, spec.oreProduction - crowdingPenalty);
-        const take = Math.min(effectiveOreProduction, deposit.remaining);
-        deposit.remaining -= take;
-        currentOre += take;
+    if (hasWorkforce) {
+      oxygenProduced += Math.max(0, spec.oxygenProduction - crowdingPenalty);
+      foodProduced += Math.max(0, spec.foodProduction - crowdingPenalty);
+
+      // Extractor: mines ore from local tile deposit (requires colonist workforce)
+      if (b.type === 'extractor') {
+        const deposit = updatedOreDeposits.find((d) => d.x === b.x && d.y === b.y);
+        if (deposit && deposit.remaining > 0) {
+          const effectiveOreProduction = Math.max(1, spec.oreProduction - crowdingPenalty);
+          const take = Math.min(effectiveOreProduction, deposit.remaining);
+          deposit.remaining -= take;
+          currentOre += take;
+        }
       }
     }
   }

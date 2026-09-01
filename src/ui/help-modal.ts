@@ -102,7 +102,8 @@ export class HelpModal {
           <div class="help-section">
             <div class="help-section-title">1. SURVIVAL & LIFE SUPPORT</div>
             <div class="help-section-body">
-              <p>• <strong>Starting Pool:</strong> 50 Oxygen, 50 Power, 50 Food, 500 Ore across grid deposits.</p>
+              <p>• <strong>Starting Colony:</strong> 1 Starter Habitat at (7, 7), 1 Solar Array at (5, 7), 2 Pioneer Colonists, 50 O2, 50 Power, 50 Food, 500 Ore across grid deposits.</p>
+              <p>• <strong>Workforce Requirement:</strong> Constructing new structures requires active colonist presence (pop &ge; 1). Industrial and life support facilities (Scrubbers, Extractors, Farms, Refineries) require living colonists to operate.</p>
               <p>• <strong>Consumption:</strong> Each colonist consumes <strong>3 O2</strong> and <strong>2 Food</strong> per tick.</p>
               <p>• <strong>Oxygen Storage:</strong> 100 base capacity + <strong>25 Max O2 per operational Scrubber</strong>.</p>
               <p>• <strong>Life Support Failure:</strong> If Oxygen, Power, or Food reaches 0, colonists lose <strong>-2 HP/tick</strong> (50-tick survival window). Recovers <strong>+1 HP/tick</strong> when all pools are positive.</p>
