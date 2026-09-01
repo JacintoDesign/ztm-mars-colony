@@ -154,6 +154,17 @@ const buildingInspector = new BuildingInspector({
   onRelocate: (buildingId) => {
     renderer.startRelocateBuilding(buildingId);
   },
+  onDispatchMaintenance: (buildingId) => {
+    const res = store.dispatch({
+      type: 'ASSIGN_COLONIST_MAINTENANCE',
+      buildingId,
+    });
+    if (res.success) {
+      toolbar.setStatus('Colonist Dispatched to Structure', 'nominal');
+    } else {
+      toolbar.setStatus(res.reason ? `Dispatch Failed: ${res.reason}` : 'Dispatch Failed', 'warning');
+    }
+  },
   onClose: () => {
     renderer.setSelectedBuildingId(null);
   },
@@ -209,7 +220,15 @@ store.subscribe((state) => {
   if (state.status === 'game_over') {
     stopSimulationLoops();
     const solsSurvived = Math.floor(state.tick / 1000);
-    gameOverModal.show(solsSurvived, state.bestSolsSurvived);
+    gameOverModal.show(solsSurvived, state.bestSolsSurvived, state.gameOverReason, {
+      oxygen: state.oxygen,
+      power: state.power,
+      food: state.food,
+      ore: state.ore,
+      electronics: state.electronics,
+      buildingsCount: state.buildings.length,
+      tick: state.tick,
+    });
     toolbar.setStatus('CRITICAL: All Colonists Deceased', 'critical');
   } else {
     gameOverModal.hide();

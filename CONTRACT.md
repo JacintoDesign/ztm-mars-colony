@@ -67,7 +67,8 @@
 - A broken building produces and draws nothing until repaired
 - Repair requires colonist labor presence adjacent to or on the building's tile for 50 ticks of labor (30 ticks for scrubbers), plus an electronics cost deducted upon completion — 1 electronics for habitat, solar, scrubber, and farm; 2 electronics for extractor, garage, and refinery
 - Repair labor and repair material come from different places on purpose. Colonists are locally renewable — arrivals, if you keep the pipeline running. Electronics are not — the colony cannot manufacture them, only receive them, which is what makes ship traffic worth the escort risk rather than a formality
-- The tick function assigns the nearest idle colonists to a broken building automatically once the colony has sufficient electronics in its stockpile. The player places buildings; the player does not hand-direct repair labor
+- The tick function assigns the nearest idle colonists to broken and buried buildings automatically (provided the colony has sufficient electronics in its stockpile for repairs). Additionally, players may directly click any broken or buried building to inspect maintenance requirements and click `[ DISPATCH REPAIR ]` or `[ DISPATCH EXCAVATION ]` (`ASSIGN_COLONIST_MAINTENANCE`), routing the nearest available colonist immediately.
+- If a broken building lacks required electronics, the Building Inspector clearly displays the deficit and instructs the operator to escort incoming transport ships at Landing Pad (0, 0) to secure electronic components.
 - A buried building (see Weather) cannot be repaired until it is dug out first
 
 ### Weather
@@ -103,10 +104,12 @@
 ### Colonist Death
 - A colonist whose health reaches 0 dies and is removed from the colony in the same tick
 
-### Game Over
+### Game Over & Casualty Incident Report
 - If the last colonist dies, colony status becomes `game_over`. No further ticks are applied once set — every tick requested after that, including catch-up, returns the state unchanged
 - 1 sol = 1000 ticks. Sols survived is the tick count at the moment of game over, divided by 1000, rounded down
 - At the moment of game over, compare sols survived against the account's bestSolsSurvived. If higher, update it. If not, leave it unchanged
+- **Map & Entity Preservation**: Upon reaching `game_over`, the canvas grid, terrain, and building ruins remain visible (not deleted or blanked out). Database records are preserved in `game_over` status until the player explicitly clicks `START NEW COLONY` (`RESTART_COLONY`).
+- **Failure Cause Telemetry**: The simulation calculates the exact primary cause of failure (Asphyxiation from 0% Oxygen, Power Grid Collapse from 0% Power, Starvation from 0% Food, or Natural Age Attrition) and presents a comprehensive incident report dossier with final telemetry and sols survived.
 
 ### Colonist Arrivals & Landing Pad
 - Tile (0, 0) is the colony's permanent Landing Pad. When no transport is on-site, the landing pad is visible with tarmac markings, hazard borders, and approach guidance beacons. Building on tile (0, 0) is strictly prohibited

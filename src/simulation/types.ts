@@ -146,6 +146,7 @@ export interface ColonyState {
   signedInAccount: string;
   colonyOwner: string;
   status: ColonyStatus;
+  gameOverReason?: string;
   bestSolsSurvived: number;
   lastAppliedTick: string;
   lastTickAtIso?: string;
@@ -186,4 +187,8 @@ export type SimulationAction =
       buildingId: string;
       targetX: number;
       targetY: number;
+    }
+  | {
+      type: 'ASSIGN_COLONIST_MAINTENANCE';
+      buildingId: string;
     };

@@ -12,12 +12,13 @@ import {
   BatteryCell,
   RoverDestinationType,
   GridCoord,
+  ColonistDestinationType,
 } from './types';
 import { isInGrid } from '../engine/iso-math';
 import { applyTicks } from './tick';
 import { SeededPRNG, generateInitialSeed } from './prng';
 import { generateOreDistribution } from './ore-generator';
-import { findShortestRoute } from './pathfinding';
+import { findShortestRoute, getFreeAdjacentTiles } from './pathfinding';
 import { CONTRACT_RULES } from './contract-rules';
 
 export type StateListener = (state: ColonyState) => void;
@@ -344,9 +345,72 @@ export class ColonyStore {
       }
       case 'RESTART_COLONY':
         return this.handleRestartColony();
+      case 'ASSIGN_COLONIST_MAINTENANCE':
+        return this.handleAssignColonistMaintenance(action.buildingId);
       default:
         return { success: false };
     }
+  }
+
+  private handleAssignColonistMaintenance(buildingId: string): DispatchResult {
+    const building = this.state.buildings.find((b) => b.id === buildingId);
+    if (!building) {
+      return { success: false, reason: 'Building Not Found' };
+    }
+
+    if (building.condition === 'operational' || building.condition === 'deactivated') {
+      return { success: false, reason: 'Building does not require maintenance' };
+    }
+
+    if (this.state.colonists.length === 0) {
+      return { success: false, reason: 'No Living Colonists' };
+    }
+
+    if (building.condition === 'broken') {
+      const reqElectronics = CONTRACT_RULES.buildings[building.type].repairElectronics;
+      if (this.state.electronics < reqElectronics) {
+        return { success: false, reason: `Requires ${reqElectronics} Electronics (Stock: ${this.state.electronics})` };
+      }
+    }
+
+    // Find nearest colonist
+    const sortedColonists = [...this.state.colonists].sort(
+      (a, b) => Math.hypot(a.x - building.x, a.y - building.y) - Math.hypot(b.x - building.x, b.y - building.y)
+    );
+    const colonist = sortedColonists[0];
+
+    const blockedTiles = new Set<string>(
+      this.state.buildings.map((b) => `${b.x},${b.y}`).filter((coord) => coord !== `${building.x},${building.y}`)
+    );
+    const goalTiles = getFreeAdjacentTiles({ x: building.x, y: building.y }, blockedTiles, 20);
+    const route = findShortestRoute(
+      { x: colonist.x, y: colonist.y },
+      goalTiles.length > 0 ? goalTiles : [{ x: building.x, y: building.y }],
+      blockedTiles,
+      20
+    );
+
+    const updatedColonists = this.state.colonists.map((c) => {
+      if (c.id === colonist.id) {
+        return {
+          ...c,
+          destination: { x: building.x, y: building.y },
+          destinationType: building.condition === 'buried' ? ('dig' as ColonistDestinationType) : ('repair' as ColonistDestinationType),
+          targetEntityId: building.id,
+          route,
+          moveProgress: 0,
+        };
+      }
+      return c;
+    });
+
+    this.state = {
+      ...this.state,
+      colonists: updatedColonists,
+    };
+
+    this.notify();
+    return { success: true };
   }
 
   private handleToggleBuildingPower(buildingId: string): DispatchResult {

@@ -635,40 +635,92 @@ html, body {
 
 .game-over-panel {
   width: 100%;
-  max-width: 520px;
+  max-width: 540px;
   background-color: #1a0e08;
   border: 1px solid #5e3824;
   border-radius: 0;
-  padding: 36px 32px;
+  padding: 32px 28px;
   text-align: center;
 }
 
 .game-over-header {
   font-family: 'Orbitron', monospace, sans-serif;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: 1.5px;
   color: #D94F3D;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .game-over-sub {
   font-family: 'Chakra Petch', monospace, sans-serif;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   color: #8c9ba5;
   letter-spacing: 1px;
-  margin-bottom: 28px;
+  margin-bottom: 18px;
+}
+
+.game-over-reason-box {
+  background-color: rgba(217, 79, 61, 0.12);
+  border: 1px solid #D94F3D;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+.reason-label {
+  font-family: 'Orbitron', monospace, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: #D94F3D;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.reason-text {
+  font-family: 'Share Tech Mono', monospace, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fca5a5;
+  line-height: 1.35;
+}
+
+.game-over-dossier-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  background-color: #110905;
+  border: 1px solid #2b160c;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  font-family: 'Share Tech Mono', monospace, sans-serif;
+  font-size: 11px;
+}
+
+.dossier-item {
+  display: flex;
+  justify-content: space-between;
+  color: #cbd5e1;
+}
+
+.dossier-item span:last-child {
+  font-weight: 700;
+  color: #7fd4e0;
+}
+
+.dossier-crit {
+  color: #D94F3D !important;
 }
 
 .game-over-metrics {
   background-color: #110905;
   border: 1px solid #3d2417;
-  padding: 20px 24px;
-  margin-bottom: 28px;
+  padding: 16px 20px;
+  margin-bottom: 18px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .game-over-metric-row {
@@ -1707,6 +1759,45 @@ body:not(:has(#internal-readout)) .resource-panel {
 .inspector-btn-relocate:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.inspector-btn-repair {
+  background-color: rgba(224, 160, 48, 0.2);
+  border-color: #E0A030;
+  color: #fbbf24;
+}
+
+.inspector-btn-repair:hover {
+  background-color: #E0A030;
+  color: #120703;
+}
+
+.inspector-btn-dig {
+  background-color: rgba(251, 191, 36, 0.2);
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+.inspector-btn-dig:hover {
+  background-color: #fbbf24;
+  color: #120703;
+}
+
+.inspector-alert-box {
+  background-color: rgba(217, 79, 61, 0.12);
+  border: 1px solid #D94F3D;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  color: #fca5a5;
+}
+
+.inspector-alert-box small {
+  color: #cbd5e1;
+  font-size: 9px;
+  opacity: 0.85;
 }
 
 .inspector-btn-disabled {

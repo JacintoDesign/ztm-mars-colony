@@ -7,6 +7,7 @@ export interface BuildingInspectorOptions {
   store: ColonyStore;
   onTogglePower: (buildingId: string) => void;
   onRelocate: (buildingId: string) => void;
+  onDispatchMaintenance?: (buildingId: string) => void;
   onClose?: () => void;
 }
 
@@ -16,6 +17,7 @@ export class BuildingInspector {
   private selectedBuildingId: string | null = null;
   private onTogglePower: (buildingId: string) => void;
   private onRelocate: (buildingId: string) => void;
+  private onDispatchMaintenance?: (buildingId: string) => void;
   private onClose?: () => void;
 
   public static readonly CONTAINER_ID = 'building-inspector';
@@ -24,6 +26,7 @@ export class BuildingInspector {
     this.store = options.store;
     this.onTogglePower = options.onTogglePower;
     this.onRelocate = options.onRelocate;
+    this.onDispatchMaintenance = options.onDispatchMaintenance;
     this.onClose = options.onClose;
 
     const existing = document.getElementById(options.containerId ?? BuildingInspector.CONTAINER_ID);
@@ -88,6 +91,14 @@ export class BuildingInspector {
     this.onRelocate(this.selectedBuildingId);
   }
 
+  private handleMaintenance(): void {
+    if (!this.selectedBuildingId) return;
+    if (this.onDispatchMaintenance) {
+      this.onDispatchMaintenance(this.selectedBuildingId);
+    }
+    this.render();
+  }
+
   private getBuildingTitle(type: BuildingType): string {
     switch (type) {
       case 'habitat': return 'HABITAT MODULE';
@@ -120,6 +131,7 @@ export class BuildingInspector {
     const o2Prod = specs.oxygenProduction ?? 0;
     const foodProd = specs.foodProduction ?? 0;
     const oreProd = specs.oreProduction ?? 0;
+    const reqElectronics = specs.repairElectronics ?? 1;
 
     // Spacing calculation
     const neighbors = state.buildings.filter(
@@ -166,7 +178,34 @@ export class BuildingInspector {
 
     const isDeactivated = building.condition === 'deactivated';
     const isOperational = building.condition === 'operational';
+    const isBroken = building.condition === 'broken';
+    const isBuried = building.condition === 'buried';
     const canToggle = isOperational || isDeactivated;
+    const hasEnoughElec = state.electronics >= reqElectronics;
+
+    let maintenanceActionHtml = '';
+    if (isBroken) {
+      if (hasEnoughElec) {
+        maintenanceActionHtml = `
+          <button type="button" class="inspector-btn inspector-btn-repair" id="inspector-dispatch-maintenance">
+            <span class="btn-icon">🔧</span> DISPATCH REPAIR (${reqElectronics} ELEC)
+          </button>
+        `;
+      } else {
+        maintenanceActionHtml = `
+          <div class="inspector-alert-box">
+            <span>⚠ REQUIRES ${reqElectronics} ELECTRONICS</span>
+            <small>Stock: ${state.electronics} | Escort supply ships to acquire</small>
+          </div>
+        `;
+      }
+    } else if (isBuried) {
+      maintenanceActionHtml = `
+        <button type="button" class="inspector-btn inspector-btn-dig" id="inspector-dispatch-maintenance">
+          <span class="btn-icon">⛏</span> DISPATCH EXCAVATION (40 TICKS)
+        </button>
+      `;
+    }
 
     this.container.innerHTML = `
       <div class="inspector-card">
@@ -193,17 +232,18 @@ export class BuildingInspector {
           </div>
 
           <div class="inspector-actions">
+            ${maintenanceActionHtml}
+
             ${
               canToggle
                 ? `<button type="button" class="inspector-btn ${isDeactivated ? 'inspector-btn-activate' : 'inspector-btn-deactivate'}" id="inspector-toggle-power">
                     <span class="btn-icon">⚡</span> ${isDeactivated ? 'RESTORE POWER (ON)' : 'TURN OFF POWER (0 PWR)'}
                     <span class="btn-shortcut">[P]</span>
                    </button>`
-                : `<button type="button" class="inspector-btn inspector-btn-disabled" disabled>
-                    <span>⚠ MAINTENANCE REQUIRED</span>
-                   </button>`
+                : ''
             }
-            <button type="button" class="inspector-btn inspector-btn-relocate" id="inspector-relocate" ${state.power < 10 || building.condition === 'broken' || building.condition === 'buried' ? 'disabled' : ''}>
+
+            <button type="button" class="inspector-btn inspector-btn-relocate" id="inspector-relocate" ${state.power < 10 || isBroken || isBuried ? 'disabled' : ''}>
               <span class="btn-icon">✥</span> RELOCATE (10 PWR)
               <span class="btn-shortcut">[M]</span>
             </button>
@@ -220,5 +260,8 @@ export class BuildingInspector {
 
     const relocateBtn = this.container.querySelector<HTMLButtonElement>('#inspector-relocate');
     relocateBtn?.addEventListener('click', () => this.handleRelocate());
+
+    const maintenanceBtn = this.container.querySelector<HTMLButtonElement>('#inspector-dispatch-maintenance');
+    maintenanceBtn?.addEventListener('click', () => this.handleMaintenance());
   }
 }

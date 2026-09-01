@@ -262,9 +262,12 @@ export function applySingleTick(state: ColonyState): ColonyState {
       colonist.targetEntityId !== null;
 
     if (!isEngagedInMaintenance) {
-      // 1. Digging out buried buildings
+      // 1. Digging out buried buildings (find nearest)
       if (buriedBuildings.length > 0) {
-        const target = buriedBuildings[0];
+        const sortedBuried = [...buriedBuildings].sort(
+          (a, b) => Math.hypot(a.x - colonist.x, a.y - colonist.y) - Math.hypot(b.x - colonist.x, b.y - colonist.y)
+        );
+        const target = sortedBuried[0];
         const goalTiles = getFreeAdjacentTiles({ x: target.x, y: target.y }, blockedTiles, 20);
         colonist.destination = { x: target.x, y: target.y };
         colonist.destinationType = 'dig';
@@ -276,11 +279,16 @@ export function applySingleTick(state: ColonyState): ColonyState {
           20
         );
       }
-      // 2. Repairing broken buildings
+      // 2. Repairing broken buildings (find nearest affordable)
       else if (brokenBuildings.length > 0) {
-        const target = brokenBuildings[0];
-        const reqElectronics = bSpecs[target.type].repairElectronics;
-        if (currentElectronics >= reqElectronics) {
+        const affordableBroken = brokenBuildings.filter(
+          (b) => currentElectronics >= bSpecs[b.type].repairElectronics
+        );
+        if (affordableBroken.length > 0) {
+          const sortedBroken = [...affordableBroken].sort(
+            (a, b) => Math.hypot(a.x - colonist.x, a.y - colonist.y) - Math.hypot(b.x - colonist.x, b.y - colonist.y)
+          );
+          const target = sortedBroken[0];
           const goalTiles = getFreeAdjacentTiles({ x: target.x, y: target.y }, blockedTiles, 20);
           colonist.destination = { x: target.x, y: target.y };
           colonist.destinationType = 'repair';
@@ -293,9 +301,12 @@ export function applySingleTick(state: ColonyState): ColonyState {
           );
         }
       }
-      // 3. Recovering stranded rovers
+      // 3. Recovering stranded rovers (find nearest)
       else if (strandedRovers.length > 0) {
-        const target = strandedRovers[0];
+        const sortedStranded = [...strandedRovers].sort(
+          (a, b) => Math.hypot(a.x - colonist.x, a.y - colonist.y) - Math.hypot(b.x - colonist.x, b.y - colonist.y)
+        );
+        const target = sortedStranded[0];
         const goalTiles = getFreeAdjacentTiles({ x: target.x, y: target.y }, blockedTiles, 20);
         colonist.destination = { x: target.x, y: target.y };
         colonist.destinationType = 'rover_recovery';
@@ -526,12 +537,24 @@ export function applySingleTick(state: ColonyState): ColonyState {
 
   let nextStatus: 'active' | 'game_over' = 'active';
   let nextBestSols = state.bestSolsSurvived;
+  let nextGameOverReason: string | undefined = state.gameOverReason;
 
   if (livingColonists.length === 0) {
     nextStatus = 'game_over';
     const solsSurvived = Math.floor(nextTick / ticksPerSol);
     if (solsSurvived > nextBestSols) {
       nextBestSols = solsSurvived;
+    }
+    if (!nextGameOverReason) {
+      if (hasOxygenDeficit) {
+        nextGameOverReason = 'CRITICAL ASYPHYXIATION: Oxygen depleted to 0% (Life support scrubbers offline)';
+      } else if (hasPowerDeficit) {
+        nextGameOverReason = 'POWER GRID COLLAPSE: Electrical power depleted to 0% (Heating and life support shut down)';
+      } else if (hasFoodDeficit) {
+        nextGameOverReason = 'COLONY STARVATION: Food reserves depleted to 0% (Agricultural supply exhausted)';
+      } else {
+        nextGameOverReason = 'POPULATION ATTRITION: All pioneer colonists reached maximum natural lifespan';
+      }
     }
   }
 
@@ -552,6 +575,7 @@ export function applySingleTick(state: ColonyState): ColonyState {
     batteryCells: updatedBatteryCells,
     activeAsteroid: currentAsteroid,
     status: nextStatus,
+    gameOverReason: nextGameOverReason,
     bestSolsSurvived: nextBestSols,
   };
 }

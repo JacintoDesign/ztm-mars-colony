@@ -1324,29 +1324,24 @@ export async function executeAuthoritativeTick(
           .eq('id', userId);
       }
 
-      await Promise.all([
-        client.from('marscolony_colonists').delete().eq('colony_id', colonyId),
-        client.from('marscolony_rovers').delete().eq('colony_id', colonyId),
-        client.from('marscolony_buildings').delete().eq('colony_id', colonyId),
-        client.from('marscolony_ore_deposits').delete().eq('colony_id', colonyId),
-      ]);
+      await client.from('marscolony_colonists').delete().eq('colony_id', colonyId);
 
       return {
         colony: {
           ...colony,
-          oxygen: 0,
+          oxygen: nextState.oxygen,
           power: nextState.power,
-          food: 0,
+          food: nextState.food,
           ore: nextState.ore,
           electronics: nextState.electronics,
           tick: nextState.tick,
           status: 'game_over',
           last_tick_at: newLastTickAt,
         },
-        buildings: [],
+        buildings: nextState.buildings,
         colonists: [],
-        rovers: [],
-        oreDeposits: [],
+        rovers: nextState.rovers,
+        oreDeposits: nextState.oreDeposits,
         bestSolsSurvived,
       };
     }
@@ -1920,6 +1915,81 @@ export async function executeAuthoritativeAction(
           ...currentData,
           colony,
           buildings: updatedBuildings,
+        },
+      };
+    }
+
+    case 'ASSIGN_COLONIST_MAINTENANCE': {
+      const bIndex = buildings.findIndex((b) => b.id === action.buildingId);
+      if (bIndex < 0) {
+        return { success: false, reason: 'Building Not Found', colonyData: currentData };
+      }
+
+      const bld = buildings[bIndex];
+      if (bld.condition === 'operational' || bld.condition === 'deactivated') {
+        return { success: false, reason: 'Structure does not require maintenance', colonyData: currentData };
+      }
+
+      const activeColonists = currentData.colonists;
+      if (activeColonists.length === 0) {
+        return { success: false, reason: 'No Living Colonists', colonyData: currentData };
+      }
+
+      if (bld.condition === 'broken') {
+        const reqElectronics = CONTRACT_RULES.buildings[bld.type].repairElectronics;
+        const currentElec = colony.electronics ?? 0;
+        if (currentElec < reqElectronics) {
+          return { success: false, reason: `Requires ${reqElectronics} Electronics (Stock: ${currentElec})`, colonyData: currentData };
+        }
+      }
+
+      const sortedColonists = [...activeColonists].sort(
+        (a, b) => Math.hypot(a.x - bld.x, a.y - bld.y) - Math.hypot(b.x - bld.x, b.y - bld.y)
+      );
+      const targetColonist = sortedColonists[0];
+
+      const blockedTiles = new Set<string>(
+        buildings.map((b) => `${b.x},${b.y}`).filter((coord) => coord !== `${bld.x},${bld.y}`)
+      );
+      const goalTiles = getFreeAdjacentTiles({ x: bld.x, y: bld.y }, blockedTiles, 20);
+      const route = findShortestRoute(
+        { x: targetColonist.x, y: targetColonist.y },
+        goalTiles.length > 0 ? goalTiles : [{ x: bld.x, y: bld.y }],
+        blockedTiles,
+        20
+      );
+
+      const destType = bld.condition === 'buried' ? 'dig' : 'repair';
+
+      await client
+        .from('marscolony_colonists')
+        .update({
+          destination: { x: bld.x, y: bld.y },
+          destination_type: destType,
+          target_entity_id: bld.id,
+          route,
+        })
+        .eq('id', targetColonist.id);
+
+      const updatedColonists = activeColonists.map((c: any) => {
+        if (c.id === targetColonist.id) {
+          return {
+            ...c,
+            destination: { x: bld.x, y: bld.y },
+            destinationType: destType as any,
+            targetEntityId: bld.id,
+            route,
+            moveProgress: 0,
+          };
+        }
+        return c;
+      });
+
+      return {
+        success: true,
+        colonyData: {
+          ...currentData,
+          colonists: updatedColonists,
         },
       };
     }
