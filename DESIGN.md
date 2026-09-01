@@ -101,6 +101,14 @@ The 2D Canvas supports multi-touch pinch-to-zoom (1.0x to 3.5x scale) and pan of
 - **Mobile Dropdown Navigation Toolbar**: On mobile viewports and narrow displays, the toolbar automatically collapses into expandable custom dropdown panels for both building placement tools and colony action dispatches, triggered by compact arrow indicators (`▼`/`▲`) with full touch responsiveness.
 - **Action Rate-Limiting**: A subtle 600ms horizontal cooldown progress bar along the toolbar top edge throttles rapid dispatch inputs.
 
+### Building Inspector & 3D Selection HUD
+
+Clicking any existing structure directly on the canvas (utilizing 3D visual volume hit-testing across domes, solar panels, and towers) opens the **Building Inspector Card**:
+- **Status & Telemetry**: Displays structure condition (`OPERATIONAL`, `POWER OFF (STANDBY)`, `BROKEN`, `BURIED`), exact power draw / generation, life-support output (O2/Food/Ore), and neighbor spacing efficiency.
+- **Direct Controls**: `[ ⚡ TURN OFF POWER (0 PWR) ]` / `[ ⚡ RESTORE POWER (ON) ]` for instant brownout load shedding, and `[ ✥ RELOCATE (10 PWR) ]`.
+- **Canvas Highlighting**: Selected structures feature 3D corner bracket crosshairs, glowing base tile diamonds, and a floating status HUD tag (`[ ⚡ POWER: ON / OFF ]`).
+- **Keyboard Navigation**: Pressing `[P]` or `[Space]` toggles power on the selected structure, `[M]` initiates relocation, and `[Escape]` closes the inspector.
+
 ## Life Support Telemetry
 
 The styled, player-facing counterpart to the diagnostic panel — everything the diagnostic panel shows, except signed-in account and colony owner. Full parity, not a subset: tick, oxygen, power, food, ore, electronics, colonist health and age, building condition, pending arrivals, rover and battery status all appear here, in whatever form each already takes in the diagnostic panel.

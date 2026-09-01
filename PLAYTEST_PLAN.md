@@ -80,9 +80,9 @@ Given: a colony in game_over status, with buildings in various
        previous run.
 When:  the account restarts from the game-over screen.
 Then:  - oxygen, power, and food return to starting values (50 each)
-       - ore and electronics return to 0
-       - starter habitat (7, 7), starter solar (5, 7), and 2 pioneer
-         colonists are created; no pending arrivals, no rovers, and
+       - ore returns to 25 and electronics to 0
+       - starter habitat (7, 7), starter solar (5, 7), starter scrubber (9, 7),
+         and 2 pioneer colonists are created; no pending arrivals, no rovers, and
          battery storage is empty
        - the colony's seed is new — its ore distribution and
          mining site positions differ from the previous run's
@@ -105,8 +105,8 @@ Then:  - the account's bestSolsSurvived updates to 15
 Given: 1 habitat, 1 colonist, no farm, food 10, oxygen 100, power
        100, colonist health 100.
 When:  the simulation runs 10 ticks.
-Then:  - food reaches 0 by tick 5 (2 food/tick, 1 colonist)
-       - colonist health drops 2/tick from tick 5 on, despite
+Then:  - food reaches 0 by tick 4 (3 food/tick, 1 colonist)
+       - colonist health drops 2/tick from tick 4 on, despite
          oxygen and power both remaining at 100 throughout
        - this confirms food alone can trigger the health rule
 
@@ -118,7 +118,7 @@ Given: 1 scrubber forced to broken (bypassing the probability
 When:  the simulation runs 60 ticks.
 Then:  - the scrubber produces 0 oxygen while broken
        - the nearest idle colonist is auto-assigned to repair it,
-         with no player action directing that assignment
+       with no player action directing that assignment
        - after 30 consecutive ticks of presence (50 ticks for non-scrubber structures)
          and 1 electronics deducted, the scrubber returns to operational and resumes
          production
@@ -137,11 +137,11 @@ Then:  - the extractor stays broken; electronics stockpile stays at 1
 ## restores it without any resource cost
 Given: 1 operational habitat, forced buried (bypassing the
        probability roll), 1 idle colonist nearby.
-When:  the simulation runs 120 ticks.
+When:  the simulation runs 60 ticks.
 Then:  - the habitat produces/draws nothing while buried
        - a colonist is auto-assigned to dig, not repair
-       - after 100 consecutive ticks of presence, the habitat
-         returns to operational
+       - after 40 consecutive ticks of presence (survivable within the 50-tick buffer),
+         the habitat returns to operational
        - no ore or electronics was deducted at any point
 
 ## Scenario 16: A building that was broken before being buried
@@ -149,7 +149,7 @@ Then:  - the habitat produces/draws nothing while buried
 Given: 1 building, condition broken, then also buried.
 When:  a colonist is auto-assigned and the simulation runs long
        enough for both processes to complete.
-Then:  - digging out (100 ticks, no cost) completes before repair
+Then:  - digging out (40 ticks, no cost) completes before repair
          work can begin
        - once dug out, the building's condition is broken, not
          operational
@@ -272,3 +272,32 @@ When:  server ticks synchronize or actions are dispatched rapidly with
 Then:  - the tick counter displayed in Life Support Telemetry and the
          diagnostic panel never decrements or rewinds
        - tick progression is strictly monotonic (next tick >= current tick)
+
+## Scenario 28: Direct structure power deactivation and reactivation
+Given: 1 operational oxygen scrubber (draws 3 PWR, produces 5 O2), power 10, oxygen 50.
+When:  the player selects the scrubber and dispatches TOGGLE_BUILDING_POWER.
+Then:  - the scrubber condition transitions to deactivated
+       - scrubber power draw drops to 0 PWR/tick
+       - scrubber oxygen production drops to 0 O2/tick
+       - the deactivated scrubber displays an amber "OFF" standby badge on map and Building Inspector
+When:  the player dispatches TOGGLE_BUILDING_POWER again.
+Then:  - the scrubber condition returns to operational
+       - nominal power draw (3 PWR) and production (5 O2) resume
+
+## Scenario 29: Unpowered buildings are vulnerable to dust storms and breakage
+Given: 1 deactivated (unpowered) habitat and 1 deactivated solar array.
+When:  a dust storm occurs at tick 2,500.
+Then:  - the unpowered habitat or solar array can be chosen by the seeded generator for burial
+       - upon burial, condition becomes buried, requiring colonist excavation (40 ticks)
+When:  mechanical breakage rolls occur.
+Then:  - unpowered structures can experience environmental breakage (condition becomes broken), requiring labor and electronics repair
+
+## Scenario 30: Agricultural consumption and dynamic food challenge
+Given: 2 living pioneer colonists, 50 starting food, 0 farms.
+When:  the simulation runs 5 ticks.
+Then:  - colonists consume 6 food/tick (3 food/tick per colonist), draining food from 50 to 20
+When:  the player constructs 1 Hydroponic Farm (+5 food/tick, draws 2 PWR).
+Then:  - food production is 5 food/tick against 6 food consumed (net -1 food/tick)
+       - food reserves visibly tick down at -1/tick, providing an active life-support challenge
+When:  the player constructs a 2nd Hydroponic Farm (+10 food/tick total).
+Then:  - food production is 10 food/tick (net +4 food/tick surplus), steadily refilling the granary to 100/100
