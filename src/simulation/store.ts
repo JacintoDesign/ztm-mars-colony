@@ -39,6 +39,8 @@ export function createStarterEntities(seed: number): { buildings: Building[]; co
   const habY = starting.starterHabitat?.y ?? 7;
   const solX = starting.starterSolar?.x ?? 5;
   const solY = starting.starterSolar?.y ?? 7;
+  const scbX = (starting as any).starterScrubber?.x ?? 9;
+  const scbY = (starting as any).starterScrubber?.y ?? 7;
 
   const starterHabitat: Building = {
     id: 'starter-habitat',
@@ -55,6 +57,16 @@ export function createStarterEntities(seed: number): { buildings: Building[]; co
     type: 'solar',
     x: solX,
     y: solY,
+    condition: 'operational',
+    repairProgress: 0,
+    digProgress: 0,
+    wasBrokenBeforeBurial: false,
+  };
+  const starterScrubber: Building = {
+    id: 'starter-scrubber',
+    type: 'scrubber',
+    x: scbX,
+    y: scbY,
     condition: 'operational',
     repairProgress: 0,
     digProgress: 0,
@@ -79,7 +91,7 @@ export function createStarterEntities(seed: number): { buildings: Building[]; co
   }
 
   return {
-    buildings: [starterHabitat, starterSolar],
+    buildings: [starterHabitat, starterSolar, starterScrubber],
     colonists: starterColonists,
   };
 }
@@ -104,7 +116,7 @@ export class ColonyStore {
       oxygen: 50,
       power: 50,
       food: 50,
-      ore: 0,
+      ore: CONTRACT_RULES.starting.ore ?? 25,
       electronics: 0,
       seed,
       oreDeposits,
@@ -190,7 +202,7 @@ export class ColonyStore {
       oxygen: 50,
       power: 50,
       food: 50,
-      ore: 0,
+      ore: CONTRACT_RULES.starting.ore ?? 25,
       electronics: 0,
       seed,
       oreDeposits,
@@ -527,7 +539,7 @@ export class ColonyStore {
       oxygen: 50,
       power: 50,
       food: 50,
-      ore: 0,
+      ore: CONTRACT_RULES.starting.ore ?? 25,
       electronics: 0,
       seed,
       oreDeposits,

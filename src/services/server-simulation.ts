@@ -847,6 +847,8 @@ export async function executeAuthoritativeAction(
       const habY = starting.starterHabitat?.y ?? 7;
       const solX = starting.starterSolar?.x ?? 5;
       const solY = starting.starterSolar?.y ?? 7;
+      const scbX = (starting as any).starterScrubber?.x ?? 9;
+      const scbY = (starting as any).starterScrubber?.y ?? 7;
 
       await client.from('marscolony_buildings').delete().eq('colony_id', colonyId);
       await client.from('marscolony_colonists').delete().eq('colony_id', colonyId);
@@ -862,7 +864,7 @@ export async function executeAuthoritativeAction(
       }));
       await client.from('marscolony_ore_deposits').insert(depositRows);
 
-      // Insert starter buildings (Habitat + Solar Array)
+      // Insert starter buildings (Habitat + Solar Array + Scrubber)
       const starterBuildingRows = [
         {
           colony_id: colonyId,
@@ -886,6 +888,17 @@ export async function executeAuthoritativeAction(
           dig_progress: 0,
           was_broken_before_burial: false,
         },
+        {
+          colony_id: colonyId,
+          owner: userId,
+          type: 'scrubber',
+          x: scbX,
+          y: scbY,
+          condition: 'operational',
+          repair_progress: 0,
+          dig_progress: 0,
+          was_broken_before_burial: false,
+        },
       ];
       const { data: insertedBuildings } = await client.from('marscolony_buildings').insert(starterBuildingRows).select();
       const freshBuildings: Building[] = (insertedBuildings && insertedBuildings.length > 0)
@@ -902,6 +915,7 @@ export async function executeAuthoritativeAction(
         : [
             { id: `bld-hab-${Date.now()}`, type: 'habitat', x: habX, y: habY, condition: 'operational', repairProgress: 0, digProgress: 0, wasBrokenBeforeBurial: false },
             { id: `bld-sol-${Date.now()}`, type: 'solar', x: solX, y: solY, condition: 'operational', repairProgress: 0, digProgress: 0, wasBrokenBeforeBurial: false },
+            { id: `bld-scb-${Date.now()}`, type: 'scrubber', x: scbX, y: scbY, condition: 'operational', repairProgress: 0, digProgress: 0, wasBrokenBeforeBurial: false },
           ];
 
       // Insert starter pioneer colonists
@@ -957,7 +971,7 @@ export async function executeAuthoritativeAction(
           oxygen: 50,
           power: 50,
           food: 50,
-          ore: 0,
+          ore: CONTRACT_RULES.starting.ore ?? 25,
           electronics: 0,
           seed: initialSeed,
           battery_cells: [],
@@ -975,7 +989,7 @@ export async function executeAuthoritativeAction(
       colony.oxygen = 50;
       colony.power = 50;
       colony.food = 50;
-      colony.ore = 0;
+      colony.ore = CONTRACT_RULES.starting.ore ?? 25;
       colony.electronics = 0;
       colony.seed = initialSeed;
       colony.battery_cells = [];

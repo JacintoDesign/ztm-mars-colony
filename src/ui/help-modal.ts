@@ -102,7 +102,7 @@ export class HelpModal {
           <div class="help-section">
             <div class="help-section-title">1. SURVIVAL & LIFE SUPPORT</div>
             <div class="help-section-body">
-              <p>• <strong>Starting Colony:</strong> 1 Starter Habitat at (7, 7), 1 Solar Array at (5, 7), 2 Pioneer Colonists, 50 O2, 50 Power, 50 Food, 500 Ore across grid deposits.</p>
+              <p>• <strong>Starting Colony:</strong> 1 Starter Habitat at (7, 7), 1 Solar Array at (5, 7), 1 Scrubber at (9, 7), 2 Pioneer Colonists, 50 O2, 50 Power, 50 Food, 25 Ore stockpile, and 500 Ore across Martian terrain deposits.</p>
               <p>• <strong>Workforce Capacity:</strong> Each living colonist supports up to <strong>4 operational structures</strong> (Habitats exempt). Expanding beyond 8 operational facilities requires recruiting more colonists via transport escorts.</p>
               <p>• <strong>Consumption:</strong> Each colonist consumes <strong>3 O2</strong> and <strong>2 Food</strong> per tick.</p>
               <p>• <strong>Oxygen Storage:</strong> 100 base capacity + <strong>5 Max O2 per operational Scrubber</strong>.</p>

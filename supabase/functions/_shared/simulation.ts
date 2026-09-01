@@ -190,9 +190,13 @@ export const CONTRACT_RULES = {
     oxygen: 50,
     power: 50,
     food: 50,
-    ore: 0,
+    ore: 25,
     electronics: 0,
     totalOreDistribution: 500,
+    starterHabitat: { x: 7, y: 7 },
+    starterSolar: { x: 5, y: 7 },
+    starterScrubber: { x: 9, y: 7 },
+    starterColonistsCount: 2,
   },
   pools: {
     oxygenMin: 0,
@@ -1921,13 +1925,16 @@ export async function executeAuthoritativeAction(
     }
 
     case 'RESTART_COLONY': {
-      if (colony.status !== 'game_over') {
-        return { success: false, reason: 'Colony is Still Active', colonyData: currentData };
-      }
-
       const initialSeed = generateInitialSeed();
       const prng = new SeededPRNG(initialSeed);
       const { oreDeposits: freshDeposits, miningSites: freshSites } = generateOreDistribution(prng);
+      const { starting, colonists: cSpecs } = CONTRACT_RULES;
+      const habX = starting.starterHabitat?.x ?? 7;
+      const habY = starting.starterHabitat?.y ?? 7;
+      const solX = starting.starterSolar?.x ?? 5;
+      const solY = starting.starterSolar?.y ?? 7;
+      const scbX = starting.starterScrubber?.x ?? 9;
+      const scbY = starting.starterScrubber?.y ?? 7;
 
       await client.from('marscolony_buildings').delete().eq('colony_id', colonyId);
       await client.from('marscolony_colonists').delete().eq('colony_id', colonyId);
@@ -1943,6 +1950,106 @@ export async function executeAuthoritativeAction(
       }));
       await client.from('marscolony_ore_deposits').insert(depositRows);
 
+      // Insert starter buildings (Habitat + Solar Array + Scrubber)
+      const starterBuildingRows = [
+        {
+          colony_id: colonyId,
+          owner: userId,
+          type: 'habitat',
+          x: habX,
+          y: habY,
+          condition: 'operational',
+          repair_progress: 0,
+          dig_progress: 0,
+          was_broken_before_burial: false,
+        },
+        {
+          colony_id: colonyId,
+          owner: userId,
+          type: 'solar',
+          x: solX,
+          y: solY,
+          condition: 'operational',
+          repair_progress: 0,
+          dig_progress: 0,
+          was_broken_before_burial: false,
+        },
+        {
+          colony_id: colonyId,
+          owner: userId,
+          type: 'scrubber',
+          x: scbX,
+          y: scbY,
+          condition: 'operational',
+          repair_progress: 0,
+          dig_progress: 0,
+          was_broken_before_burial: false,
+        },
+      ];
+      const { data: insertedBuildings } = await client.from('marscolony_buildings').insert(starterBuildingRows).select();
+      const freshBuildings: Building[] = (insertedBuildings && insertedBuildings.length > 0)
+        ? insertedBuildings.map((b: any) => ({
+            id: b.id,
+            type: b.type as BuildingType,
+            x: b.x,
+            y: b.y,
+            condition: b.condition ?? 'operational',
+            repairProgress: b.repair_progress ?? 0,
+            digProgress: b.dig_progress ?? 0,
+            wasBrokenBeforeBurial: b.was_broken_before_burial ?? false,
+          }))
+        : [
+            { id: `bld-hab-${Date.now()}`, type: 'habitat' as BuildingType, x: habX, y: habY, condition: 'operational' as BuildingCondition, repairProgress: 0, digProgress: 0, wasBrokenBeforeBurial: false },
+            { id: `bld-sol-${Date.now()}`, type: 'solar' as BuildingType, x: solX, y: solY, condition: 'operational' as BuildingCondition, repairProgress: 0, digProgress: 0, wasBrokenBeforeBurial: false },
+            { id: `bld-scb-${Date.now()}`, type: 'scrubber' as BuildingType, x: scbX, y: scbY, condition: 'operational' as BuildingCondition, repairProgress: 0, digProgress: 0, wasBrokenBeforeBurial: false },
+          ];
+
+      // Insert starter pioneer colonists
+      const starterColonistRows = [
+        {
+          colony_id: colonyId,
+          owner: userId,
+          x: habX,
+          y: habY,
+          health: cSpecs.maxHealth,
+          age: 0,
+          lifespan: prng.nextInt(cSpecs.minLifespanTicks, cSpecs.maxLifespanTicks),
+          destination: { x: habX, y: habY },
+          destination_type: 'habitat',
+          route: [],
+        },
+        {
+          colony_id: colonyId,
+          owner: userId,
+          x: habX,
+          y: habY,
+          health: cSpecs.maxHealth,
+          age: 0,
+          lifespan: prng.nextInt(cSpecs.minLifespanTicks, cSpecs.maxLifespanTicks),
+          destination: { x: habX, y: habY },
+          destination_type: 'habitat',
+          route: [],
+        },
+      ];
+      const { data: insertedColonists } = await client.from('marscolony_colonists').insert(starterColonistRows).select();
+      const freshColonists: Colonist[] = (insertedColonists && insertedColonists.length > 0)
+        ? insertedColonists.map((c: any) => ({
+            id: c.id,
+            x: c.x,
+            y: c.y,
+            health: c.health,
+            age: c.age ?? 0,
+            lifespan: c.lifespan ?? 8000,
+            destination: c.destination,
+            destinationType: c.destination_type ?? 'habitat',
+            targetEntityId: null,
+            route: c.route || [],
+          }))
+        : [
+            { id: `col-p1-${Date.now()}`, x: habX, y: habY, health: 100, age: 0, lifespan: 8000, destination: { x: habX, y: habY }, destinationType: 'habitat' as any, targetEntityId: null, route: [] },
+            { id: `col-p2-${Date.now()}`, x: habX, y: habY, health: 100, age: 0, lifespan: 8000, destination: { x: habX, y: habY }, destinationType: 'habitat' as any, targetEntityId: null, route: [] },
+          ];
+
       const nowIso = new Date().toISOString();
       await client
         .from('marscolony_colonies')
@@ -1950,7 +2057,7 @@ export async function executeAuthoritativeAction(
           oxygen: 50,
           power: 50,
           food: 50,
-          ore: 0,
+          ore: CONTRACT_RULES.starting.ore ?? 25,
           electronics: 0,
           seed: initialSeed,
           battery_cells: [],
@@ -1968,7 +2075,7 @@ export async function executeAuthoritativeAction(
       colony.oxygen = 50;
       colony.power = 50;
       colony.food = 50;
-      colony.ore = 0;
+      colony.ore = CONTRACT_RULES.starting.ore ?? 25;
       colony.electronics = 0;
       colony.seed = initialSeed;
       colony.battery_cells = [];
@@ -1983,8 +2090,8 @@ export async function executeAuthoritativeAction(
         success: true,
         colonyData: {
           colony,
-          buildings: [],
-          colonists: [],
+          buildings: freshBuildings,
+          colonists: freshColonists,
           rovers: [],
           oreDeposits: freshDeposits,
           bestSolsSurvived: currentData.bestSolsSurvived,

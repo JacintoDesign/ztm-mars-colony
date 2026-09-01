@@ -21,7 +21,7 @@
 - Every random-seeming decision in this document — building breakage, storm timing and target, asteroid timing and position, ore distribution at creation, movement tie-breaks — draws from the same seeded generator stored in colony state, never Math.random(). This is what makes the line above possible for a system with this many moving parts, not just the tick arithmetic itself
 
 ### Starting State
-- A new colony starts with oxygen 50, power 50, food 50, 1 starter Habitat at tile (7, 7), 1 starter Solar Array at tile (5, 7), 2 Pioneer Colonists living at the starter Habitat, ore 0, electronics 0, no pending arrivals, no rovers, no stored battery cells, and a fresh seed generating the colony's ore distribution and mining site positions
+- A new colony starts with oxygen 50, power 50, food 50, ore 25, electronics 0, 1 starter Habitat at tile (7, 7), 1 starter Solar Array at tile (5, 7), 1 starter Oxygen Scrubber at tile (9, 7), 2 Pioneer Colonists living at the starter Habitat, no pending arrivals, no rovers, no stored battery cells, and a fresh seed generating the colony's ore distribution and mining site positions
 
 ### Buildings & Workforce
 - **Workforce Capacity**: Industrial and operational facilities (solar, scrubbers, extractors, farms, garages, refineries) require colonist labor to maintain and operate. Each living colonist supports up to **4 operational facilities** ($\text{Max Operational Facilities} = \text{Living Colonists} \times 4$). Habitats provide residential quarters and are exempt from the operational facility limit. Only operational facilities count against this cap (broken, buried, and deactivated buildings are exempt).

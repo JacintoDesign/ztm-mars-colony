@@ -113,7 +113,7 @@ export class ColonyService {
           oxygen: 50,
           power: 50,
           food: 50,
-          ore: 0,
+          ore: CONTRACT_RULES.starting.ore ?? 25,
           electronics: 0,
           seed: initialSeed,
           battery_cells: [],
@@ -155,12 +155,14 @@ export class ColonyService {
         await supabase.from('marscolony_ore_deposits').insert(depositRows);
       }
 
-      // Insert initial starter buildings (Habitat + Solar Array)
+      // Insert initial starter buildings (Habitat + Solar Array + Scrubber)
       const { starting, colonists: cSpecs } = CONTRACT_RULES;
       const habX = starting.starterHabitat?.x ?? 7;
       const habY = starting.starterHabitat?.y ?? 7;
       const solX = starting.starterSolar?.x ?? 5;
       const solY = starting.starterSolar?.y ?? 7;
+      const scbX = (starting as any).starterScrubber?.x ?? 9;
+      const scbY = (starting as any).starterScrubber?.y ?? 7;
 
       const starterBuildingRows = [
         {
@@ -180,6 +182,17 @@ export class ColonyService {
           type: 'solar',
           x: solX,
           y: solY,
+          condition: 'operational',
+          repair_progress: 0,
+          dig_progress: 0,
+          was_broken_before_burial: false,
+        },
+        {
+          colony_id: colonyId,
+          owner: userId,
+          type: 'scrubber',
+          x: scbX,
+          y: scbY,
           condition: 'operational',
           repair_progress: 0,
           dig_progress: 0,
