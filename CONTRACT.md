@@ -25,12 +25,12 @@
 
 ### Buildings & Workforce
 - **Workforce Capacity**: Industrial and operational facilities (solar, scrubbers, extractors, farms, garages, refineries) require colonist labor to maintain and operate. Each living colonist supports up to **4 operational facilities** ($\text{Max Operational Facilities} = \text{Living Colonists} \times 4$). Habitats provide residential quarters and are exempt from the operational facility limit. Only operational facilities count against this cap (broken, buried, and deactivated buildings are exempt).
-- **Building Costs**:
+- **Building Costs & Specs**:
   - habitat: houses 2 colonists, draws 2 power/tick. Cost: 20 PWR, 10 Ore.
   - solar: produces 5 power/tick, draws 0. Cost: 15 PWR, 0 Ore.
-  - scrubber: produces 4 oxygen/tick when staffed, draws 3 power/tick (+5 Max O2 capacity). Cost: 15 PWR, 5 Ore.
+  - scrubber: produces 5 oxygen/tick when staffed, draws 3 power/tick (+5 Max O2 capacity). Cost: 15 PWR, 5 Ore.
   - extractor: produces 3 ore/tick from its tile's local deposit when staffed, draws 4 power/tick. Can be deactivated (0 PWR draw) and relocated to fresh deposits for 10 PWR. Cost: 25 PWR, 0 Ore.
-  - farm: produces 4 food/tick when staffed, draws 2 power/tick. Cost: 20 PWR, 5 Ore.
+  - farm: produces 5 food/tick when staffed, draws 2 power/tick. Cost: 20 PWR, 5 Ore.
   - garage: holds up to 2 rovers, draws 1 power/tick, no production. Cost: 30 PWR, 10 Ore.
   - refinery: converts ore to battery cells, draws 5 power/tick, requires colonist presence — refining is a player-initiated action, not continuous. Cost: 25 PWR, 15 Ore.
 
@@ -42,7 +42,7 @@
 ### Resources & Storage Scaling
 - power and food are pools, 0–100, clamped at both ends
 - oxygen is a scalable life support pool (0 to dynamic max: **100 base + 5 per operational Scrubber**)
-- Each colonist consumes 3 oxygen/tick
+- Each colonist consumes 3 oxygen/tick and 3 food/tick
 
 ### Ore
 - ore is a stockpile, not a pool: 0 or above, no upper clamp
@@ -52,17 +52,18 @@
 - Ore is not a single global reserve. At colony creation, the seeded generator distributes 500 ore total across roughly 15–25 grid tiles, unevenly — most tiles hold nothing, a handful hold a meaningful amount, and at least one holds as little as 1. Distribution is fixed for the colony's lifetime, generated once, never regenerated
 - An extractor placed on a tile mines only that tile's own deposit, at 3 ore/tick, until it reaches 0. It does not draw from any other tile
 - Once a tile's deposit is exhausted, an extractor there produces 0 ore/tick permanently. It still draws power unless deactivated by the player.
-- **Structure Deactivation & Relocation**: Players can select a structure (such as an extractor) and toggle its power state (deactivated: 0 PWR draw, 0 production). Players can also relocate a structure to another available tile on the grid for 10 Power.
+- **Structure Deactivation & Relocation**: Players can select any structure (via map click or Building Inspector) and toggle its power state (deactivated: 0 PWR draw, 0 production). Players can also relocate a structure to another available tile on the grid for 10 Power.
 - The three mining sites below are the largest individual deposits in this same 500-total pool, deliberately placed far from the landing zone
 
 ### Food
 - food is a pool, 0–100, clamped at both ends, same shape as power
-- farm produces food; each colonist consumes 2 food/tick
+- Hydroponic farm produces 5 food/tick; each colonist consumes 3 food/tick.
+- With 2 colonists consuming 6 food/tick: 1 Farm produces 5 food/tick (a mild net -1/tick deficit), causing food reserves to steadily tick down and providing a fair challenge to establish secondary agricultural modules. 2 Farms produce 10 food/tick (+4 surplus), fully restocking the granary.
 - food joins the life-support check: if oxygen is 0 OR power is 0 OR food is 0 at the end of a tick, every colonist loses 2 health. All three pools are read; any one hitting 0 is sufficient
 
 ### Building Condition
 - Every building has a condition: operational, broken, buried, or deactivated
-- Each tick, each operational building has a small seeded chance of becoming broken — 1-in-4,000 per building per tick. At 5 buildings (roughly where an early colony sits) that's an expected break every 800 ticks; at 25 buildings (a mature, fully-built colony) it's every 160 ticks. Maintenance load scales with how much you've built, on purpose — it's the direct answer to "build enough and stop worrying"
+- Each tick, each operational or deactivated building has a small seeded chance of becoming broken — 1-in-4,000 per building per tick. Unpowered buildings remain vulnerable to Martian sub-zero temperatures and structural stress.
 - A broken building produces and draws nothing until repaired
 - Repair requires colonist labor presence adjacent to or on the building's tile for 50 ticks of labor (30 ticks for scrubbers), plus an electronics cost deducted upon completion — 1 electronics for habitat, solar, scrubber, and farm; 2 electronics for extractor, garage, and refinery
 - Repair labor and repair material come from different places on purpose. Colonists are locally renewable — arrivals, if you keep the pipeline running. Electronics are not — the colony cannot manufacture them, only receive them, which is what makes ship traffic worth the escort risk rather than a formality
@@ -71,7 +72,7 @@
 
 ### Weather
 - Starting Sol 2.5 (tick 2,500), every 1,500-tick window, a seeded roll has a 30% chance a dust storm occurs — creating realistic Martian environmental pressure that requires ongoing colony vigilance. Unlike breakage, weather doesn't scale with how much you've built; it's the pressure that exists regardless
-- A storm buries up to 2 operational buildings, chosen by the seeded generator from those not already buried or broken
+- A storm buries up to 2 buildings (operational, deactivated, or broken) chosen by the seeded generator from those not already buried. Unpowered structures offer no immunity against Martian dust accumulation.
 - A buried building produces and draws nothing
 - Digging out requires 1 colonist present adjacent to or on the tile for 40 consecutive ticks (survivable within the 50-tick life support buffer), no resource cost. Assigned automatically, same as repair
 - A building already broken when it's buried preserves its broken state (`wasBrokenBeforeBurial = true`), needing digging out first (40 ticks) which returns its condition to `broken`, followed by standard repair (labor + electronics) — both, in that order

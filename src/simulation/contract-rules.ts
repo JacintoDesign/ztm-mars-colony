@@ -63,7 +63,7 @@ export const CONTRACT_RULES = {
   colonists: {
     ticksPerTile: 5, // 5 ticks to walk from one tile to another
     oxygenConsumptionPerTick: 3,
-    foodConsumptionPerTick: 2,
+    foodConsumptionPerTick: 3,
     healthDamagePerTick: 2, // applied if oxygen == 0 OR power == 0 OR food == 0 (50-tick survival window)
     healthRecoveryPerTick: 1, // applied when oxygen > 0 AND power > 0 AND food > 0
     maxHealth: 100,
@@ -159,7 +159,7 @@ export const CONTRACT_RULES = {
       capacity: 0,
       powerDraw: 3,
       powerProduction: 0,
-      oxygenProduction: 4,
+      oxygenProduction: 5,
       foodProduction: 0,
       oreProduction: 0,
       cost: { power: 15, ore: 5, electronics: 0 },
@@ -188,7 +188,7 @@ export const CONTRACT_RULES = {
       powerDraw: 2,
       powerProduction: 0,
       oxygenProduction: 0,
-      foodProduction: 4,
+      foodProduction: 5,
       oreProduction: 0,
       cost: { power: 20, ore: 5, electronics: 0 },
       repairLabor: 1,

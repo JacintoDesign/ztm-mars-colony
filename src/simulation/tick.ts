@@ -31,14 +31,14 @@ export function applySingleTick(state: ColonyState): ColonyState {
   const prng = new SeededPRNG(state.seed);
   const { buildings: bSpecs, arrivals: aSpecs, colonists: cSpecs, maintenance: mSpecs, rovers: rSpecs, pools, ticksPerSol, refinery: refSpecs, asteroids: astSpecs } = CONTRACT_RULES;
 
-  // 1. Weather / Dust Storms
+  // 1. Weather / Dust Storms (Buries operational, deactivated, or broken buildings)
   let updatedBuildings: Building[] = state.buildings.map((b) => ({ ...b }));
   if (nextTick >= (mSpecs.minDustStormTick ?? 2500) && nextTick % mSpecs.dustStormWindowTicks === 0) {
     if (prng.chance(mSpecs.dustStormChance)) {
-      const operationalBuildings = updatedBuildings.filter((b) => b.condition === 'operational');
-      const numToBury = Math.min(mSpecs.maxBuriedPerStorm, operationalBuildings.length);
+      const unburiedBuildings = updatedBuildings.filter((b) => b.condition !== 'buried');
+      const numToBury = Math.min(mSpecs.maxBuriedPerStorm, unburiedBuildings.length);
       for (let i = 0; i < numToBury; i++) {
-        const target = prng.pick(operationalBuildings.filter((b) => b.condition === 'operational'));
+        const target = prng.pick(updatedBuildings.filter((b) => b.condition !== 'buried'));
         if (target) {
           target.wasBrokenBeforeBurial = target.condition === 'broken' || Boolean(target.wasBrokenBeforeBurial);
           target.condition = 'buried';
@@ -48,9 +48,9 @@ export function applySingleTick(state: ColonyState): ColonyState {
     }
   }
 
-  // 2. Building Breakage (1-in-15,000 chance per operational building per tick)
+  // 2. Building Breakage (Applies to operational & deactivated structures from Martian environment)
   for (const b of updatedBuildings) {
-    if (b.condition === 'operational') {
+    if (b.condition === 'operational' || b.condition === 'deactivated') {
       if (prng.chance(mSpecs.breakageChancePerTick)) {
         b.condition = 'broken';
         b.repairProgress = 0;

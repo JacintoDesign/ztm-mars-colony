@@ -1,6 +1,6 @@
 import { getTileVertices, IsoConfig, GridPoint, screenToGrid } from './iso-math';
 import { ColonyStore } from '../simulation/store';
-import { BuildingType } from '../simulation/types';
+import { Building, BuildingType } from '../simulation/types';
 import {
   drawBuilding,
   drawColonist,
@@ -292,7 +292,28 @@ export class IsometricRenderer {
       const rect = this.canvas.getBoundingClientRect();
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
+
+      if (!this.relocatingBuildingId && !this.selectedTool) {
+        const clickedBuilding = this.findBuildingAtScreen(x, y);
+        if (clickedBuilding) {
+          this.setSelectedBuildingId(clickedBuilding.id);
+          const neighbors = this.store.getState().buildings.filter(
+            (other) => other.id !== clickedBuilding.id && Math.abs(clickedBuilding.x - other.x) + Math.abs(clickedBuilding.y - other.y) === 1
+          ).length;
+          const spacingInfo = neighbors > 1 ? `Crowded (-${neighbors - 1} output)` : 'Optimal Spacing (100%)';
+          if (this.onStatusChange) {
+            this.onStatusChange(
+              `[${clickedBuilding.type.toUpperCase()}] ${clickedBuilding.condition.toUpperCase()} | Neighbors: ${neighbors} (${spacingInfo})`,
+              neighbors > 1 ? 'warning' : 'nominal'
+            );
+          }
+          this.requestRender();
+          return;
+        }
+      }
+
       const tile = screenToGrid(x, y, this.config);
+      this.setSelectedBuildingId(null);
       if (tile) {
         this.handleTileAction(tile);
       }
@@ -344,9 +365,65 @@ export class IsometricRenderer {
     };
   }
 
+  public findBuildingAtScreen(screenX: number, screenY: number): Building | null {
+    const buildings = this.store.getState().buildings;
+    if (buildings.length === 0) return null;
+
+    // Sort front-to-back by isometric depth (higher x + y first) so foreground structures take precedence
+    const sorted = [...buildings].sort((a, b) => {
+      const depthA = a.x + a.y;
+      const depthB = b.x + b.y;
+      if (depthA !== depthB) return depthB - depthA;
+      return b.y - a.y;
+    });
+
+    const halfW = this.config.tileWidth / 2;
+    const s = halfW / 32;
+
+    for (const b of sorted) {
+      const v = getTileVertices(b.x, b.y, this.config);
+      
+      // Building vertical heights by type
+      let heightPx = 36;
+      if (b.type === 'scrubber') heightPx = 55;
+      else if (b.type === 'solar') heightPx = 45;
+      else if (b.type === 'refinery') heightPx = 48;
+      else if (b.type === 'extractor') heightPx = 42;
+      else if (b.type === 'habitat') heightPx = 38;
+      else if (b.type === 'farm') heightPx = 32;
+      else if (b.type === 'garage') heightPx = 32;
+
+      const topY = v.top.y - heightPx * s;
+      const bottomY = v.bottom.y + 4 * s;
+      const leftX = v.center.x - halfW * 1.05;
+      const rightX = v.center.x + halfW * 1.05;
+
+      // Check if point is within the 3D visual bounding box of this building
+      if (screenX >= leftX && screenX <= rightX && screenY >= topY && screenY <= bottomY) {
+        return b;
+      }
+    }
+
+    // Fallback: check flat ground diamond
+    const tile = screenToGrid(screenX, screenY, this.config);
+    if (tile) {
+      return buildings.find((b) => b.x === tile.x && b.y === tile.y) ?? null;
+    }
+
+    return null;
+  }
+
   private handleMouseMove(e: MouseEvent): void {
     const { x, y } = this.getCanvasCoords(e);
     const tile = screenToGrid(x, y, this.config);
+
+    // Update cursor style
+    if (this.selectedTool || this.relocatingBuildingId) {
+      this.canvas.style.cursor = 'crosshair';
+    } else {
+      const bldUnderCursor = this.findBuildingAtScreen(x, y);
+      this.canvas.style.cursor = bldUnderCursor ? 'pointer' : 'default';
+    }
 
     if (!this.hoveredTile && !tile) return;
     if (this.hoveredTile && tile && this.hoveredTile.x === tile.x && this.hoveredTile.y === tile.y) return;
@@ -372,9 +449,49 @@ export class IsometricRenderer {
 
   private handleClick(e: MouseEvent): void {
     const { x, y } = this.getCanvasCoords(e);
+
+    // 1. If in tool placement mode, place building at tile
+    if (this.selectedTool) {
+      const tile = screenToGrid(x, y, this.config);
+      if (tile) {
+        this.handleTileAction(tile);
+      }
+      return;
+    }
+
+    // 2. If in relocation mode, relocate to tile
+    if (this.relocatingBuildingId) {
+      const tile = screenToGrid(x, y, this.config);
+      if (tile) {
+        this.handleTileAction(tile);
+      }
+      return;
+    }
+
+    // 3. Selection Mode: Test 3D building sprite first
+    const clickedBuilding = this.findBuildingAtScreen(x, y);
+    if (clickedBuilding) {
+      this.setSelectedBuildingId(clickedBuilding.id);
+      const neighbors = this.store.getState().buildings.filter(
+        (other) => other.id !== clickedBuilding.id && Math.abs(clickedBuilding.x - other.x) + Math.abs(clickedBuilding.y - other.y) === 1
+      ).length;
+      const spacingInfo = neighbors > 1 ? `Crowded (-${neighbors - 1} output)` : 'Optimal Spacing (100%)';
+      if (this.onStatusChange) {
+        this.onStatusChange(
+          `[${clickedBuilding.type.toUpperCase()}] ${clickedBuilding.condition.toUpperCase()} | Neighbors: ${neighbors} (${spacingInfo})`,
+          neighbors > 1 ? 'warning' : 'nominal'
+        );
+      }
+      this.requestRender();
+      return;
+    }
+
+    // 4. Clicked empty terrain
     const tile = screenToGrid(x, y, this.config);
-    if (!tile) return;
-    this.handleTileAction(tile);
+    this.setSelectedBuildingId(null);
+    if (tile) {
+      this.handleTileAction(tile);
+    }
   }
 
   private handleTileAction(tile: GridPoint): void {
@@ -423,7 +540,6 @@ export class IsometricRenderer {
     const building = this.store.getState().buildings.find((b) => b.x === tile.x && b.y === tile.y);
     if (building) {
       this.setSelectedBuildingId(building.id);
-      // Compute neighbors for spacing telemetry
       const neighbors = this.store.getState().buildings.filter(
         (other) => other.id !== building.id && Math.abs(building.x - other.x) + Math.abs(building.y - other.y) === 1
       ).length;
@@ -698,17 +814,94 @@ export class IsometricRenderer {
       const selectedBld = state.buildings.find((b) => b.id === this.selectedBuildingId);
       if (selectedBld) {
         const sv = getTileVertices(selectedBld.x, selectedBld.y, this.config);
+        const halfW = this.config.tileWidth / 2;
+        const s = halfW / 32;
+        const isDeact = selectedBld.condition === 'deactivated';
+        const isBroken = selectedBld.condition === 'broken';
+        const isBuried = selectedBld.condition === 'buried';
+
+        const mainColor = isDeact ? '#E0A030' : isBroken ? '#D94F3D' : isBuried ? '#fbbf24' : '#4ec9b0';
+        const fillColor = isDeact ? 'rgba(224, 160, 48, 0.25)' : isBroken ? 'rgba(217, 79, 61, 0.25)' : 'rgba(78, 201, 176, 0.25)';
+
+        // Base tile highlight
         ctx.beginPath();
         ctx.moveTo(sv.top.x, sv.top.y);
         ctx.lineTo(sv.right.x, sv.right.y);
         ctx.lineTo(sv.bottom.x, sv.bottom.y);
         ctx.lineTo(sv.left.x, sv.left.y);
         ctx.closePath();
-        ctx.fillStyle = 'rgba(78, 201, 176, 0.2)';
+        ctx.fillStyle = fillColor;
         ctx.fill();
-        ctx.strokeStyle = '#4ec9b0';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = mainColor;
+        ctx.lineWidth = 2.2;
         ctx.stroke();
+
+        // 3D Corner Brackets around structure
+        let heightPx = 36;
+        if (selectedBld.type === 'scrubber') heightPx = 55;
+        else if (selectedBld.type === 'solar') heightPx = 45;
+        else if (selectedBld.type === 'refinery') heightPx = 48;
+        else if (selectedBld.type === 'extractor') heightPx = 42;
+        else if (selectedBld.type === 'habitat') heightPx = 38;
+        else if (selectedBld.type === 'farm') heightPx = 32;
+        else if (selectedBld.type === 'garage') heightPx = 32;
+
+        const boxTop = sv.top.y - heightPx * s;
+        const boxLeft = sv.center.x - halfW * 0.9;
+        const boxRight = sv.center.x + halfW * 0.9;
+        const boxBottom = sv.bottom.y;
+        const bracketLen = 8 * s;
+
+        ctx.strokeStyle = mainColor;
+        ctx.lineWidth = 1.8;
+
+        // Top-left bracket
+        ctx.beginPath();
+        ctx.moveTo(boxLeft, boxTop + bracketLen);
+        ctx.lineTo(boxLeft, boxTop);
+        ctx.lineTo(boxLeft + bracketLen, boxTop);
+        ctx.stroke();
+
+        // Top-right bracket
+        ctx.beginPath();
+        ctx.moveTo(boxRight - bracketLen, boxTop);
+        ctx.lineTo(boxRight, boxTop);
+        ctx.lineTo(boxRight, boxTop + bracketLen);
+        ctx.stroke();
+
+        // Bottom-left bracket
+        ctx.beginPath();
+        ctx.moveTo(boxLeft, boxBottom - bracketLen);
+        ctx.lineTo(boxLeft, boxBottom);
+        ctx.lineTo(boxLeft + bracketLen, boxBottom);
+        ctx.stroke();
+
+        // Bottom-right bracket
+        ctx.beginPath();
+        ctx.moveTo(boxRight - bracketLen, boxBottom);
+        ctx.lineTo(boxRight, boxBottom);
+        ctx.lineTo(boxRight, boxBottom - bracketLen);
+        ctx.stroke();
+
+        // Floating status tag above structure
+        const tagText = isDeact ? '⚡ POWER OFF' : isBroken ? '⚠ BROKEN' : isBuried ? '▼ BURIED' : '● POWER ON';
+        ctx.font = `bold ${Math.max(9, Math.floor(10 * s))}px 'Share Tech Mono', monospace`;
+        const textMetrics = ctx.measureText(tagText);
+        const tagW = textMetrics.width + 12 * s;
+        const tagH = 15 * s;
+        const tagX = sv.center.x - tagW / 2;
+        const tagY = boxTop - tagH - 4 * s;
+
+        ctx.fillStyle = 'rgba(18, 9, 5, 0.9)';
+        ctx.fillRect(tagX, tagY, tagW, tagH);
+        ctx.strokeStyle = mainColor;
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(tagX, tagY, tagW, tagH);
+
+        ctx.fillStyle = mainColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(tagText, sv.center.x, tagY + tagH / 2);
       }
     }
 
