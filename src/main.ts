@@ -355,10 +355,6 @@ function stopSimulationLoops(): void {
 // Network Online/Offline & Telemetry Listeners
 window.addEventListener('online', async () => {
   if (activeColonyId && activeUserId) {
-    telemetryBanner.setState('reconnecting');
-    toolbar.setActionsPaused(true);
-    toolbar.setStatus('Re-establishing Uplink...', 'warning');
-
     try {
       const updatedData = await colonyService.triggerServerTick(activeColonyId, activeUserId);
       store.loadColonyData(updatedData, activeUserDisplay);
@@ -366,8 +362,7 @@ window.addEventListener('online', async () => {
       toolbar.setActionsPaused(false);
       toolbar.setStatus('Telemetry Link Nominal', 'nominal');
     } catch {
-      telemetryBanner.setState('offline');
-      toolbar.setStatus('Telemetry Lost - Actions Paused', 'warning');
+      // Periodic server sync will retry
     }
   }
 });
@@ -375,7 +370,7 @@ window.addEventListener('online', async () => {
 window.addEventListener('offline', () => {
   telemetryBanner.setState('offline');
   toolbar.setActionsPaused(true);
-  toolbar.setStatus('Telemetry Lost - Actions Paused', 'warning');
+  toolbar.setStatus('Network Offline - Actions Paused', 'warning');
 });
 
 async function handleAuthStateChange(authState: AuthState): Promise<void> {
@@ -462,9 +457,6 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
               toolbar.setStatus('Telemetry Link Nominal', 'nominal');
             }
           }
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          telemetryBanner.setState('reconnecting');
-          toolbar.setStatus('Re-establishing Uplink...', 'warning');
         }
       }
     );

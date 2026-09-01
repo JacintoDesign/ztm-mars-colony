@@ -11,7 +11,11 @@ export class TelemetryBanner {
       el = document.createElement('div');
       el.id = TelemetryBanner.CONTAINER_ID;
       el.className = 'telemetry-banner banner-hidden';
+      el.style.display = 'none';
       document.body.appendChild(el);
+    } else {
+      el.style.display = 'none';
+      el.className = 'telemetry-banner banner-hidden';
     }
     this.container = el;
     this.render();
