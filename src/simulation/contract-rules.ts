@@ -115,6 +115,11 @@ export const CONTRACT_RULES = {
     maxYield: 120,
   },
 
+  // Workforce & Labor Rules
+  workforce: {
+    operationalBuildingsPerColonist: 2, // Each living colonist supports up to 2 operational buildings (Habitats exempt)
+  },
+
   // Building specifications
   buildings: {
     habitat: {
@@ -127,7 +132,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 0,
       foodProduction: 0,
       oreProduction: 0,
-      cost: { power: 20, ore: 0 },
+      cost: { power: 20, ore: 10, electronics: 1 },
       repairLabor: 1,
       repairElectronics: 1,
     },
@@ -141,7 +146,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 0,
       foodProduction: 0,
       oreProduction: 0,
-      cost: { power: 15, ore: 0 },
+      cost: { power: 15, ore: 0, electronics: 0 },
       repairLabor: 1,
       repairElectronics: 1,
     },
@@ -155,7 +160,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 4,
       foodProduction: 0,
       oreProduction: 0,
-      cost: { power: 15, ore: 5 },
+      cost: { power: 15, ore: 5, electronics: 0 },
       repairLabor: 1,
       repairElectronics: 1,
     },
@@ -169,7 +174,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 0,
       foodProduction: 0,
       oreProduction: 3,
-      cost: { power: 25, ore: 0 },
+      cost: { power: 25, ore: 0, electronics: 0 },
       repairLabor: 2,
       repairElectronics: 2,
     },
@@ -183,7 +188,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 0,
       foodProduction: 4,
       oreProduction: 0,
-      cost: { power: 20, ore: 5 },
+      cost: { power: 20, ore: 5, electronics: 0 },
       repairLabor: 1,
       repairElectronics: 1,
     },
@@ -197,7 +202,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 0,
       foodProduction: 0,
       oreProduction: 0,
-      cost: { power: 30, ore: 10 },
+      cost: { power: 30, ore: 10, electronics: 0 },
       repairLabor: 2,
       repairElectronics: 2,
     },
@@ -211,7 +216,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 0,
       foodProduction: 0,
       oreProduction: 0,
-      cost: { power: 25, ore: 15 },
+      cost: { power: 25, ore: 15, electronics: 2 },
       repairLabor: 2,
       repairElectronics: 2,
     },

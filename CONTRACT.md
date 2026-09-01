@@ -25,14 +25,15 @@
 
 ### Buildings & Workforce
 - All structures require active power and operational condition to function.
-- Industrial and life-support production structures (scrubbers, extractors, farms, refineries) require living colonists present in the colony to operate. If colonist population is 0, these structures produce 0 output.
-- habitat: houses 2 colonists, draws 2 power/tick
-- solar: produces 5 power/tick, draws 0
-- scrubber: produces 4 oxygen/tick when staffed, draws 3 power/tick
-- extractor: produces 3 ore/tick from its tile's local deposit when staffed, draws 4 power/tick. Can be deactivated (0 PWR draw) and relocated to fresh deposits for 10 PWR
-- farm: produces 4 food/tick when staffed, draws 2 power/tick
-- garage: holds up to 2 rovers, draws 1 power/tick, no production
-- refinery: converts ore to battery cells, draws 5 power/tick, requires colonist presence — refining is a player-initiated action, not continuous
+- **Workforce Capacity**: Industrial and operational facilities (solar, scrubbers, extractors, farms, garages, refineries) require colonist labor to maintain and operate. Each living colonist supports up to **2 operational facilities** ($\text{Max Operational Facilities} = \text{Living Colonists} \times 2$). Habitats provide residential quarters and are exempt from the operational facility limit.
+- **Building Costs**:
+  - habitat: houses 2 colonists, draws 2 power/tick. Cost: 20 PWR, 10 Ore, 1 Electronics.
+  - solar: produces 5 power/tick, draws 0. Cost: 15 PWR, 0 Ore.
+  - scrubber: produces 4 oxygen/tick when staffed, draws 3 power/tick (+5 Max O2 capacity). Cost: 15 PWR, 5 Ore.
+  - extractor: produces 3 ore/tick from its tile's local deposit when staffed, draws 4 power/tick. Can be deactivated (0 PWR draw) and relocated to fresh deposits for 10 PWR. Cost: 25 PWR, 0 Ore.
+  - farm: produces 4 food/tick when staffed, draws 2 power/tick. Cost: 20 PWR, 5 Ore.
+  - garage: holds up to 2 rovers, draws 1 power/tick, no production. Cost: 30 PWR, 10 Ore.
+  - refinery: converts ore to battery cells, draws 5 power/tick, requires colonist presence — refining is a player-initiated action, not continuous. Cost: 25 PWR, 15 Ore, 2 Electronics.
 
 ### Colony Spacing & Buffer Zones
 - Heavy industrial and life support structures require ventilation, solar clearance, and ground isolation.

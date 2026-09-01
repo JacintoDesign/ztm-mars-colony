@@ -56,7 +56,7 @@ In each round:
 
 4. **Analyze Balance & Determine Next Move**:
    - Evaluate life support, power, food, and maintenance balances using exact numbers from [CONTRACT.md](../../CONTRACT.md):
-     - **Workforce Constraint:** Placing new structures and operating industrial facilities (Extractors, Farms, Scrubbers, Refineries) strictly requires living colonists (`colonists.length >= 1`).
+     - **Workforce Capacity Constraint:** Each living colonist supports up to **2 operational facilities** (Habitats exempt). Expanding beyond 4 operational facilities requires recruiting more colonists via rover transport escorts.
      - **Power Balance:** Solar (+5 PWR/tick) vs. Habitat (-2), Scrubber (-3), Extractor (-4), Farm (-2), Garage (-1), Refinery (-5).
      - **Oxygen Balance:** Scrubber (+4 O2/tick) vs. Colonists (-3 O2/tick per living colonist). Dynamic Oxygen capacity buffer scales: base 100 + 5 max capacity per operational Scrubber.
      - **Food Balance:** Farm (+4 Food/tick) vs. Colonists (-2 Food/tick per living colonist).
@@ -65,13 +65,13 @@ In each round:
      - **Arrival Cadence & Capacity:** 1 colonist arrives every 300 ticks carrying 2 electronics, capped at total habitat capacity (`2 * numHabitats`).
      - **Rover Specs & Speed:** Rovers travel at 1 tile per tick (`1.0 tile/tick`), draining 1.5 PWR/tick. Dispatch fuels rover to full charge (150 PWR) using 1 Battery Cell.
      - **Building Costs & Controls:**
-       - Habitat: `20 PWR`
+       - Habitat: `20 PWR, 10 ORE, 1 ELEC`
        - Solar: `15 PWR`
        - Scrubber: `15 PWR, 5 ORE`
        - Extractor: `25 PWR` (mines 3 ore/tick from local tile deposit until tile reaches 0). Can be deactivated (0 PWR draw) and relocated to fresh deposits for `10 PWR`.
        - Farm: `20 PWR, 5 ORE`
        - Garage: `30 PWR, 10 ORE` (houses up to 2 rovers)
-       - Refinery: `25 PWR, 15 ORE` (converts 10 ore to 1 battery cell, max 20 capacity, decays -1 efficiency/tick)
+       - Refinery: `25 PWR, 15 ORE, 2 ELEC` (converts 10 ore to 1 battery cell, max 20 capacity, decays -1 efficiency/tick)
      - **Maintenance Pressures:**
        - Breakage: 1-in-2,500 chance per operational building per tick (requires adjacent colonist labor: 30 ticks for scrubbers, 50 ticks for others, plus electronics: 1 for habitat/solar/scrubber/farm, 2 for extractor/garage/refinery).
        - Dust Storms: 35% chance every 1,000 ticks (1 Sol) to bury up to 3 buildings (requires colonist for 100 ticks to dig out).

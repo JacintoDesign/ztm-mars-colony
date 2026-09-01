@@ -7,6 +7,7 @@
 export interface BuildingCost {
   power: number;
   ore: number;
+  electronics: number;
 }
 
 export type BuildingType =
@@ -255,6 +256,9 @@ export const CONTRACT_RULES = {
     minYield: 60,
     maxYield: 120,
   },
+  workforce: {
+    operationalBuildingsPerColonist: 2,
+  },
   buildings: {
     habitat: {
       type: 'habitat' as BuildingType,
@@ -265,7 +269,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 0,
       foodProduction: 0,
       oreProduction: 0,
-      cost: { power: 20, ore: 0 },
+      cost: { power: 20, ore: 10, electronics: 1 },
       repairLabor: 1,
       repairElectronics: 1,
     },
@@ -278,7 +282,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 0,
       foodProduction: 0,
       oreProduction: 0,
-      cost: { power: 15, ore: 0 },
+      cost: { power: 15, ore: 0, electronics: 0 },
       repairLabor: 1,
       repairElectronics: 1,
     },
@@ -291,7 +295,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 4,
       foodProduction: 0,
       oreProduction: 0,
-      cost: { power: 15, ore: 5 },
+      cost: { power: 15, ore: 5, electronics: 0 },
       repairLabor: 1,
       repairElectronics: 1,
     },
@@ -304,7 +308,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 0,
       foodProduction: 0,
       oreProduction: 3,
-      cost: { power: 25, ore: 0 },
+      cost: { power: 25, ore: 0, electronics: 0 },
       repairLabor: 2,
       repairElectronics: 2,
     },
@@ -317,7 +321,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 0,
       foodProduction: 4,
       oreProduction: 0,
-      cost: { power: 20, ore: 5 },
+      cost: { power: 20, ore: 5, electronics: 0 },
       repairLabor: 1,
       repairElectronics: 1,
     },
@@ -330,7 +334,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 0,
       foodProduction: 0,
       oreProduction: 0,
-      cost: { power: 30, ore: 10 },
+      cost: { power: 30, ore: 10, electronics: 0 },
       repairLabor: 2,
       repairElectronics: 2,
     },
@@ -343,7 +347,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 0,
       foodProduction: 0,
       oreProduction: 0,
-      cost: { power: 25, ore: 15 },
+      cost: { power: 25, ore: 15, electronics: 2 },
       repairLabor: 2,
       repairElectronics: 2,
     },
@@ -1236,6 +1240,18 @@ export async function executeAuthoritativeTick(
     colony.seed = seed;
   }
 
+  // If colony is already in game_over status, immediately return without applying ticks
+  if (colony.status === 'game_over') {
+    return {
+      colony: { ...colony, status: 'game_over' },
+      buildings: [],
+      colonists: [],
+      rovers: [],
+      oreDeposits: [],
+      bestSolsSurvived,
+    };
+  }
+
   const lastTickTime = colony.last_tick_at ? new Date(colony.last_tick_at).getTime() : Date.now();
   const now = Date.now();
   const elapsedSeconds = Math.max(0, Math.floor((now - lastTickTime) / 1000));
@@ -1289,6 +1305,44 @@ export async function executeAuthoritativeTick(
       })
       .eq('id', colonyId)
       .eq('owner', userId);
+
+    // If colony reached game_over, wipe active sub-entities from DB
+    if (nextState.status === 'game_over') {
+      const solsSurvived = Math.floor(nextState.tick / CONTRACT_RULES.ticksPerSol);
+      if (solsSurvived > bestSolsSurvived) {
+        bestSolsSurvived = solsSurvived;
+        await client
+          .from('marscolony_users')
+          .update({ best_sols_survived: solsSurvived })
+          .eq('id', userId);
+      }
+
+      await Promise.all([
+        client.from('marscolony_colonists').delete().eq('colony_id', colonyId),
+        client.from('marscolony_rovers').delete().eq('colony_id', colonyId),
+        client.from('marscolony_buildings').delete().eq('colony_id', colonyId),
+        client.from('marscolony_ore_deposits').delete().eq('colony_id', colonyId),
+      ]);
+
+      return {
+        colony: {
+          ...colony,
+          oxygen: 0,
+          power: nextState.power,
+          food: 0,
+          ore: nextState.ore,
+          electronics: nextState.electronics,
+          tick: nextState.tick,
+          status: 'game_over',
+          last_tick_at: newLastTickAt,
+        },
+        buildings: [],
+        colonists: [],
+        rovers: [],
+        oreDeposits: [],
+        bestSolsSurvived,
+      };
+    }
 
     for (const b of nextState.buildings) {
       if (b.id && !b.id.startsWith('bld-')) {
@@ -1356,17 +1410,6 @@ export async function executeAuthoritativeTick(
       }
     }
 
-    if (nextState.status === 'game_over') {
-      const solsSurvived = Math.floor(nextState.tick / CONTRACT_RULES.ticksPerSol);
-      if (solsSurvived > bestSolsSurvived) {
-        bestSolsSurvived = solsSurvived;
-        await client
-          .from('marscolony_users')
-          .update({ best_sols_survived: solsSurvived })
-          .eq('id', userId);
-      }
-    }
-
     colony.oxygen = nextState.oxygen;
     colony.power = nextState.power;
     colony.food = nextState.food;
@@ -1427,18 +1470,39 @@ export async function executeAuthoritativeAction(
       if (x === 0 && y === 0) {
         return { success: false, reason: 'Tile (0, 0) is reserved for Landing Pad', colonyData: currentData };
       }
-      if (buildings.some((b) => b.x === x && b.y === y)) {
-        return { success: false, reason: 'Tile Occupied', colonyData: currentData };
+      const livingColonists = currentData.colonists.length;
+      if (livingColonists === 0) {
+        return { success: false, reason: 'Colonist Workforce Required', colonyData: currentData };
       }
+
+      if (buildingType !== 'habitat') {
+        const operationalBuildingsCount = buildings.filter(
+          (b) => b.type !== 'habitat' && b.condition !== 'deactivated'
+        ).length;
+        const maxOperationalAllowed = livingColonists * CONTRACT_RULES.workforce.operationalBuildingsPerColonist;
+        if (operationalBuildingsCount >= maxOperationalAllowed) {
+          const requiredColonists = Math.ceil((operationalBuildingsCount + 1) / CONTRACT_RULES.workforce.operationalBuildingsPerColonist);
+          return {
+            success: false,
+            reason: `Workforce Shortage (Requires ${requiredColonists} Colonists for ${operationalBuildingsCount + 1} Facilities)`,
+            colonyData: currentData,
+          };
+        }
+      }
+
       if (colony.power < cost.power) {
         return { success: false, reason: 'Insufficient Power', colonyData: currentData };
       }
       if (colony.ore < cost.ore) {
         return { success: false, reason: 'Insufficient Ore', colonyData: currentData };
       }
+      if (cost.electronics > 0 && (colony.electronics ?? 0) < cost.electronics) {
+        return { success: false, reason: 'Insufficient Electronics', colonyData: currentData };
+      }
 
       const newPower = colony.power - cost.power;
       const newOre = colony.ore - cost.ore;
+      const newElectronics = Math.max(0, (colony.electronics ?? 0) - (cost.electronics ?? 0));
       const nowIso = new Date().toISOString();
 
       await client
@@ -1446,6 +1510,7 @@ export async function executeAuthoritativeAction(
         .update({
           power: newPower,
           ore: newOre,
+          electronics: newElectronics,
           last_tick_at: nowIso,
           updated_at: nowIso,
         })

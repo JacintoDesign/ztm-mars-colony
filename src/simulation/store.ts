@@ -24,7 +24,7 @@ export type StateListener = (state: ColonyState) => void;
 
 export interface DispatchResult {
   success: boolean;
-  reason?: 'Insufficient Power' | 'Insufficient Ore' | 'Tile Occupied' | 'Invalid Coordinates' | 'Tile Buried' | 'No Battery Cells' | 'Rover Busy' | 'Storage Full' | 'Tile (0, 0) is reserved for Landing Pad' | 'Colonist Workforce Required';
+  reason?: string;
   building?: Building;
 }
 
@@ -240,13 +240,19 @@ export class ColonyStore {
     return BUILDING_COSTS[type];
   }
 
-  public canAfford(type: BuildingType): { canAfford: boolean; reason?: 'Insufficient Power' | 'Insufficient Ore'; cost: BuildingCost } {
+  public canAfford(type: BuildingType): { canAfford: boolean; reason?: 'Insufficient Power' | 'Insufficient Ore' | 'Insufficient Electronics' | 'Colonist Workforce Required'; cost: BuildingCost } {
     const cost = BUILDING_COSTS[type];
     if (this.state.power < cost.power) {
       return { canAfford: false, reason: 'Insufficient Power', cost };
     }
     if (this.state.ore < cost.ore) {
       return { canAfford: false, reason: 'Insufficient Ore', cost };
+    }
+    if (cost.electronics > 0 && this.state.electronics < cost.electronics) {
+      return { canAfford: false, reason: 'Insufficient Electronics', cost };
+    }
+    if (this.state.colonists.length === 0) {
+      return { canAfford: false, reason: 'Colonist Workforce Required', cost };
     }
     return { canAfford: true, cost };
   }
@@ -266,8 +272,25 @@ export class ColonyStore {
       return { canPlace: false, reason: 'Tile Occupied', cost };
     }
 
-    if (this.state.colonists.length === 0) {
+    const livingColonists = this.state.colonists.length;
+    if (livingColonists === 0) {
       return { canPlace: false, reason: 'Colonist Workforce Required', cost };
+    }
+
+    // Workforce constraint: each colonist supports up to 2 operational buildings (Habitats exempt)
+    if (type !== 'habitat') {
+      const operationalBuildingsCount = this.state.buildings.filter(
+        (b) => b.type !== 'habitat' && b.condition !== 'deactivated'
+      ).length;
+      const maxOperationalAllowed = livingColonists * CONTRACT_RULES.workforce.operationalBuildingsPerColonist;
+      if (operationalBuildingsCount >= maxOperationalAllowed) {
+        const requiredColonists = Math.ceil((operationalBuildingsCount + 1) / CONTRACT_RULES.workforce.operationalBuildingsPerColonist);
+        return {
+          canPlace: false,
+          reason: `Workforce Shortage (Requires ${requiredColonists} Colonists for ${operationalBuildingsCount + 1} Facilities)`,
+          cost,
+        };
+      }
     }
 
     if (this.state.power < cost.power) {
@@ -276,6 +299,10 @@ export class ColonyStore {
 
     if (this.state.ore < cost.ore) {
       return { canPlace: false, reason: 'Insufficient Ore', cost };
+    }
+
+    if (cost.electronics > 0 && this.state.electronics < cost.electronics) {
+      return { canPlace: false, reason: 'Insufficient Electronics', cost };
     }
 
     return { canPlace: true, cost };
@@ -568,6 +595,7 @@ export class ColonyStore {
       ...this.state,
       power: this.state.power - cost.power,
       ore: this.state.ore - cost.ore,
+      electronics: Math.max(0, this.state.electronics - (cost.electronics ?? 0)),
       buildings: [...this.state.buildings, newBuilding],
       rovers: newRovers,
     };

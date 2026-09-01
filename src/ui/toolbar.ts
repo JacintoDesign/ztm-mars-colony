@@ -131,13 +131,13 @@ export class Toolbar {
     this.container.appendChild(cooldownBar);
 
     const tools: Array<{ type: BuildingType; name: string; cost: string }> = [
-      { type: 'habitat', name: 'Habitat', cost: '20 PWR' },
+      { type: 'habitat', name: 'Habitat', cost: '20 PWR, 10 Ore, 1 Elec' },
       { type: 'solar', name: 'Solar', cost: '15 PWR' },
       { type: 'scrubber', name: 'Scrubber', cost: '15 PWR, 5 Ore' },
       { type: 'extractor', name: 'Extractor', cost: '25 PWR' },
       { type: 'farm', name: 'Farm', cost: '20 PWR, 5 Ore' },
       { type: 'garage', name: 'Garage', cost: '30 PWR, 10 Ore' },
-      { type: 'refinery', name: 'Refinery', cost: '25 PWR, 15 Ore' },
+      { type: 'refinery', name: 'Refinery', cost: '25 PWR, 15 Ore, 2 Elec' },
     ];
 
     // 1. Tool selection group (All 7 buildings)

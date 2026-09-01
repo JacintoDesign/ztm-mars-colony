@@ -18,6 +18,7 @@ export type {
 export interface BuildingCost {
   power: number;
   ore: number;
+  electronics: number;
 }
 
 export const BUILDING_COSTS: Record<BuildingType, BuildingCost> = {
@@ -152,7 +153,7 @@ export interface ColonyState {
 
 export interface PlacementCheckResult {
   canPlace: boolean;
-  reason?: 'Insufficient Power' | 'Insufficient Ore' | 'Tile Occupied' | 'Invalid Coordinates' | 'Tile Buried' | 'Tile (0, 0) is reserved for Landing Pad' | 'Colonist Workforce Required';
+  reason?: string;
   cost: BuildingCost;
 }
 

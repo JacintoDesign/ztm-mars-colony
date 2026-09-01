@@ -167,6 +167,7 @@ const gameOverModal = new GameOverModal({
         store.loadColonyData(res.colonyData, activeUserDisplay);
         gameOverModal.hide();
         toolbar.setStatus('Colony Re-established', 'nominal');
+        startSimulationLoops(activeUserId);
       } else {
         toolbar.setStatus(`Restart Error: ${res.reason}`, 'critical');
       }
@@ -183,6 +184,7 @@ store.subscribe((state) => {
   resourcePanel.updateFromState(state);
 
   if (state.status === 'game_over') {
+    stopSimulationLoops();
     const solsSurvived = Math.floor(state.tick / 1000);
     gameOverModal.show(solsSurvived, state.bestSolsSurvived);
     toolbar.setStatus('CRITICAL: All Colonists Deceased', 'critical');
@@ -240,11 +242,17 @@ function startSimulationLoops(userId: string): void {
     const state = store.getState();
     if (state.status === 'active') {
       store.advanceTicks(1);
+    } else {
+      stopSimulationLoops();
     }
   }, 1000);
 
   // 2. Authoritative server sync: calls server tick route every 15 seconds
   serverSyncInterval = window.setInterval(async () => {
+    if (store.getState().status !== 'active') {
+      stopSimulationLoops();
+      return;
+    }
     if (activeColonyId && activeUserId === userId) {
       try {
         const updatedData = await colonyService.triggerServerTick(activeColonyId, userId);

@@ -103,7 +103,7 @@ export class HelpModal {
             <div class="help-section-title">1. SURVIVAL & LIFE SUPPORT</div>
             <div class="help-section-body">
               <p>• <strong>Starting Colony:</strong> 1 Starter Habitat at (7, 7), 1 Solar Array at (5, 7), 2 Pioneer Colonists, 50 O2, 50 Power, 50 Food, 500 Ore across grid deposits.</p>
-              <p>• <strong>Workforce Requirement:</strong> Constructing new structures requires active colonist presence (pop &ge; 1). Industrial and life support facilities (Scrubbers, Extractors, Farms, Refineries) require living colonists to operate.</p>
+              <p>• <strong>Workforce Capacity:</strong> Each living colonist supports up to <strong>2 operational structures</strong> (Habitats exempt). Expanding beyond 4 operational facilities requires recruiting more colonists via transport escorts.</p>
               <p>• <strong>Consumption:</strong> Each colonist consumes <strong>3 O2</strong> and <strong>2 Food</strong> per tick.</p>
               <p>• <strong>Oxygen Storage:</strong> 100 base capacity + <strong>5 Max O2 per operational Scrubber</strong>.</p>
               <p>• <strong>Life Support Failure:</strong> If Oxygen, Power, or Food reaches 0, colonists lose <strong>-2 HP/tick</strong> (50-tick survival window). Recovers <strong>+1 HP/tick</strong> when all pools are positive.</p>
@@ -119,7 +119,7 @@ export class HelpModal {
               <div class="help-building-card">
                 <div class="help-building-header">
                   <span class="help-b-name">${buildings.habitat.name.toUpperCase()}</span>
-                  <span class="help-b-cost">${buildings.habitat.cost.power} PWR</span>
+                  <span class="help-b-cost">${buildings.habitat.cost.power} PWR, ${buildings.habitat.cost.ore} ORE, ${buildings.habitat.cost.electronics} ELEC</span>
                 </div>
                 <div class="help-b-desc">Houses 2 colonists.</div>
                 <div class="help-b-specs">
@@ -195,7 +195,7 @@ export class HelpModal {
               <div class="help-building-card">
                 <div class="help-building-header">
                   <span class="help-b-name">${buildings.refinery.name.toUpperCase()}</span>
-                  <span class="help-b-cost">${buildings.refinery.cost.power} PWR, ${buildings.refinery.cost.ore} ORE</span>
+                  <span class="help-b-cost">${buildings.refinery.cost.power} PWR, ${buildings.refinery.cost.ore} ORE, ${buildings.refinery.cost.electronics} ELEC</span>
                 </div>
                 <div class="help-b-desc">Refines 10 Ore into 1 Battery Cell.</div>
                 <div class="help-b-specs">
