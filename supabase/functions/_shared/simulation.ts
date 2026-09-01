@@ -196,7 +196,7 @@ export const CONTRACT_RULES = {
   pools: {
     oxygenMin: 0,
     oxygenBaseMax: 100,
-    oxygenPerScrubber: 25,
+    oxygenPerScrubber: 5,
     powerMin: 0,
     powerMax: 100,
     foodMin: 0,
@@ -217,16 +217,16 @@ export const CONTRACT_RULES = {
     healthDamagePerTick: 2,
     healthRecoveryPerTick: 1,
     maxHealth: 100,
-    minLifespanTicks: 12000,
-    maxLifespanTicks: 18000,
+    minLifespanTicks: 6000,
+    maxLifespanTicks: 10000,
     agingVisualThresholdFraction: 0.75,
   },
   maintenance: {
-    breakageChancePerTick: 1 / 15000,
+    breakageChancePerTick: 1 / 2500,
     repairDurationTicks: 50,
     scrubberRepairDurationTicks: 30,
-    dustStormWindowTicks: 5000,
-    dustStormChance: 0.2,
+    dustStormWindowTicks: 1000,
+    dustStormChance: 0.35,
     maxBuriedPerStorm: 3,
     digOutDurationTicks: 100,
   },
@@ -807,6 +807,13 @@ export function applySingleTick(state: ColonyState): ColonyState {
 
     return rover;
   });
+
+  // Enforce rover cap: rovers cannot exceed total garage capacity (2 per garage)
+  const totalGarages = updatedBuildings.filter((b) => b.type === 'garage').length;
+  const maxRoversAllowed = totalGarages * rSpecs.maxRoversPerGarage;
+  if (updatedRovers.length > maxRoversAllowed) {
+    updatedRovers = updatedRovers.slice(0, maxRoversAllowed);
+  }
 
   // 8. Pending arrivals countdown
   const roversLoadingArrival = updatedRovers.some(

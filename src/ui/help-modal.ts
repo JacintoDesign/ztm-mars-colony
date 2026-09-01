@@ -105,7 +105,7 @@ export class HelpModal {
               <p>• <strong>Starting Colony:</strong> 1 Starter Habitat at (7, 7), 1 Solar Array at (5, 7), 2 Pioneer Colonists, 50 O2, 50 Power, 50 Food, 500 Ore across grid deposits.</p>
               <p>• <strong>Workforce Requirement:</strong> Constructing new structures requires active colonist presence (pop &ge; 1). Industrial and life support facilities (Scrubbers, Extractors, Farms, Refineries) require living colonists to operate.</p>
               <p>• <strong>Consumption:</strong> Each colonist consumes <strong>3 O2</strong> and <strong>2 Food</strong> per tick.</p>
-              <p>• <strong>Oxygen Storage:</strong> 100 base capacity + <strong>25 Max O2 per operational Scrubber</strong>.</p>
+              <p>• <strong>Oxygen Storage:</strong> 100 base capacity + <strong>5 Max O2 per operational Scrubber</strong>.</p>
               <p>• <strong>Life Support Failure:</strong> If Oxygen, Power, or Food reaches 0, colonists lose <strong>-2 HP/tick</strong> (50-tick survival window). Recovers <strong>+1 HP/tick</strong> when all pools are positive.</p>
               <p>• <strong>Game Over:</strong> Mission terminates if all colonists perish. 1 Sol = 1,000 ticks.</p>
             </div>
@@ -147,7 +147,7 @@ export class HelpModal {
                 </div>
                 <div class="help-b-desc">Filters atmospheric CO2 into O2.</div>
                 <div class="help-b-specs">
-                  <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.scrubber.oxygenProduction} O2/tick (+25 Cap)</span></div>
+                  <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.scrubber.oxygenProduction} O2/tick (+5 Cap)</span></div>
                   <div class="help-spec-line"><span class="spec-k">DRAW:</span> <span class="spec-v">-${buildings.scrubber.powerDraw} PWR/tick</span></div>
                   <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">1 Colonist, 1 Electronics (30t)</span></div>
                 </div>
@@ -212,8 +212,8 @@ export class HelpModal {
           <div class="help-section">
             <div class="help-section-title">3. MAINTENANCE & WEATHER</div>
             <div class="help-section-body">
-              <p>• <strong>Breakage:</strong> 1-in-15,000 tick chance. Broken buildings produce/draw 0 until repaired by adjacent colonist labor + Electronics (Scrubbers: 30t; Others: 50t).</p>
-              <p>• <strong>Dust Storms:</strong> 20% chance every 5,000 ticks, burying up to 3 buildings. Requires 100 ticks adjacent colonist digging (0 resource cost).</p>
+              <p>• <strong>Breakage:</strong> 1-in-2,500 tick chance. Broken buildings produce/draw 0 until repaired by adjacent colonist labor + Electronics (Scrubbers: 30t; Others: 50t).</p>
+              <p>• <strong>Dust Storms:</strong> 35% chance every 1,000 ticks (1 Sol), burying up to 3 buildings. Requires 100 ticks adjacent colonist digging (0 resource cost).</p>
             </div>
           </div>
 
@@ -221,7 +221,7 @@ export class HelpModal {
           <div class="help-section">
             <div class="help-section-title">4. COLONIST LIFESPAN</div>
             <div class="help-section-body">
-              <p>• Colonists have individual lifespans between 12,000–18,000 ticks (12–18 Sols) and age out naturally.</p>
+              <p>• Colonists have individual lifespans between 6,000–10,000 ticks (6–10 Sols) and age out naturally.</p>
             </div>
           </div>
 

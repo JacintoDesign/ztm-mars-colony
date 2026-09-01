@@ -102,7 +102,9 @@ export async function executeAuthoritativeTick(
     .select('*')
     .eq('colony_id', colonyId);
 
-  const rovers: Rover[] = (roversData || []).map((r) => ({
+  const totalGarages = buildings.filter((b) => b.type === 'garage').length;
+  const maxRoversAllowed = totalGarages * CONTRACT_RULES.rovers.maxRoversPerGarage;
+  let rovers: Rover[] = (roversData || []).map((r) => ({
     id: r.id,
     garageX: r.garage_x,
     garageY: r.garage_y,
@@ -115,6 +117,9 @@ export async function executeAuthoritativeTick(
     onSiteTicksRemaining: 0,
     route: r.route || [],
   }));
+  if (rovers.length > maxRoversAllowed) {
+    rovers = rovers.slice(0, maxRoversAllowed);
+  }
 
   // 6. Fetch ore deposits
   const { data: depositsData } = await client
@@ -748,16 +753,21 @@ export async function executeAuthoritativeAction(
         },
       ];
       const { data: insertedBuildings } = await client.from('marscolony_buildings').insert(starterBuildingRows).select();
-      const freshBuildings: Building[] = (insertedBuildings || []).map((b) => ({
-        id: b.id,
-        type: b.type as BuildingType,
-        x: b.x,
-        y: b.y,
-        condition: b.condition ?? 'operational',
-        repairProgress: b.repair_progress ?? 0,
-        digProgress: b.dig_progress ?? 0,
-        wasBrokenBeforeBurial: b.was_broken_before_burial ?? false,
-      }));
+      const freshBuildings: Building[] = (insertedBuildings && insertedBuildings.length > 0)
+        ? insertedBuildings.map((b) => ({
+            id: b.id,
+            type: b.type as BuildingType,
+            x: b.x,
+            y: b.y,
+            condition: b.condition ?? 'operational',
+            repairProgress: b.repair_progress ?? 0,
+            digProgress: b.dig_progress ?? 0,
+            wasBrokenBeforeBurial: b.was_broken_before_burial ?? false,
+          }))
+        : [
+            { id: `bld-hab-${Date.now()}`, type: 'habitat', x: habX, y: habY, condition: 'operational', repairProgress: 0, digProgress: 0, wasBrokenBeforeBurial: false },
+            { id: `bld-sol-${Date.now()}`, type: 'solar', x: solX, y: solY, condition: 'operational', repairProgress: 0, digProgress: 0, wasBrokenBeforeBurial: false },
+          ];
 
       // Insert starter pioneer colonists
       const starterColonistRows = [
@@ -787,18 +797,23 @@ export async function executeAuthoritativeAction(
         },
       ];
       const { data: insertedColonists } = await client.from('marscolony_colonists').insert(starterColonistRows).select();
-      const freshColonists: Colonist[] = (insertedColonists || []).map((c) => ({
-        id: c.id,
-        x: c.x,
-        y: c.y,
-        health: c.health,
-        age: c.age ?? 0,
-        lifespan: c.lifespan ?? 15000,
-        destination: c.destination,
-        destinationType: c.destination_type ?? 'habitat',
-        targetEntityId: null,
-        route: c.route || [],
-      }));
+      const freshColonists: Colonist[] = (insertedColonists && insertedColonists.length > 0)
+        ? insertedColonists.map((c) => ({
+            id: c.id,
+            x: c.x,
+            y: c.y,
+            health: c.health,
+            age: c.age ?? 0,
+            lifespan: c.lifespan ?? 8000,
+            destination: c.destination,
+            destinationType: c.destination_type ?? 'habitat',
+            targetEntityId: null,
+            route: c.route || [],
+          }))
+        : [
+            { id: `col-p1-${Date.now()}`, x: habX, y: habY, health: 100, age: 0, lifespan: 8000, destination: { x: habX, y: habY }, destinationType: 'habitat', targetEntityId: null, route: [] },
+            { id: `col-p2-${Date.now()}`, x: habX, y: habY, health: 100, age: 0, lifespan: 8000, destination: { x: habX, y: habY }, destinationType: 'habitat', targetEntityId: null, route: [] },
+          ];
 
       const nowIso = new Date().toISOString();
       await client

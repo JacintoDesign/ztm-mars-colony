@@ -1,4 +1,5 @@
 import { ColonyState } from '../simulation/types';
+import { CONTRACT_RULES } from '../simulation/contract-rules';
 
 export interface ResourcePanelData {
   oxygen: number;
@@ -53,7 +54,7 @@ export class ResourcePanel {
     const avgHealth =
       totalColonists > 0
         ? Math.round(state.colonists.reduce((acc, c) => acc + c.health, 0) / totalColonists)
-        : 100;
+        : 0;
 
     const idleRovers = state.rovers.filter((r) => r.state === 'idle_at_base').length;
     const arrivalCountdown =
@@ -62,7 +63,7 @@ export class ResourcePanel {
     const operationalScrubbers = state.buildings.filter(
       (b) => b.type === 'scrubber' && b.condition === 'operational'
     ).length;
-    const maxOxygen = 100 + operationalScrubbers * 25;
+    const maxOxygen = (CONTRACT_RULES.pools.oxygenBaseMax ?? 100) + operationalScrubbers * (CONTRACT_RULES.pools.oxygenPerScrubber ?? 5);
 
     this.render({
       oxygen: state.oxygen,

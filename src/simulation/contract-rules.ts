@@ -41,7 +41,7 @@ export const CONTRACT_RULES = {
   pools: {
     oxygenMin: 0,
     oxygenBaseMax: 100,
-    oxygenPerScrubber: 25, // Each operational scrubber adds +25 to oxygen buffer capacity
+    oxygenPerScrubber: 5, // Each operational scrubber adds +5 to oxygen buffer capacity
     powerMin: 0,
     powerMax: 100,
     foodMin: 0,
@@ -66,18 +66,18 @@ export const CONTRACT_RULES = {
     healthDamagePerTick: 2, // applied if oxygen == 0 OR power == 0 OR food == 0 (50-tick survival window)
     healthRecoveryPerTick: 1, // applied when oxygen > 0 AND power > 0 AND food > 0
     maxHealth: 100,
-    minLifespanTicks: 12000,
-    maxLifespanTicks: 18000,
+    minLifespanTicks: 6000,
+    maxLifespanTicks: 10000,
     agingVisualThresholdFraction: 0.75,
   },
 
   // Maintenance & Building Condition
   maintenance: {
-    breakageChancePerTick: 1 / 15000, // 1-in-15,000 per operational building per tick
+    breakageChancePerTick: 1 / 2500, // 1-in-2,500 per operational building per tick
     repairDurationTicks: 50,
     scrubberRepairDurationTicks: 30, // Fast 30-tick repair for critical oxygen scrubbers
-    dustStormWindowTicks: 5000,
-    dustStormChance: 0.2, // 20% per 5,000-tick window
+    dustStormWindowTicks: 1000,
+    dustStormChance: 0.35, // 35% per 1,000-tick window (1 Sol)
     maxBuriedPerStorm: 3,
     digOutDurationTicks: 100,
   },

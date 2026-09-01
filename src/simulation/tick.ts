@@ -223,6 +223,13 @@ export function applySingleTick(state: ColonyState): ColonyState {
     return rover;
   });
 
+  // Enforce rover cap: rovers cannot exceed total garage capacity (2 per garage)
+  const totalGarages = updatedBuildings.filter((b) => b.type === 'garage').length;
+  const maxRoversAllowed = totalGarages * rSpecs.maxRoversPerGarage;
+  if (updatedRovers.length > maxRoversAllowed) {
+    updatedRovers = updatedRovers.slice(0, maxRoversAllowed);
+  }
+
   // 8. Pending Arrivals 150-tick Escort Window countdown
   // Decrease time for arrivals not currently being loaded by a rover
   const roversLoadingArrival = updatedRovers.some(

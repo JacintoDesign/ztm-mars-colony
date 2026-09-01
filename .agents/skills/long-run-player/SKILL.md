@@ -58,7 +58,7 @@ In each round:
    - Evaluate life support, power, food, and maintenance balances using exact numbers from [CONTRACT.md](../../CONTRACT.md):
      - **Workforce Constraint:** Placing new structures and operating industrial facilities (Extractors, Farms, Scrubbers, Refineries) strictly requires living colonists (`colonists.length >= 1`).
      - **Power Balance:** Solar (+5 PWR/tick) vs. Habitat (-2), Scrubber (-3), Extractor (-4), Farm (-2), Garage (-1), Refinery (-5).
-     - **Oxygen Balance:** Scrubber (+4 O2/tick) vs. Colonists (-3 O2/tick per living colonist). Dynamic Oxygen capacity buffer scales: base 100 + 25 max capacity per operational Scrubber.
+     - **Oxygen Balance:** Scrubber (+4 O2/tick) vs. Colonists (-3 O2/tick per living colonist). Dynamic Oxygen capacity buffer scales: base 100 + 5 max capacity per operational Scrubber.
      - **Food Balance:** Farm (+4 Food/tick) vs. Colonists (-2 Food/tick per living colonist).
      - **Life Support Health Rule:** If oxygen is 0 OR power is 0 OR food is 0 at the end of a tick, every colonist loses 2 health (50-tick survival buffer). Otherwise, colonists recover 1 health/tick (up to 100).
      - **Colony Spacing & Buffer Zones:** Structures with $\le 1$ adjacent orthogonal neighbor operate at 100% full nominal output. Overcrowded structures with $\ge 2$ neighbors suffer -1 output per additional neighbor (min 0).
@@ -73,9 +73,9 @@ In each round:
        - Garage: `30 PWR, 10 ORE` (houses up to 2 rovers)
        - Refinery: `25 PWR, 15 ORE` (converts 10 ore to 1 battery cell, max 20 capacity, decays -1 efficiency/tick)
      - **Maintenance Pressures:**
-       - Breakage: 1-in-15,000 chance per operational building per tick (requires adjacent colonist labor: 30 ticks for scrubbers, 50 ticks for others, plus electronics: 1 for habitat/solar/scrubber/farm, 2 for extractor/garage/refinery).
-       - Dust Storms: 20% chance every 5,000 ticks to bury up to 3 buildings (requires colonist for 100 ticks to dig out).
-       - Aging Attrition: Colonists die of old age between 12,000 and 18,000 ticks (avg 15,000).
+       - Breakage: 1-in-2,500 chance per operational building per tick (requires adjacent colonist labor: 30 ticks for scrubbers, 50 ticks for others, plus electronics: 1 for habitat/solar/scrubber/farm, 2 for extractor/garage/refinery).
+       - Dust Storms: 35% chance every 1,000 ticks (1 Sol) to bury up to 3 buildings (requires colonist for 100 ticks to dig out).
+       - Aging Attrition: Colonists die of old age between 6,000 and 10,000 ticks (avg 8,000).
 
 5. **Place Structures & Execute Actions via Browser**:
    - If a building is affordable and required to prevent starvation, support incoming colonists, supply power/oxygen, or establish rover operations, invoke `/browser` to place the building with spacing buffers.

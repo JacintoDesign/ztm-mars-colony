@@ -41,7 +41,7 @@
 
 ### Resources & Storage Scaling
 - power and food are pools, 0–100, clamped at both ends
-- oxygen is a scalable life support pool (0 to dynamic max: **100 base + 25 per operational Scrubber**)
+- oxygen is a scalable life support pool (0 to dynamic max: **100 base + 5 per operational Scrubber**)
 - Each colonist consumes 3 oxygen/tick
 
 ### Ore
@@ -62,7 +62,7 @@
 
 ### Building Condition
 - Every building has a condition: operational, broken, buried, or deactivated
-- Each tick, each operational building has a small seeded chance of becoming broken — 1-in-15,000 per building per tick. At 5 buildings (roughly where an early colony sits) that's an expected break every 3,000 ticks; at 28 buildings (a mature, fully-built colony) it's every 535 ticks. Maintenance load scales with how much you've built, on purpose — it's the direct answer to "build enough and stop worrying"
+- Each tick, each operational building has a small seeded chance of becoming broken — 1-in-2,500 per building per tick. At 5 buildings (roughly where an early colony sits) that's an expected break every 500 ticks; at 25 buildings (a mature, fully-built colony) it's every 100 ticks. Maintenance load scales with how much you've built, on purpose — it's the direct answer to "build enough and stop worrying"
 - A broken building produces and draws nothing until repaired
 - Repair requires colonist labor presence adjacent to or on the building's tile for 50 ticks of labor (30 ticks for scrubbers), plus an electronics cost deducted upon completion — 1 electronics for habitat, solar, scrubber, and farm; 2 electronics for extractor, garage, and refinery
 - Repair labor and repair material come from different places on purpose. Colonists are locally renewable — arrivals, if you keep the pipeline running. Electronics are not — the colony cannot manufacture them, only receive them, which is what makes ship traffic worth the escort risk rather than a formality
@@ -70,7 +70,7 @@
 - A buried building (see Weather) cannot be repaired until it is dug out first
 
 ### Weather
-- Every 5,000-tick window, a seeded roll has a 20% chance a dust storm occurs — an expected storm every 25,000 ticks, independent of colony size. Unlike breakage, weather doesn't scale with how much you've built; it's the pressure that exists regardless
+- Every 1,000-tick window (1 Sol), a seeded roll has a 35% chance a dust storm occurs — creating realistic Martian environmental pressure that requires ongoing colony vigilance. Unlike breakage, weather doesn't scale with how much you've built; it's the pressure that exists regardless
 - A storm buries up to 3 operational buildings, chosen by the seeded generator from those not already buried or broken
 - A buried building produces and draws nothing
 - Digging out requires 1 colonist present adjacent to or on the tile for 100 consecutive ticks, no resource cost. Assigned automatically, same as repair
@@ -78,8 +78,7 @@
 
 ### Colonist Lifespan
 - Each colonist has an age, in ticks, starting at 0 and incrementing every tick
-- Lifespan is seeded per colonist at the moment they're received into `colonists`, uniformly between 12,000 and 18,000 ticks (12–18 sols), average 15,000. A range rather than a fixed number on purpose — colonists who arrived on the same ship would otherwise age out in the exact same tick, which reads as a scripted die-off rather than ordinary attrition
-- 15,000 average against a 300-tick, capacity-gated arrival cadence means the first old-age death lands around sol 12–18 — well before the original equilibrium point (the colony that stalled at tick 3,071 and never had to act again) has had time to feel settled, and every colonist since keeps the same clock running independently
+- Lifespan is seeded per colonist at the moment they're received into `colonists`, uniformly between 6,000 and 10,000 ticks (6–10 sols), average 8,000. A range rather than a fixed number on purpose — colonists who arrived on the same ship would otherwise age out in the exact same tick, which reads as a scripted die-off rather than ordinary attrition
 - At the end of their lifespan, a colonist dies of old age and is removed, independent of health
 - Old-age death follows the same game-over rule as health-based death: if it leaves no colonists remaining, colony status becomes game_over
 
