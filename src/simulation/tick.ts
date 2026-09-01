@@ -31,9 +31,9 @@ export function applySingleTick(state: ColonyState): ColonyState {
   const prng = new SeededPRNG(state.seed);
   const { buildings: bSpecs, arrivals: aSpecs, colonists: cSpecs, maintenance: mSpecs, rovers: rSpecs, pools, ticksPerSol, refinery: refSpecs, asteroids: astSpecs } = CONTRACT_RULES;
 
-  // 1. Weather / Dust Storms (every 5,000-tick window, 20% chance)
+  // 1. Weather / Dust Storms
   let updatedBuildings: Building[] = state.buildings.map((b) => ({ ...b }));
-  if (nextTick % mSpecs.dustStormWindowTicks === 0) {
+  if (nextTick >= (mSpecs.minDustStormTick ?? 2500) && nextTick % mSpecs.dustStormWindowTicks === 0) {
     if (prng.chance(mSpecs.dustStormChance)) {
       const operationalBuildings = updatedBuildings.filter((b) => b.condition === 'operational');
       const numToBury = Math.min(mSpecs.maxBuriedPerStorm, operationalBuildings.length);
@@ -509,8 +509,11 @@ export function applySingleTick(state: ColonyState): ColonyState {
   const nextOxygen = Math.min(maxOxygen, Math.max(pools.oxygenMin, state.oxygen + oxygenProduced - oxygenConsumed));
   const nextFood = Math.min(pools.foodMax, Math.max(pools.foodMin, state.food + foodProduced - foodConsumed));
 
-  // 11. Health Rule: If Oxygen==0 OR Power==0 OR Food==0 -> -5 HP; else +1 HP
-  const isStarving = nextOxygen === pools.oxygenMin || nextPower === pools.powerMin || nextFood === pools.foodMin;
+  // 11. Health Rule: Colonists take damage only if a critical resource is at 0 AND demand exceeds production
+  const hasOxygenDeficit = nextOxygen === pools.oxygenMin && oxygenProduced < oxygenConsumed;
+  const hasPowerDeficit = nextPower === pools.powerMin && powerProduced < powerDrawn;
+  const hasFoodDeficit = nextFood === pools.foodMin && foodProduced < foodConsumed;
+  const isStarving = hasOxygenDeficit || hasPowerDeficit || hasFoodDeficit;
   const updatedHealthColonists = currentColonists.map((c) => {
     const newHealth = isStarving
       ? Math.max(0, c.health - cSpecs.healthDamagePerTick)
@@ -519,13 +522,12 @@ export function applySingleTick(state: ColonyState): ColonyState {
   });
 
   // 12. Colonist Mortality (Health == 0 OR Age >= Lifespan)
-  const hadColonists = currentColonists.length > 0;
   const livingColonists = updatedHealthColonists.filter((c) => c.health > 0 && c.age < c.lifespan);
 
   let nextStatus: 'active' | 'game_over' = 'active';
   let nextBestSols = state.bestSolsSurvived;
 
-  if (hadColonists && livingColonists.length === 0) {
+  if (livingColonists.length === 0) {
     nextStatus = 'game_over';
     const solsSurvived = Math.floor(nextTick / ticksPerSol);
     if (solsSurvived > nextBestSols) {

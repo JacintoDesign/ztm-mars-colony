@@ -73,13 +73,14 @@ export const CONTRACT_RULES = {
 
   // Maintenance & Building Condition
   maintenance: {
-    breakageChancePerTick: 1 / 2500, // 1-in-2,500 per operational building per tick
+    breakageChancePerTick: 1 / 4000, // 1-in-4,000 per operational building per tick
     repairDurationTicks: 50,
     scrubberRepairDurationTicks: 30, // Fast 30-tick repair for critical oxygen scrubbers
-    dustStormWindowTicks: 1000,
-    dustStormChance: 0.35, // 35% per 1,000-tick window (1 Sol)
-    maxBuriedPerStorm: 3,
-    digOutDurationTicks: 100,
+    minDustStormTick: 2500, // Grace period: dust storms do not begin until Sol 2.5 (tick 2,500)
+    dustStormWindowTicks: 1500, // Evaluated every 1,500 ticks
+    dustStormChance: 0.30, // 30% chance per window
+    maxBuriedPerStorm: 2,
+    digOutDurationTicks: 40, // 40 ticks to dig out (survivable within 50-tick life-support buffer)
   },
 
   // Colony Spacing & Buffer Zone Rules
@@ -117,7 +118,7 @@ export const CONTRACT_RULES = {
 
   // Workforce & Labor Rules
   workforce: {
-    operationalBuildingsPerColonist: 2, // Each living colonist supports up to 2 operational buildings (Habitats exempt)
+    operationalBuildingsPerColonist: 4, // Each living colonist supports up to 4 operational buildings (Habitats exempt)
   },
 
   // Building specifications
@@ -132,7 +133,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 0,
       foodProduction: 0,
       oreProduction: 0,
-      cost: { power: 20, ore: 10, electronics: 1 },
+      cost: { power: 20, ore: 10, electronics: 0 },
       repairLabor: 1,
       repairElectronics: 1,
     },
@@ -216,7 +217,7 @@ export const CONTRACT_RULES = {
       oxygenProduction: 0,
       foodProduction: 0,
       oreProduction: 0,
-      cost: { power: 25, ore: 15, electronics: 2 },
+      cost: { power: 25, ore: 15, electronics: 0 },
       repairLabor: 2,
       repairElectronics: 2,
     },

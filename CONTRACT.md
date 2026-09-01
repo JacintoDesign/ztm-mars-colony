@@ -24,16 +24,15 @@
 - A new colony starts with oxygen 50, power 50, food 50, 1 starter Habitat at tile (7, 7), 1 starter Solar Array at tile (5, 7), 2 Pioneer Colonists living at the starter Habitat, ore 0, electronics 0, no pending arrivals, no rovers, no stored battery cells, and a fresh seed generating the colony's ore distribution and mining site positions
 
 ### Buildings & Workforce
-- All structures require active power and operational condition to function.
-- **Workforce Capacity**: Industrial and operational facilities (solar, scrubbers, extractors, farms, garages, refineries) require colonist labor to maintain and operate. Each living colonist supports up to **2 operational facilities** ($\text{Max Operational Facilities} = \text{Living Colonists} \times 2$). Habitats provide residential quarters and are exempt from the operational facility limit.
+- **Workforce Capacity**: Industrial and operational facilities (solar, scrubbers, extractors, farms, garages, refineries) require colonist labor to maintain and operate. Each living colonist supports up to **4 operational facilities** ($\text{Max Operational Facilities} = \text{Living Colonists} \times 4$). Habitats provide residential quarters and are exempt from the operational facility limit. Only operational facilities count against this cap (broken, buried, and deactivated buildings are exempt).
 - **Building Costs**:
-  - habitat: houses 2 colonists, draws 2 power/tick. Cost: 20 PWR, 10 Ore, 1 Electronics.
+  - habitat: houses 2 colonists, draws 2 power/tick. Cost: 20 PWR, 10 Ore.
   - solar: produces 5 power/tick, draws 0. Cost: 15 PWR, 0 Ore.
   - scrubber: produces 4 oxygen/tick when staffed, draws 3 power/tick (+5 Max O2 capacity). Cost: 15 PWR, 5 Ore.
   - extractor: produces 3 ore/tick from its tile's local deposit when staffed, draws 4 power/tick. Can be deactivated (0 PWR draw) and relocated to fresh deposits for 10 PWR. Cost: 25 PWR, 0 Ore.
   - farm: produces 4 food/tick when staffed, draws 2 power/tick. Cost: 20 PWR, 5 Ore.
   - garage: holds up to 2 rovers, draws 1 power/tick, no production. Cost: 30 PWR, 10 Ore.
-  - refinery: converts ore to battery cells, draws 5 power/tick, requires colonist presence — refining is a player-initiated action, not continuous. Cost: 25 PWR, 15 Ore, 2 Electronics.
+  - refinery: converts ore to battery cells, draws 5 power/tick, requires colonist presence — refining is a player-initiated action, not continuous. Cost: 25 PWR, 15 Ore.
 
 ### Colony Spacing & Buffer Zones
 - Heavy industrial and life support structures require ventilation, solar clearance, and ground isolation.
@@ -63,7 +62,7 @@
 
 ### Building Condition
 - Every building has a condition: operational, broken, buried, or deactivated
-- Each tick, each operational building has a small seeded chance of becoming broken — 1-in-2,500 per building per tick. At 5 buildings (roughly where an early colony sits) that's an expected break every 500 ticks; at 25 buildings (a mature, fully-built colony) it's every 100 ticks. Maintenance load scales with how much you've built, on purpose — it's the direct answer to "build enough and stop worrying"
+- Each tick, each operational building has a small seeded chance of becoming broken — 1-in-4,000 per building per tick. At 5 buildings (roughly where an early colony sits) that's an expected break every 800 ticks; at 25 buildings (a mature, fully-built colony) it's every 160 ticks. Maintenance load scales with how much you've built, on purpose — it's the direct answer to "build enough and stop worrying"
 - A broken building produces and draws nothing until repaired
 - Repair requires colonist labor presence adjacent to or on the building's tile for 50 ticks of labor (30 ticks for scrubbers), plus an electronics cost deducted upon completion — 1 electronics for habitat, solar, scrubber, and farm; 2 electronics for extractor, garage, and refinery
 - Repair labor and repair material come from different places on purpose. Colonists are locally renewable — arrivals, if you keep the pipeline running. Electronics are not — the colony cannot manufacture them, only receive them, which is what makes ship traffic worth the escort risk rather than a formality
@@ -71,11 +70,11 @@
 - A buried building (see Weather) cannot be repaired until it is dug out first
 
 ### Weather
-- Every 1,000-tick window (1 Sol), a seeded roll has a 35% chance a dust storm occurs — creating realistic Martian environmental pressure that requires ongoing colony vigilance. Unlike breakage, weather doesn't scale with how much you've built; it's the pressure that exists regardless
-- A storm buries up to 3 operational buildings, chosen by the seeded generator from those not already buried or broken
+- Starting Sol 2.5 (tick 2,500), every 1,500-tick window, a seeded roll has a 30% chance a dust storm occurs — creating realistic Martian environmental pressure that requires ongoing colony vigilance. Unlike breakage, weather doesn't scale with how much you've built; it's the pressure that exists regardless
+- A storm buries up to 2 operational buildings, chosen by the seeded generator from those not already buried or broken
 - A buried building produces and draws nothing
-- Digging out requires 1 colonist present adjacent to or on the tile for 100 consecutive ticks, no resource cost. Assigned automatically, same as repair
-- A building already broken when it's buried preserves its broken state (`wasBrokenBeforeBurial = true`), needing digging out first (100 ticks) which returns its condition to `broken`, followed by standard repair (labor + electronics) — both, in that order
+- Digging out requires 1 colonist present adjacent to or on the tile for 40 consecutive ticks (survivable within the 50-tick life support buffer), no resource cost. Assigned automatically, same as repair
+- A building already broken when it's buried preserves its broken state (`wasBrokenBeforeBurial = true`), needing digging out first (40 ticks) which returns its condition to `broken`, followed by standard repair (labor + electronics) — both, in that order
 
 ### Colonist Lifespan
 - Each colonist has an age, in ticks, starting at 0 and incrementing every tick

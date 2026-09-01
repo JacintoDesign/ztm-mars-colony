@@ -149,7 +149,8 @@ export class ColonyStore {
   }
 
   public loadColonyData(data: { colony: any; buildings: Building[]; colonists: any[]; rovers: any[]; oreDeposits: any[]; bestSolsSurvived: number }, signedInAccount: string): void {
-    const monotonicTick = Math.max(this.state.tick, data.colony.tick ?? 0);
+    const isDifferentColony = !this.state.colonyId || this.state.colonyId !== data.colony.id;
+    const monotonicTick = isDifferentColony ? (data.colony.tick ?? 0) : Math.max(this.state.tick, data.colony.tick ?? 0);
     this.state = {
       colonyId: data.colony.id,
       tick: monotonicTick,
@@ -280,7 +281,7 @@ export class ColonyStore {
     // Workforce constraint: each colonist supports up to 2 operational buildings (Habitats exempt)
     if (type !== 'habitat') {
       const operationalBuildingsCount = this.state.buildings.filter(
-        (b) => b.type !== 'habitat' && b.condition !== 'deactivated'
+        (b) => b.type !== 'habitat' && b.condition === 'operational'
       ).length;
       const maxOperationalAllowed = livingColonists * CONTRACT_RULES.workforce.operationalBuildingsPerColonist;
       if (operationalBuildingsCount >= maxOperationalAllowed) {
@@ -324,8 +325,11 @@ export class ColonyStore {
         return this.handleDispatchRover(action.roverId, action.destinationType, action.targetTile, action.targetArrivalId);
       case 'TOGGLE_BUILDING_POWER':
         return this.handleToggleBuildingPower(action.buildingId);
-      case 'MOVE_BUILDING':
-        return this.handleMoveBuilding(action.buildingId, action.targetX, action.targetY);
+      case 'MOVE_BUILDING': {
+        const tx = (action as any).targetX ?? (action as any).newX;
+        const ty = (action as any).targetY ?? (action as any).newY;
+        return this.handleMoveBuilding(action.buildingId, tx, ty);
+      }
       case 'RESTART_COLONY':
         return this.handleRestartColony();
       default:
@@ -591,6 +595,14 @@ export class ColonyStore {
       }
     }
 
+    const newBatteryCells = [...this.state.batteryCells];
+    if (type === 'garage' && newBatteryCells.length === 0) {
+      newBatteryCells.push(
+        { id: `cell-${Date.now()}-1`, efficiency: 100 },
+        { id: `cell-${Date.now()}-2`, efficiency: 100 }
+      );
+    }
+
     this.state = {
       ...this.state,
       power: this.state.power - cost.power,
@@ -598,6 +610,7 @@ export class ColonyStore {
       electronics: Math.max(0, this.state.electronics - (cost.electronics ?? 0)),
       buildings: [...this.state.buildings, newBuilding],
       rovers: newRovers,
+      batteryCells: newBatteryCells,
     };
 
     this.notify();

@@ -103,7 +103,7 @@ export class HelpModal {
             <div class="help-section-title">1. SURVIVAL & LIFE SUPPORT</div>
             <div class="help-section-body">
               <p>• <strong>Starting Colony:</strong> 1 Starter Habitat at (7, 7), 1 Solar Array at (5, 7), 2 Pioneer Colonists, 50 O2, 50 Power, 50 Food, 500 Ore across grid deposits.</p>
-              <p>• <strong>Workforce Capacity:</strong> Each living colonist supports up to <strong>2 operational structures</strong> (Habitats exempt). Expanding beyond 4 operational facilities requires recruiting more colonists via transport escorts.</p>
+              <p>• <strong>Workforce Capacity:</strong> Each living colonist supports up to <strong>4 operational structures</strong> (Habitats exempt). Expanding beyond 8 operational facilities requires recruiting more colonists via transport escorts.</p>
               <p>• <strong>Consumption:</strong> Each colonist consumes <strong>3 O2</strong> and <strong>2 Food</strong> per tick.</p>
               <p>• <strong>Oxygen Storage:</strong> 100 base capacity + <strong>5 Max O2 per operational Scrubber</strong>.</p>
               <p>• <strong>Life Support Failure:</strong> If Oxygen, Power, or Food reaches 0, colonists lose <strong>-2 HP/tick</strong> (50-tick survival window). Recovers <strong>+1 HP/tick</strong> when all pools are positive.</p>
@@ -119,7 +119,7 @@ export class HelpModal {
               <div class="help-building-card">
                 <div class="help-building-header">
                   <span class="help-b-name">${buildings.habitat.name.toUpperCase()}</span>
-                  <span class="help-b-cost">${buildings.habitat.cost.power} PWR, ${buildings.habitat.cost.ore} ORE, ${buildings.habitat.cost.electronics} ELEC</span>
+                  <span class="help-b-cost">${buildings.habitat.cost.power} PWR, ${buildings.habitat.cost.ore} ORE</span>
                 </div>
                 <div class="help-b-desc">Houses 2 colonists.</div>
                 <div class="help-b-specs">
@@ -145,9 +145,9 @@ export class HelpModal {
                   <span class="help-b-name">${buildings.scrubber.name.toUpperCase()}</span>
                   <span class="help-b-cost">${buildings.scrubber.cost.power} PWR, ${buildings.scrubber.cost.ore} ORE</span>
                 </div>
-                <div class="help-b-desc">Filters atmospheric CO2 into O2.</div>
+                <div class="help-b-desc">Generates breathable oxygen.</div>
                 <div class="help-b-specs">
-                  <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.scrubber.oxygenProduction} O2/tick (+5 Cap)</span></div>
+                  <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.scrubber.oxygenProduction} O2/tick (+5 Max Cap)</span></div>
                   <div class="help-spec-line"><span class="spec-k">DRAW:</span> <span class="spec-v">-${buildings.scrubber.powerDraw} PWR/tick</span></div>
                   <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">1 Colonist, 1 Electronics (30t)</span></div>
                 </div>
@@ -158,7 +158,7 @@ export class HelpModal {
                   <span class="help-b-name">${buildings.farm.name.toUpperCase()}</span>
                   <span class="help-b-cost">${buildings.farm.cost.power} PWR, ${buildings.farm.cost.ore} ORE</span>
                 </div>
-                <div class="help-b-desc">Cultivates nutritious crops.</div>
+                <div class="help-b-desc">Produces hydroponic food rations.</div>
                 <div class="help-b-specs">
                   <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.farm.foodProduction} Food/tick</span></div>
                   <div class="help-spec-line"><span class="spec-k">DRAW:</span> <span class="spec-v">-${buildings.farm.powerDraw} PWR/tick</span></div>
@@ -171,10 +171,10 @@ export class HelpModal {
                   <span class="help-b-name">${buildings.extractor.name.toUpperCase()}</span>
                   <span class="help-b-cost">${buildings.extractor.cost.power} PWR</span>
                 </div>
-                <div class="help-b-desc">Mines local tile ore deposit.</div>
+                <div class="help-b-desc">Extracts ore from ground deposits.</div>
                 <div class="help-b-specs">
                   <div class="help-spec-line"><span class="spec-k">OUTPUT:</span> <span class="spec-v">+${buildings.extractor.oreProduction} Ore/tick</span></div>
-                  <div class="help-spec-line"><span class="spec-k">DRAW:</span> <span class="spec-v">-${buildings.extractor.powerDraw} PWR/tick (0 if OFF)</span></div>
+                  <div class="help-spec-line"><span class="spec-k">DRAW:</span> <span class="spec-v">-${buildings.extractor.powerDraw} PWR/tick</span></div>
                   <div class="help-spec-line"><span class="spec-k">REPAIR:</span> <span class="spec-v">2 Colonists, 2 Electronics (50t)</span></div>
                 </div>
               </div>
@@ -195,7 +195,7 @@ export class HelpModal {
               <div class="help-building-card">
                 <div class="help-building-header">
                   <span class="help-b-name">${buildings.refinery.name.toUpperCase()}</span>
-                  <span class="help-b-cost">${buildings.refinery.cost.power} PWR, ${buildings.refinery.cost.ore} ORE, ${buildings.refinery.cost.electronics} ELEC</span>
+                  <span class="help-b-cost">${buildings.refinery.cost.power} PWR, ${buildings.refinery.cost.ore} ORE</span>
                 </div>
                 <div class="help-b-desc">Refines 10 Ore into 1 Battery Cell.</div>
                 <div class="help-b-specs">
@@ -212,8 +212,8 @@ export class HelpModal {
           <div class="help-section">
             <div class="help-section-title">3. MAINTENANCE & WEATHER</div>
             <div class="help-section-body">
-              <p>• <strong>Breakage:</strong> 1-in-2,500 tick chance. Broken buildings produce/draw 0 until repaired by adjacent colonist labor + Electronics (Scrubbers: 30t; Others: 50t).</p>
-              <p>• <strong>Dust Storms:</strong> 35% chance every 1,000 ticks (1 Sol), burying up to 3 buildings. Requires 100 ticks adjacent colonist digging (0 resource cost).</p>
+              <p>• <strong>Breakage:</strong> 1-in-4,000 tick chance. Broken buildings produce/draw 0 until repaired by adjacent colonist labor + Electronics (Scrubbers: 30t; Others: 50t).</p>
+              <p>• <strong>Dust Storms:</strong> 30% chance every 1,500 ticks starting Sol 2.5, burying up to 2 buildings. Requires 40 ticks adjacent colonist digging (0 resource cost).</p>
             </div>
           </div>
 

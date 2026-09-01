@@ -266,49 +266,106 @@ export async function executeAuthoritativeTick(
       }
     }
 
-    // 8c. Sync living colonists
-    await client
-      .from('marscolony_colonists')
-      .delete()
-      .eq('colony_id', colonyId);
-
+    // 8c. Sync living colonists idempotently without race condition duplications
     if (nextState.colonists.length > 0) {
-      const colRows = nextState.colonists.map((c) => ({
-        colony_id: colonyId,
-        owner: userId,
-        x: c.x,
-        y: c.y,
-        health: c.health,
-        age: c.age,
-        lifespan: c.lifespan,
-        destination: c.destination,
-        destination_type: c.destinationType,
-        route: c.route || [],
-      }));
-      await client.from('marscolony_colonists').insert(colRows);
+      const existingWithId = nextState.colonists.filter((c) => c.id && !c.id.startsWith('col-'));
+      const newWithoutId = nextState.colonists.filter((c) => !c.id || c.id.startsWith('col-'));
+
+      for (const c of existingWithId) {
+        await client
+          .from('marscolony_colonists')
+          .update({
+            x: c.x,
+            y: c.y,
+            health: c.health,
+            age: c.age,
+            lifespan: c.lifespan,
+            destination: c.destination,
+            destination_type: c.destinationType,
+            route: c.route || [],
+          })
+          .eq('id', c.id);
+      }
+
+      const keepIds = existingWithId.map((c) => c.id);
+      if (keepIds.length > 0) {
+        await client
+          .from('marscolony_colonists')
+          .delete()
+          .eq('colony_id', colonyId)
+          .not('id', 'in', `(${keepIds.join(',')})`);
+      }
+
+      if (newWithoutId.length > 0) {
+        const colRows = newWithoutId.map((c) => ({
+          colony_id: colonyId,
+          owner: userId,
+          x: c.x,
+          y: c.y,
+          health: c.health,
+          age: c.age,
+          lifespan: c.lifespan,
+          destination: c.destination,
+          destination_type: c.destinationType,
+          route: c.route || [],
+        }));
+        const { data: insertedCols } = await client.from('marscolony_colonists').insert(colRows).select();
+        if (insertedCols) {
+          insertedCols.forEach((ic: any, idx: number) => {
+            newWithoutId[idx].id = ic.id;
+          });
+        }
+      }
+    } else {
+      await client
+        .from('marscolony_colonists')
+        .delete()
+        .eq('colony_id', colonyId);
     }
 
-    // 8d. Sync rovers
-    await client
-      .from('marscolony_rovers')
-      .delete()
-      .eq('colony_id', colonyId);
-
+    // 8d. Sync rovers idempotently
     if (nextState.rovers.length > 0) {
-      const rovRows = nextState.rovers.map((r) => ({
-        colony_id: colonyId,
-        owner: userId,
-        garage_x: r.garageX,
-        garage_y: r.garageY,
-        x: r.x,
-        y: r.y,
-        state: r.state,
-        power: r.power,
-        cargo: r.cargo,
-        destination: r.destination,
-        route: r.route || [],
-      }));
-      await client.from('marscolony_rovers').insert(rovRows);
+      const existingRoversWithId = nextState.rovers.filter((r) => r.id && !r.id.startsWith('rov-'));
+      const newRoversWithoutId = nextState.rovers.filter((r) => !r.id || r.id.startsWith('rov-'));
+
+      for (const r of existingRoversWithId) {
+        await client
+          .from('marscolony_rovers')
+          .update({
+            garage_x: r.garageX,
+            garage_y: r.garageY,
+            x: r.x,
+            y: r.y,
+            state: r.state,
+            power: r.power,
+            cargo: r.cargo,
+            destination: r.destination,
+            route: r.route || [],
+          })
+          .eq('id', r.id);
+      }
+
+      if (newRoversWithoutId.length > 0) {
+        const rovRows = newRoversWithoutId.map((r) => ({
+          colony_id: colonyId,
+          owner: userId,
+          garage_x: r.garageX,
+          garage_y: r.garageY,
+          x: r.x,
+          y: r.y,
+          state: r.state,
+          power: r.power,
+          cargo: r.cargo,
+          destination: r.destination,
+          route: r.route || [],
+        }));
+        await client.from('marscolony_rovers').insert(rovRows);
+      }
+    } else {
+      await client
+        .from('marscolony_rovers')
+        .delete()
+        .eq('colony_id', colonyId);
     }
 
     // 8e. Sync ore deposit changes
@@ -392,7 +449,7 @@ export async function executeAuthoritativeAction(
 
       if (buildingType !== 'habitat') {
         const operationalBuildingsCount = buildings.filter(
-          (b) => b.type !== 'habitat' && b.condition !== 'deactivated'
+          (b) => b.type !== 'habitat' && b.condition === 'operational'
         ).length;
         const maxOperationalAllowed = livingColonists * CONTRACT_RULES.workforce.operationalBuildingsPerColonist;
         if (operationalBuildingsCount >= maxOperationalAllowed) {
@@ -518,8 +575,23 @@ export async function executeAuthoritativeAction(
         }
       }
 
+      let updatedBatteryCells = colony.battery_cells || [];
+      if (buildingType === 'garage' && updatedBatteryCells.length === 0) {
+        updatedBatteryCells = [
+          { id: `cell-${Date.now()}-1`, efficiency: 100 },
+          { id: `cell-${Date.now()}-2`, efficiency: 100 },
+        ];
+        await client
+          .from('marscolony_colonies')
+          .update({ battery_cells: updatedBatteryCells })
+          .eq('id', colonyId)
+          .eq('owner', userId);
+      }
+
       colony.power = newPower;
       colony.ore = newOre;
+      colony.electronics = newElectronics;
+      colony.battery_cells = updatedBatteryCells;
       colony.last_tick_at = nowIso;
 
       return {
@@ -710,13 +782,16 @@ export async function executeAuthoritativeAction(
       if (bld.condition === 'broken' || bld.condition === 'buried') {
         return { success: false, reason: 'Cannot move broken/buried building', colonyData: currentData };
       }
-      if (!isInGrid(action.targetX, action.targetY, 20)) {
+      const targetX = (action as any).targetX ?? (action as any).newX;
+      const targetY = (action as any).targetY ?? (action as any).newY;
+
+      if (targetX === undefined || targetY === undefined || !isInGrid(targetX, targetY, 20)) {
         return { success: false, reason: 'Invalid Coordinates', colonyData: currentData };
       }
-      if (action.targetX === 0 && action.targetY === 0) {
+      if (targetX === 0 && targetY === 0) {
         return { success: false, reason: 'Tile (0, 0) is reserved for Landing Pad', colonyData: currentData };
       }
-      if (buildings.some((b) => b.x === action.targetX && b.y === action.targetY)) {
+      if (buildings.some((b) => b.x === targetX && b.y === targetY)) {
         return { success: false, reason: 'Tile Occupied', colonyData: currentData };
       }
       if (colony.power < 10) {
@@ -739,13 +814,13 @@ export async function executeAuthoritativeAction(
       await client
         .from('marscolony_buildings')
         .update({
-          x: action.targetX,
-          y: action.targetY,
+          x: targetX,
+          y: targetY,
         })
         .eq('id', bld.id);
 
       const updatedBuildings = [...buildings];
-      updatedBuildings[bIndex] = { ...bld, x: action.targetX, y: action.targetY };
+      updatedBuildings[bIndex] = { ...bld, x: targetX, y: targetY };
       colony.power = newPower;
       colony.last_tick_at = nowIso;
 
