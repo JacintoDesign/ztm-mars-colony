@@ -163,7 +163,10 @@ export class ColonyStore {
 
   public loadColonyData(data: { colony: any; buildings: Building[]; colonists: any[]; rovers: any[]; oreDeposits: any[]; bestSolsSurvived: number }, signedInAccount: string): void {
     const isDifferentColony = !this.state.colonyId || this.state.colonyId !== data.colony.id;
-    const monotonicTick = isDifferentColony ? (data.colony.tick ?? 0) : Math.max(this.state.tick, data.colony.tick ?? 0);
+    const isRestart = data.colony.status === 'active' && (data.colony.tick === 0 || this.state.status === 'game_over');
+    const monotonicTick = (isDifferentColony || isRestart)
+      ? (data.colony.tick ?? 0)
+      : Math.max(this.state.tick, data.colony.tick ?? 0);
     this.state = {
       colonyId: data.colony.id,
       tick: monotonicTick,
@@ -171,7 +174,7 @@ export class ColonyStore {
       power: data.colony.power,
       food: data.colony.food ?? 50,
       ore: data.colony.ore,
-      electronics: data.colony.electronics ?? 0,
+      electronics: data.colony.electronics ?? CONTRACT_RULES.starting.electronics ?? 2,
       seed: data.colony.seed ?? 133742,
       oreDeposits: data.oreDeposits,
       buildings: data.buildings,
@@ -184,6 +187,7 @@ export class ColonyStore {
       signedInAccount,
       colonyOwner: data.colony.owner,
       status: data.colony.status,
+      gameOverReason: data.colony.status === 'active' ? undefined : this.state.gameOverReason,
       bestSolsSurvived: data.bestSolsSurvived,
       lastAppliedTick: data.colony.last_tick_at
         ? new Date(data.colony.last_tick_at).toLocaleTimeString()
@@ -204,7 +208,7 @@ export class ColonyStore {
       power: 50,
       food: 50,
       ore: CONTRACT_RULES.starting.ore ?? 25,
-      electronics: 0,
+      electronics: CONTRACT_RULES.starting.electronics ?? 2,
       seed,
       oreDeposits,
       buildings: starterBuildings,

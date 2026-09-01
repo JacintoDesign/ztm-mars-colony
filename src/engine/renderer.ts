@@ -134,6 +134,7 @@ export class IsometricRenderer {
   }
 
   public setSelectedBuildingId(id: string | null): void {
+    if (this.selectedBuildingId === id) return;
     this.selectedBuildingId = id;
     if (this.onSelectBuilding) {
       this.onSelectBuilding(id);

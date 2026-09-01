@@ -71,6 +71,9 @@ export class BuildingInspector {
   }
 
   public hide(): void {
+    if (this.selectedBuildingId === null && this.container.style.display === 'none') {
+      return;
+    }
     this.selectedBuildingId = null;
     this.container.style.display = 'none';
     if (this.onClose) this.onClose();
