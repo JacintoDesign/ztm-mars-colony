@@ -105,7 +105,11 @@ The 2D Canvas supports multi-touch pinch-to-zoom (1.0x to 3.5x scale) and pan of
 
 Clicking any existing structure directly on the canvas (utilizing 3D visual volume hit-testing across domes, solar panels, and towers) opens the **Building Inspector Card**:
 - **Status & Telemetry**: Displays structure condition (`OPERATIONAL`, `POWER OFF (STANDBY)`, `BROKEN`, `BURIED`), exact power draw / generation, life-support output (O2/Food/Ore), and neighbor spacing efficiency.
-- **Direct Controls**: `[ ⚡ TURN OFF POWER (0 PWR) ]` / `[ ⚡ RESTORE POWER (ON) ]` for instant brownout load shedding, and `[ ✥ RELOCATE (10 PWR) ]`.
+- **Direct Maintenance Controls**:
+  - `[ 🔧 DISPATCH REPAIR CREW ]`: Available on broken structures when the colony has sufficient electronics (1 for standard, 2 for heavy industrial). Dispatches the nearest available colonist immediately.
+  - `[ ⛏ DISPATCH EXCAVATION CREW ]`: Available on buried structures (40 ticks digging, 0 cost). Dispatches the nearest available colonist immediately.
+  - **Electronics Deficit Warning**: When electronics are insufficient, displays an alert warning with the exact shortage and guides the player to escort incoming supply transport ships at Landing Pad `(0, 0)`.
+- **Power & Mobility Controls**: `[ ⚡ TURN OFF POWER (0 PWR) ]` / `[ ⚡ RESTORE POWER (ON) ]` for instant load shedding, and `[ ✥ RELOCATE (10 PWR) ]`.
 - **Canvas Highlighting**: Selected structures feature 3D corner bracket crosshairs, glowing base tile diamonds, and a floating status HUD tag (`[ ⚡ POWER: ON / OFF ]`).
 - **Keyboard Navigation**: Pressing `[P]` or `[Space]` toggles power on the selected structure, `[M]` initiates relocation, and `[Escape]` closes the inspector.
 
@@ -129,9 +133,13 @@ Both blocks stay plain text, no colour, no animation — the verification discip
 
 Once Life Support Telemetry has full parity with this panel, this one is no longer meant for a player to see at all. It renders only when the URL includes `?debug=true` — absent by default, so a real player never encounters it, present on demand for verification. `/browser` checks and the playtest skill navigate with the flag included; nothing else about how they read the panel changes.
 
-## Game Over Screen
+## Game Over Screen & Casualty Incident Report
 
-Plain text, same palette and type as the rest of the interface. No colour deviation, no animation — sols survived this run, the account's best sols survived, and a single "Start New Colony" button, nothing more. It replaces the normal view entirely rather than overlaying it.
+Styled in the sci-fi terminal palette with crimson telemetry accents, displaying full mission post-mortem data:
+- **Map & Ruins Backdrop**: The game grid, terrain, and building ruins remain visible behind the modal rather than blanking out.
+- **Primary Failure Cause**: Dedicated alert banner highlighting the exact cause of colony failure (`CRITICAL ASPHYXIATION: Oxygen depleted to 0%`, `POWER GRID COLLAPSE: Electrical power depleted to 0%`, `COLONY STARVATION: Food reserves depleted to 0%`, or `POPULATION ATTRITION: All colonists expired of natural lifespan`).
+- **Telemetry Dossier Archive**: Detailed metrics snapshot showing Sols Survived, Account Personal Best, and final resource reserves (Oxygen, Power, Food, Ore, Electronics, and Structures).
+- **Restart Affordance**: Single "Start New Colony" button which executes an authoritative server-side reset and re-initializes starter buildings and pioneer colonists.
 
 ## Help Modal
 
