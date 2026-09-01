@@ -6,11 +6,6 @@ export type StatusLevel = 'nominal' | 'warning' | 'critical';
 export interface ToolbarOptions {
   containerId?: string;
   onSelectTool: (tool: BuildingType | null) => void;
-  onRefineCell?: () => void;
-  onDispatchEscort?: () => void;
-  onDispatchMining?: () => void;
-  onTogglePower?: () => void;
-  onRelocateExtractor?: () => void;
 }
 
 export class Toolbar {
@@ -19,11 +14,6 @@ export class Toolbar {
   private currentStatus: string = 'Nominal';
   private currentStatusLevel: StatusLevel = 'nominal';
   private onSelectTool: (tool: BuildingType | null) => void;
-  private onRefineCell?: () => void;
-  private onDispatchEscort?: () => void;
-  private onDispatchMining?: () => void;
-  private onTogglePower?: () => void;
-  private onRelocateExtractor?: () => void;
   private isCooldown = false;
   private isActionsPaused = false;
   private hoveredTile: GridPoint | null = null;
@@ -32,11 +22,6 @@ export class Toolbar {
 
   constructor(options: ToolbarOptions) {
     this.onSelectTool = options.onSelectTool;
-    this.onRefineCell = options.onRefineCell;
-    this.onDispatchEscort = options.onDispatchEscort;
-    this.onDispatchMining = options.onDispatchMining;
-    this.onTogglePower = options.onTogglePower;
-    this.onRelocateExtractor = options.onRelocateExtractor;
 
     const existing = document.getElementById(options.containerId ?? Toolbar.CONTAINER_ID);
     if (existing) {
@@ -206,128 +191,7 @@ export class Toolbar {
 
     this.container.appendChild(toolsGroup);
 
-    // 2. Actions Group (Refine Cell, Dispatch Escort, Dispatch Mining)
-    const actionsGroup = document.createElement('div');
-    actionsGroup.className = 'toolbar-group toolbar-actions-group';
-
-    const actLabel = document.createElement('span');
-    actLabel.className = 'toolbar-label';
-    actLabel.textContent = 'ACTIONS:';
-    actionsGroup.appendChild(actLabel);
-
-    // 2a. Buttons View
-    const actButtonsView = document.createElement('div');
-    actButtonsView.className = 'toolbar-buttons-view';
-
-    const refineBtn = document.createElement('button');
-    refineBtn.type = 'button';
-    refineBtn.className = 'toolbar-btn toolbar-action-btn';
-    refineBtn.id = 'action-refine-cell';
-    refineBtn.textContent = 'Refine Cell (10 Ore)';
-    refineBtn.disabled = this.isActionsPaused;
-    refineBtn.addEventListener('click', () => {
-      if (this.isActionsPaused || this.isCooldown) return;
-      this.triggerCooldown();
-      if (this.onRefineCell) this.onRefineCell();
-    });
-    actButtonsView.appendChild(refineBtn);
-
-    const escortBtn = document.createElement('button');
-    escortBtn.type = 'button';
-    escortBtn.className = 'toolbar-btn toolbar-action-btn';
-    escortBtn.id = 'action-dispatch-escort';
-    escortBtn.textContent = 'Dispatch Escort';
-    escortBtn.disabled = this.isActionsPaused;
-    escortBtn.addEventListener('click', () => {
-      if (this.isActionsPaused || this.isCooldown) return;
-      this.triggerCooldown();
-      if (this.onDispatchEscort) this.onDispatchEscort();
-    });
-    actButtonsView.appendChild(escortBtn);
-
-    const miningBtn = document.createElement('button');
-    miningBtn.type = 'button';
-    miningBtn.className = 'toolbar-btn toolbar-action-btn';
-    miningBtn.id = 'action-dispatch-mining';
-    miningBtn.textContent = 'Dispatch Mining';
-    miningBtn.disabled = this.isActionsPaused;
-    miningBtn.addEventListener('click', () => {
-      if (this.isActionsPaused || this.isCooldown) return;
-      this.triggerCooldown();
-      if (this.onDispatchMining) this.onDispatchMining();
-    });
-    actButtonsView.appendChild(miningBtn);
-
-    const togglePowerBtn = document.createElement('button');
-    togglePowerBtn.type = 'button';
-    togglePowerBtn.className = 'toolbar-btn toolbar-action-btn';
-    togglePowerBtn.id = 'action-toggle-power';
-    togglePowerBtn.textContent = 'Toggle Power';
-    togglePowerBtn.title = 'Turn off/on selected building or extractor to save power';
-    togglePowerBtn.disabled = this.isActionsPaused;
-    togglePowerBtn.addEventListener('click', () => {
-      if (this.isActionsPaused || this.isCooldown) return;
-      this.triggerCooldown();
-      if (this.onTogglePower) this.onTogglePower();
-    });
-    actButtonsView.appendChild(togglePowerBtn);
-
-    const moveBtn = document.createElement('button');
-    moveBtn.type = 'button';
-    moveBtn.className = 'toolbar-btn toolbar-action-btn';
-    moveBtn.id = 'action-move-extractor';
-    moveBtn.textContent = 'Move Extractor (10P)';
-    moveBtn.title = 'Relocate extractor to a new ore deposit';
-    moveBtn.disabled = this.isActionsPaused;
-    moveBtn.addEventListener('click', () => {
-      if (this.isActionsPaused || this.isCooldown) return;
-      this.triggerCooldown();
-      if (this.onRelocateExtractor) this.onRelocateExtractor();
-    });
-    actButtonsView.appendChild(moveBtn);
-
-    actionsGroup.appendChild(actButtonsView);
-
-    // 2b. Dropdown View
-    const actDropdownView = document.createElement('div');
-    actDropdownView.className = 'toolbar-dropdown-view';
-
-    const actDropdownItems = [
-      { value: 'refine', label: 'Refine Cell (10 Ore)' },
-      { value: 'escort', label: 'Dispatch Escort' },
-      { value: 'mining', label: 'Dispatch Mining' },
-      { value: 'toggle', label: 'Toggle Power (OFF/ON)' },
-      { value: 'move', label: 'Move Extractor (10P)' },
-    ];
-
-    const actCustomDropdown = this.createCustomDropdown({
-      id: 'toolbar-actions-dropdown',
-      placeholder: '[ SELECT ACTION... ]',
-      items: actDropdownItems,
-      disabled: this.isActionsPaused,
-      onSelect: (val) => {
-        if (this.isActionsPaused || this.isCooldown) return;
-        this.triggerCooldown();
-        if (val === 'refine' && this.onRefineCell) {
-          this.onRefineCell();
-        } else if (val === 'escort' && this.onDispatchEscort) {
-          this.onDispatchEscort();
-        } else if (val === 'mining' && this.onDispatchMining) {
-          this.onDispatchMining();
-        } else if (val === 'toggle' && this.onTogglePower) {
-          this.onTogglePower();
-        } else if (val === 'move' && this.onRelocateExtractor) {
-          this.onRelocateExtractor();
-        }
-      },
-    });
-
-    actDropdownView.appendChild(actCustomDropdown);
-    actionsGroup.appendChild(actDropdownView);
-
-    this.container.appendChild(actionsGroup);
-
-    // 3. Status Bar section
+    // 2. Status message / coordinates readout
     const statusGroup = document.createElement('div');
     statusGroup.className = 'toolbar-group toolbar-status-group';
 
@@ -336,11 +200,11 @@ export class Toolbar {
     statusLabel.textContent = 'STATUS:';
     statusGroup.appendChild(statusLabel);
 
-    const statusValue = document.createElement('span');
-    statusValue.id = 'toolbar-status';
-    statusValue.className = `toolbar-status-val status-${this.currentStatusLevel}`;
-    statusValue.textContent = this.currentStatus;
-    statusGroup.appendChild(statusValue);
+    const statusVal = document.createElement('span');
+    statusVal.className = `toolbar-status-val status-${this.currentStatusLevel}`;
+    statusVal.id = 'toolbar-status';
+    statusVal.textContent = this.currentStatus;
+    statusGroup.appendChild(statusVal);
 
     this.container.appendChild(statusGroup);
   }

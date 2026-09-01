@@ -1600,21 +1600,26 @@ export function drawLandingCapsule(
   ctx.arc(portX - 0.8, portY - 0.8, 0.8, 0, Math.PI * 2);
   ctx.fill();
 
-  // 6. Clean Countdown Badge Overhead
-  const badgeColor = isUrgent ? '#E0A030' : '#d9dde0';
-  ctx.fillStyle = 'rgba(26, 14, 8, 0.85)';
+  // 6. Interactive Floating Action Badge Overhead
+  const badgeColor = isUrgent ? '#E0A030' : '#4ec9b0';
+  const badgeBg = isUrgent ? 'rgba(38, 16, 8, 0.95)' : 'rgba(8, 24, 28, 0.95)';
+  ctx.fillStyle = badgeBg;
   ctx.strokeStyle = badgeColor;
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.rect(-28, apexY - 15, 56, 11);
+  ctx.rect(-38, apexY - 24, 76, 20);
   ctx.fill();
   ctx.stroke();
 
   ctx.fillStyle = badgeColor;
-  ctx.font = 'bold 8px Chakra Petch, monospace, sans-serif';
+  ctx.font = 'bold 7.5px "Orbitron", monospace, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`ESCORT: ${ticksRemaining}s`, 0, apexY - 9);
+  ctx.fillText(`🚀 DISPATCH ESCORT`, 0, apexY - 17);
+
+  ctx.fillStyle = isUrgent ? '#E0A030' : '#d9dde0';
+  ctx.font = '6.5px "Share Tech Mono", monospace, sans-serif';
+  ctx.fillText(`${ticksRemaining} TICKS REMAINING`, 0, apexY - 8);
 
   ctx.restore();
 }

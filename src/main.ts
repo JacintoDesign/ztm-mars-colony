@@ -10,6 +10,7 @@ import { HeaderBar } from './ui/header-bar';
 import { GameOverModal } from './ui/game-over-modal';
 import { TelemetryBanner } from './ui/telemetry-banner';
 import { BuildingInspector } from './ui/building-inspector';
+import { MissionAdvisor } from './ui/mission-advisor';
 import { authManager, AuthState } from './services/auth-manager';
 import { colonyService } from './services/colony-service';
 import { RealtimeChannel } from '@supabase/supabase-js';
@@ -43,91 +44,92 @@ const helpModal = new HelpModal({
   },
 });
 
+// Dedicated action handlers invoked from contextual Building Inspector Cards & Map Beacons
+const handleRefineCell = async () => {
+  if (!activeColonyId || !activeUserId) return;
+  const res = await colonyService.executeServerAction(activeColonyId, activeUserId, { type: 'REFINE_CELL' });
+  if (res.success) {
+    store.loadColonyData(res.colonyData, activeUserDisplay);
+    toolbar.setStatus('Cell Refined (+1 Battery Cell)', 'nominal');
+  } else {
+    toolbar.setStatus(res.reason ? `Refine Failed: ${res.reason}` : 'Refine Failed', 'warning');
+  }
+};
+
+const handleDispatchEscort = async () => {
+  if (!activeColonyId || !activeUserId) return;
+  const state = store.getState();
+  const idleRover = state.rovers.find((r) => r.state === 'idle_at_base');
+  if (!idleRover) {
+    toolbar.setStatus('Escort Failed: No Idle Rovers (Build Garage & Fuel)', 'warning');
+    return;
+  }
+  if (state.batteryCells.length === 0) {
+    toolbar.setStatus('Escort Failed: No Battery Cells (Refine with 10 Ore)', 'warning');
+    return;
+  }
+
+  const res = await colonyService.executeServerAction(activeColonyId, activeUserId, {
+    type: 'DISPATCH_ROVER',
+    roverId: idleRover.id,
+    destinationType: 'landing_zone',
+  });
+
+  if (res.success) {
+    store.loadColonyData(res.colonyData, activeUserDisplay);
+    toolbar.setStatus('Rover Dispatched to Landing Zone (0,0)', 'nominal');
+  } else {
+    toolbar.setStatus(res.reason ? `Dispatch Failed: ${res.reason}` : 'Dispatch Failed', 'warning');
+  }
+};
+
+const handleDispatchMining = async () => {
+  if (!activeColonyId || !activeUserId) return;
+  const state = store.getState();
+  const idleRover = state.rovers.find((r) => r.state === 'idle_at_base');
+  if (!idleRover) {
+    toolbar.setStatus('Mining Failed: No Idle Rovers', 'warning');
+    return;
+  }
+  if (state.batteryCells.length === 0) {
+    toolbar.setStatus('Mining Failed: No Battery Cells (Refine with 10 Ore)', 'warning');
+    return;
+  }
+
+  let destType: 'asteroid' | 'mining_site' = 'mining_site';
+  let targetTile = state.miningSites.length > 0 ? { x: state.miningSites[0].x, y: state.miningSites[0].y } : { x: 15, y: 15 };
+
+  if (state.activeAsteroid) {
+    destType = 'asteroid';
+    targetTile = { x: state.activeAsteroid.x, y: state.activeAsteroid.y };
+  }
+
+  const res = await colonyService.executeServerAction(activeColonyId, activeUserId, {
+    type: 'DISPATCH_ROVER',
+    roverId: idleRover.id,
+    destinationType: destType,
+    targetTile,
+  });
+
+  if (res.success) {
+    store.loadColonyData(res.colonyData, activeUserDisplay);
+    toolbar.setStatus(`Rover Dispatched to ${destType === 'asteroid' ? 'Asteroid' : 'Mining Site'}`, 'nominal');
+  } else {
+    toolbar.setStatus(res.reason ? `Dispatch Failed: ${res.reason}` : 'Dispatch Failed', 'warning');
+  }
+};
+
 // Initialize dedicated telemetry banner
 const telemetryBanner = new TelemetryBanner();
 
-// Initialize building placement toolbar
+// Initialize intelligent mission advisor HUD banner
+const missionAdvisor = new MissionAdvisor(store);
+
+// Initialize building placement toolbar (focused cleanly on the 7 structures)
 const toolbar = new Toolbar({
   containerId: 'toolbar',
   onSelectTool: (tool) => {
     renderer.setSelectedTool(tool);
-  },
-  onRefineCell: async () => {
-    if (!activeColonyId || !activeUserId) return;
-    const res = await colonyService.executeServerAction(activeColonyId, activeUserId, { type: 'REFINE_CELL' });
-    if (res.success) {
-      store.loadColonyData(res.colonyData, activeUserDisplay);
-      toolbar.setStatus('Cell Refined (+1 Battery Cell)', 'nominal');
-    } else {
-      toolbar.setStatus(res.reason ? `Refine Failed: ${res.reason}` : 'Refine Failed', 'warning');
-    }
-  },
-  onDispatchEscort: async () => {
-    if (!activeColonyId || !activeUserId) return;
-    const state = store.getState();
-    const idleRover = state.rovers.find((r) => r.state === 'idle_at_base');
-    if (!idleRover) {
-      toolbar.setStatus('Escort Failed: No Idle Rovers', 'warning');
-      return;
-    }
-    if (state.batteryCells.length === 0) {
-      toolbar.setStatus('Escort Failed: No Battery Cells', 'warning');
-      return;
-    }
-
-    const res = await colonyService.executeServerAction(activeColonyId, activeUserId, {
-      type: 'DISPATCH_ROVER',
-      roverId: idleRover.id,
-      destinationType: 'landing_zone',
-    });
-
-    if (res.success) {
-      store.loadColonyData(res.colonyData, activeUserDisplay);
-      toolbar.setStatus('Rover Dispatched to Landing Zone', 'nominal');
-    } else {
-      toolbar.setStatus(res.reason ? `Dispatch Failed: ${res.reason}` : 'Dispatch Failed', 'warning');
-    }
-  },
-  onDispatchMining: async () => {
-    if (!activeColonyId || !activeUserId) return;
-    const state = store.getState();
-    const idleRover = state.rovers.find((r) => r.state === 'idle_at_base');
-    if (!idleRover) {
-      toolbar.setStatus('Mining Failed: No Idle Rovers', 'warning');
-      return;
-    }
-    if (state.batteryCells.length === 0) {
-      toolbar.setStatus('Mining Failed: No Battery Cells', 'warning');
-      return;
-    }
-
-    let destType: 'asteroid' | 'mining_site' = 'mining_site';
-    let targetTile = state.miningSites.length > 0 ? { x: state.miningSites[0].x, y: state.miningSites[0].y } : { x: 15, y: 15 };
-
-    if (state.activeAsteroid) {
-      destType = 'asteroid';
-      targetTile = { x: state.activeAsteroid.x, y: state.activeAsteroid.y };
-    }
-
-    const res = await colonyService.executeServerAction(activeColonyId, activeUserId, {
-      type: 'DISPATCH_ROVER',
-      roverId: idleRover.id,
-      destinationType: destType,
-      targetTile,
-    });
-
-    if (res.success) {
-      store.loadColonyData(res.colonyData, activeUserDisplay);
-      toolbar.setStatus(`Rover Dispatched to ${destType === 'asteroid' ? 'Asteroid' : 'Mining Site'}`, 'nominal');
-    } else {
-      toolbar.setStatus(res.reason ? `Dispatch Failed: ${res.reason}` : 'Dispatch Failed', 'warning');
-    }
-  },
-  onTogglePower: () => {
-    renderer.toggleBuildingPower();
-  },
-  onRelocateExtractor: () => {
-    renderer.startRelocateBuilding();
   },
 });
 
@@ -155,13 +157,13 @@ const renderer = new IsometricRenderer({
   onSelectBuilding: (buildingId) => {
     if (buildingId) {
       buildingInspector.showBuilding(buildingId);
-    } else {
+    } else if (buildingInspector.getSelectedBuildingId() !== null) {
       buildingInspector.hide();
     }
   },
 });
 
-// Initialize Building Inspector Card
+// Initialize Building Inspector Card with contextual facility management & direct power controls
 const buildingInspector = new BuildingInspector({
   store,
   onTogglePower: (buildingId) => {
@@ -181,8 +183,13 @@ const buildingInspector = new BuildingInspector({
       toolbar.setStatus(res.reason ? `Dispatch Failed: ${res.reason}` : 'Dispatch Failed', 'warning');
     }
   },
+  onRefineCell: handleRefineCell,
+  onDispatchEscort: handleDispatchEscort,
+  onDispatchMining: handleDispatchMining,
   onClose: () => {
-    renderer.setSelectedBuildingId(null);
+    if (renderer.getSelectedBuildingId() !== null) {
+      renderer.setSelectedBuildingId(null);
+    }
   },
 });
 
@@ -194,6 +201,7 @@ const buildingInspector = new BuildingInspector({
 (window as any).__COLONY_HELP_MODAL__ = helpModal;
 (window as any).__COLONY_TOOLBAR__ = toolbar;
 (window as any).__COLONY_TELEMETRY_BANNER__ = telemetryBanner;
+(window as any).__COLONY_MISSION_ADVISOR__ = missionAdvisor;
 (window as any).__COLONY_BUILDING_INSPECTOR__ = buildingInspector;
 
 // Active session tracking & timers

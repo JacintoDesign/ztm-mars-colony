@@ -7,3 +7,4 @@ export * from './resource-panel';
 export * from './help-modal';
 export * from './telemetry-banner';
 export * from './building-inspector';
+export * from './mission-advisor';

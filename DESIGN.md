@@ -94,23 +94,39 @@ A compact telemetry status bar in the top-right displays the current session upl
 
 The 2D Canvas supports multi-touch pinch-to-zoom (1.0x to 3.5x scale) and pan offset navigation on touch devices, as well as mouse wheel zooming, maintaining crisp pixel grid alignment.
 
-### Toolbar, Actions & Cooldown Bar
+### Toolbar & Building Placement
 
-- **Building Selection**: Grid of 7 structure tools, collapsing into a custom telemetry dropdown drawer on narrow screens.
-- **Colony Actions**: Dedicated dispatch buttons for `Refine Cell (10 Ore)`, `Dispatch Escort`, `Dispatch Mining`, `Toggle Power`, and `Move Extractor (10P)`.
-- **Mobile Dropdown Navigation Toolbar**: On mobile viewports and narrow displays, the toolbar automatically collapses into expandable custom dropdown panels for both building placement tools and colony action dispatches, triggered by compact arrow indicators (`▼`/`▲`) with full touch responsiveness.
-- **Action Rate-Limiting**: A subtle 600ms horizontal cooldown progress bar along the toolbar top edge throttles rapid dispatch inputs.
+- **Building Selection**: Dedicated selectors for all 7 structures (Habitat, Solar, Scrubber, Extractor, Farm, Garage, Refinery), with costs and descriptions. Collapses into a custom telemetry dropdown drawer on narrow screens.
+- **Streamlined Placement Discipline**: Redundant generic action buttons are removed from the bottom toolbar; all facility-specific dispatches (refining, escorts, mining, relocation, power toggles, repairs) live contextually on the structures themselves and interactive map beacons.
+- **Action Rate-Limiting**: A subtle 600ms horizontal cooldown progress bar along the toolbar top edge throttles rapid placement inputs.
 
-### Building Inspector & 3D Selection HUD
+### Intelligent Mission Advisor & Life Support Alerts
 
-Clicking any existing structure directly on the canvas (utilizing 3D visual volume hit-testing across domes, solar panels, and towers) opens the **Building Inspector Card**:
+Positioned at top-center, the **Mission Advisor** evaluates live colony telemetry every tick to surface actionable, high-priority guidance:
+- **Critical Life Support Warnings**: Urgent alerts for Power Grid Collapse (0 PWR), Oxygen Deficit (0 O2), Colony Starvation (0 Food), and Colonist Injury (<70% HP), explaining exact production vs demand math and immediate remediation steps.
+- **Tactical Transport & Mining Directives**: Prompts when a transport ship arrives at Landing Pad `(0, 0)`, alerting the player to dispatch a Rover Escort or construct a Garage.
+- **Progression Guidance**: Contextual tips when ore reserves are low (directing extractor placement) or battery refining is available.
+- **Pinned & Dismissible**: One alert displays at a time, pinned until manually dismissed with `[✕]` or replaced by a higher-priority threat.
+
+### Ground Ore Deposit Highlighting (Extractor Mode)
+
+When selecting the **Extractor tool** (or initiating extractor relocation), the isometric grid dynamically highlights all tiles containing subterranean ore deposits with glowing cyan diamond outlines and `◆ ORE` indicators, allowing players to instantly identify viable extraction sites without revealing exact unmined quantities prior to placement.
+
+### Building Inspector, 3D Selection HUD & Contextual Dispatches
+
+Clicking any existing structure or the Landing Pad directly on the canvas opens the **Building Inspector Card**:
 - **Status & Telemetry**: Displays structure condition (`OPERATIONAL`, `POWER OFF (STANDBY)`, `BROKEN`, `BURIED`), exact power draw / generation, life-support output (O2/Food/Ore), and neighbor spacing efficiency.
+- **Contextual Facility Dispatches**:
+  - **Rover Garage**: `[ 🚀 DISPATCH ROVER ESCORT (0,0) ]` and `[ ⛏ DISPATCH MINING EXPEDITION ]`, alongside rover bay capacity (X/2) and battery fuel status.
+  - **Ore Refinery**: `[ 🔋 REFINE BATTERY CELL (10 ORE) ]` to convert stockpiled ore into long-lasting rover fuel.
+  - **Landing Pad `(0, 0)`**: `[ 🚀 DISPATCH ROVER ESCORT ]` with countdown timer (`X Ticks Remaining`) when a supply transport is on-site.
 - **Direct Maintenance Controls**:
   - `[ 🔧 DISPATCH REPAIR CREW ]`: Available on broken structures when the colony has sufficient electronics (1 for standard, 2 for heavy industrial). Dispatches the nearest available colonist immediately.
   - `[ ⛏ DISPATCH EXCAVATION CREW ]`: Available on buried structures (40 ticks digging, 0 cost). Dispatches the nearest available colonist immediately.
-  - **Electronics Deficit Warning**: When electronics are insufficient, displays an alert warning with the exact shortage and guides the player to escort incoming supply transport ships at Landing Pad `(0, 0)`.
+  - **Electronics Deficit Warning**: Displays exact electronics shortages and directs operators to incoming transport escorts.
 - **Power & Mobility Controls**: `[ ⚡ TURN OFF POWER (0 PWR) ]` / `[ ⚡ RESTORE POWER (ON) ]` for instant load shedding, and `[ ✥ RELOCATE (10 PWR) ]`.
 - **Canvas Highlighting**: Selected structures feature 3D corner bracket crosshairs, glowing base tile diamonds, and a floating status HUD tag (`[ ⚡ POWER: ON / OFF ]`).
+- **Interactive Ship Action Beacon**: When a transport ship touches down at `(0, 0)`, an interactive `[ 🚀 DISPATCH ESCORT ]` HUD beacon renders directly overhead.
 - **Keyboard Navigation**: Pressing `[P]` or `[Space]` toggles power on the selected structure, `[M]` initiates relocation, and `[Escape]` closes the inspector.
 
 ## Life Support Telemetry

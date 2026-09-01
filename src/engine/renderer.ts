@@ -487,8 +487,22 @@ export class IsometricRenderer {
       return;
     }
 
-    // 4. Clicked empty terrain
+    // 4. Test Landing Pad / Transport Capsule at (0, 0)
     const tile = screenToGrid(x, y, this.config);
+    if (tile && tile.x === 0 && tile.y === 0) {
+      this.setSelectedBuildingId('landing_pad');
+      if (this.onStatusChange) {
+        const hasArrival = this.store.getState().pendingArrivals.length > 0;
+        this.onStatusChange(
+          hasArrival ? 'Landing Pad: Supply Transport On-Site (1 Colonist + 2 Electronics)' : 'Landing Pad: Clear (Awaiting Next Transport)',
+          hasArrival ? 'warning' : 'nominal'
+        );
+      }
+      this.requestRender();
+      return;
+    }
+
+    // 5. Clicked empty terrain
     this.setSelectedBuildingId(null);
     if (tile) {
       this.handleTileAction(tile);
@@ -702,6 +716,38 @@ export class IsometricRenderer {
         }
       }
     }
+
+    // Highlight Ore Deposits when placing or relocating an Extractor (without displaying numeric amount until placed)
+    const state = this.store.getState();
+    const isExtractorMode = this.selectedTool === 'extractor' ||
+      (this.relocatingBuildingId && state.buildings.find((b) => b.id === this.relocatingBuildingId)?.type === 'extractor');
+
+    if (isExtractorMode) {
+      for (const deposit of state.oreDeposits) {
+        if (deposit.remaining > 0) {
+          const v = getTileVertices(deposit.x, deposit.y, this.config);
+
+          ctx.beginPath();
+          ctx.moveTo(v.top.x, v.top.y);
+          ctx.lineTo(v.right.x, v.right.y);
+          ctx.lineTo(v.bottom.x, v.bottom.y);
+          ctx.lineTo(v.left.x, v.left.y);
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(78, 201, 176, 0.28)';
+          ctx.fill();
+          ctx.strokeStyle = '#4ec9b0';
+          ctx.lineWidth = 1.8;
+          ctx.stroke();
+
+          // Subtle ore diamond badge
+          ctx.fillStyle = '#7fd4e0';
+          ctx.font = 'bold 9px "Orbitron", monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('◆ ORE', v.center.x, v.center.y);
+        }
+      }
+    }
   }
 
   /**
@@ -810,8 +856,27 @@ export class IsometricRenderer {
   private renderHoverHighlight(ctx: CanvasRenderingContext2D): void {
     const state = this.store.getState();
 
-    // 1. Draw Selection Highlight around currently selected building
+    // 1. Draw Selection Highlight around currently selected building or Landing Pad
     if (this.selectedBuildingId) {
+      if (this.selectedBuildingId === 'landing_pad') {
+        const sv = getTileVertices(0, 0, this.config);
+        const hasArrival = state.pendingArrivals.length > 0;
+        const mainColor = hasArrival ? '#E0A030' : '#4ec9b0';
+        const fillColor = hasArrival ? 'rgba(224, 160, 48, 0.25)' : 'rgba(78, 201, 176, 0.25)';
+
+        ctx.beginPath();
+        ctx.moveTo(sv.top.x, sv.top.y);
+        ctx.lineTo(sv.right.x, sv.right.y);
+        ctx.lineTo(sv.bottom.x, sv.bottom.y);
+        ctx.lineTo(sv.left.x, sv.left.y);
+        ctx.closePath();
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+        ctx.strokeStyle = mainColor;
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+      }
+
       const selectedBld = state.buildings.find((b) => b.id === this.selectedBuildingId);
       if (selectedBld) {
         const sv = getTileVertices(selectedBld.x, selectedBld.y, this.config);

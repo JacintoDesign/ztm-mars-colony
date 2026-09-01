@@ -8,6 +8,9 @@ export interface BuildingInspectorOptions {
   onTogglePower: (buildingId: string) => void;
   onRelocate: (buildingId: string) => void;
   onDispatchMaintenance?: (buildingId: string) => void;
+  onRefineCell?: () => void;
+  onDispatchEscort?: () => void;
+  onDispatchMining?: () => void;
   onClose?: () => void;
 }
 
@@ -18,6 +21,9 @@ export class BuildingInspector {
   private onTogglePower: (buildingId: string) => void;
   private onRelocate: (buildingId: string) => void;
   private onDispatchMaintenance?: (buildingId: string) => void;
+  private onRefineCell?: () => void;
+  private onDispatchEscort?: () => void;
+  private onDispatchMining?: () => void;
   private onClose?: () => void;
 
   public static readonly CONTAINER_ID = 'building-inspector';
@@ -27,6 +33,9 @@ export class BuildingInspector {
     this.onTogglePower = options.onTogglePower;
     this.onRelocate = options.onRelocate;
     this.onDispatchMaintenance = options.onDispatchMaintenance;
+    this.onRefineCell = options.onRefineCell;
+    this.onDispatchEscort = options.onDispatchEscort;
+    this.onDispatchMining = options.onDispatchMining;
     this.onClose = options.onClose;
 
     const existing = document.getElementById(options.containerId ?? BuildingInspector.CONTAINER_ID);
@@ -84,18 +93,18 @@ export class BuildingInspector {
   }
 
   private handleToggle(): void {
-    if (!this.selectedBuildingId) return;
+    if (!this.selectedBuildingId || this.selectedBuildingId === 'landing_pad') return;
     this.onTogglePower(this.selectedBuildingId);
     this.render();
   }
 
   private handleRelocate(): void {
-    if (!this.selectedBuildingId) return;
+    if (!this.selectedBuildingId || this.selectedBuildingId === 'landing_pad') return;
     this.onRelocate(this.selectedBuildingId);
   }
 
   private handleMaintenance(): void {
-    if (!this.selectedBuildingId) return;
+    if (!this.selectedBuildingId || this.selectedBuildingId === 'landing_pad') return;
     if (this.onDispatchMaintenance) {
       this.onDispatchMaintenance(this.selectedBuildingId);
     }
@@ -122,6 +131,69 @@ export class BuildingInspector {
     }
 
     const state = this.store.getState();
+
+    // Special inspection for Landing Pad (0, 0)
+    if (this.selectedBuildingId === 'landing_pad') {
+      const hasArrival = state.pendingArrivals.length > 0;
+      const arrival = hasArrival ? state.pendingArrivals[0] : null;
+
+      this.container.innerHTML = `
+        <div class="inspector-card">
+          <div class="inspector-header">
+            <div class="inspector-title-group">
+              <span class="inspector-type-title">LANDING PAD</span>
+              <span class="inspector-coords">[0, 0]</span>
+            </div>
+            <button type="button" class="inspector-close-btn" id="inspector-close" title="Close [Esc]">✕</button>
+          </div>
+
+          <div class="inspector-status-badge ${hasArrival ? 'inspector-status-deactivated' : 'inspector-status-operational'}">
+            <span class="inspector-pulse-indicator"></span>
+            <span>${hasArrival ? 'TRANSPORT ON-SITE' : 'PAD CLEAR (READY)'}</span>
+          </div>
+
+          <div class="inspector-body">
+            <div class="inspector-stats-box">
+              <div class="inspector-stat-row">
+                <span>Supply Transport:</span>
+                <span class="${hasArrival ? 'inspector-val-pos' : 'inspector-val-optimal'}">${hasArrival ? '1 Colonist + 2 Electronics' : 'Awaiting Next Landing'}</span>
+              </div>
+              ${
+                hasArrival && arrival
+                  ? `<div class="inspector-stat-row">
+                      <span>Escort Window:</span>
+                      <span class="${arrival.ticksRemaining < 40 ? 'inspector-val-neg' : 'inspector-val-optimal'}">${arrival.ticksRemaining} Ticks</span>
+                    </div>`
+                  : `<div class="inspector-stat-row">
+                      <span>Landing Cycle:</span>
+                      <span>Every 300 ticks</span>
+                    </div>`
+              }
+            </div>
+
+            <div class="inspector-actions">
+              ${
+                hasArrival
+                  ? `<button type="button" class="inspector-btn inspector-btn-escort" id="inspector-dispatch-escort">
+                      <span class="btn-icon">🚀</span> DISPATCH ROVER ESCORT
+                     </button>`
+                  : ''
+              }
+            </div>
+          </div>
+        </div>
+      `;
+
+      const closeBtn = this.container.querySelector<HTMLButtonElement>('#inspector-close');
+      closeBtn?.addEventListener('click', () => this.hide());
+
+      const escortBtn = this.container.querySelector<HTMLButtonElement>('#inspector-dispatch-escort');
+      escortBtn?.addEventListener('click', () => {
+        if (this.onDispatchEscort) this.onDispatchEscort();
+      });
+      return;
+    }
+
     const building = state.buildings.find((b) => b.id === this.selectedBuildingId);
     if (!building) {
       this.hide();
@@ -179,6 +251,15 @@ export class BuildingInspector {
       statsHtml += `<div class="inspector-stat-row"><span>Tile Ore Remaining:</span><span class="inspector-val-ore">${remaining} Ore</span></div>`;
     }
 
+    // Garage and Refinery specific info
+    if (building.type === 'garage') {
+      const roversInBay = state.rovers.filter((r) => r.state === 'idle_at_base').length;
+      statsHtml += `<div class="inspector-stat-row"><span>Garage Bays:</span><span>${roversInBay}/2 Idle Rovers</span></div>`;
+    }
+    if (building.type === 'refinery') {
+      statsHtml += `<div class="inspector-stat-row"><span>Stockpile Ore:</span><span>${state.ore} Ore (10 Ore / Cell)</span></div>`;
+    }
+
     const isDeactivated = building.condition === 'deactivated';
     const isOperational = building.condition === 'operational';
     const isBroken = building.condition === 'broken';
@@ -210,6 +291,27 @@ export class BuildingInspector {
       `;
     }
 
+    // Facility specific dispatch actions
+    let facilityActionHtml = '';
+    if (isOperational) {
+      if (building.type === 'garage') {
+        facilityActionHtml = `
+          <button type="button" class="inspector-btn inspector-btn-escort" id="inspector-dispatch-escort" ${state.pendingArrivals.length === 0 ? 'disabled' : ''}>
+            <span class="btn-icon">🚀</span> DISPATCH ROVER ESCORT (0,0)
+          </button>
+          <button type="button" class="inspector-btn inspector-btn-mining" id="inspector-dispatch-mining">
+            <span class="btn-icon">⛏</span> DISPATCH MINING EXPEDITION
+          </button>
+        `;
+      } else if (building.type === 'refinery') {
+        facilityActionHtml = `
+          <button type="button" class="inspector-btn inspector-btn-refine" id="inspector-refine-cell" ${state.ore < 10 || state.power < 5 ? 'disabled' : ''}>
+            <span class="btn-icon">🔋</span> REFINE BATTERY CELL (10 ORE)
+          </button>
+        `;
+      }
+    }
+
     this.container.innerHTML = `
       <div class="inspector-card">
         <div class="inspector-header">
@@ -236,6 +338,7 @@ export class BuildingInspector {
 
           <div class="inspector-actions">
             ${maintenanceActionHtml}
+            ${facilityActionHtml}
 
             ${
               canToggle
@@ -266,5 +369,21 @@ export class BuildingInspector {
 
     const maintenanceBtn = this.container.querySelector<HTMLButtonElement>('#inspector-dispatch-maintenance');
     maintenanceBtn?.addEventListener('click', () => this.handleMaintenance());
+
+    const escortBtn = this.container.querySelector<HTMLButtonElement>('#inspector-dispatch-escort');
+    escortBtn?.addEventListener('click', () => {
+      if (this.onDispatchEscort) this.onDispatchEscort();
+    });
+
+    const miningBtn = this.container.querySelector<HTMLButtonElement>('#inspector-dispatch-mining');
+    miningBtn?.addEventListener('click', () => {
+      if (this.onDispatchMining) this.onDispatchMining();
+    });
+
+    const refineBtn = this.container.querySelector<HTMLButtonElement>('#inspector-refine-cell');
+    refineBtn?.addEventListener('click', () => {
+      if (this.onRefineCell) this.onRefineCell();
+    });
   }
 }
+

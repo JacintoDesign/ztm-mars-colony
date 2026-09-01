@@ -1099,12 +1099,24 @@ export function applySingleTick(state: ColonyState): ColonyState {
 
   let nextStatus: 'active' | 'game_over' = 'active';
   let nextBestSols = state.bestSolsSurvived;
+  let nextGameOverReason: string | undefined = state.gameOverReason;
 
   if (livingColonists.length === 0) {
     nextStatus = 'game_over';
     const solsSurvived = Math.floor(nextTick / ticksPerSol);
     if (solsSurvived > nextBestSols) {
       nextBestSols = solsSurvived;
+    }
+    if (!nextGameOverReason) {
+      if (hasPowerDeficit || nextPower === 0 || state.power === 0) {
+        nextGameOverReason = 'POWER GRID COLLAPSE: Electrical power depleted to 0% (Life support heating shut down)';
+      } else if (hasOxygenDeficit || nextOxygen === 0 || state.oxygen === 0) {
+        nextGameOverReason = 'CRITICAL ASPHYXIATION: Oxygen depleted to 0% (Life support scrubbers offline)';
+      } else if (hasFoodDeficit || nextFood === 0 || state.food === 0) {
+        nextGameOverReason = 'COLONY STARVATION: Food reserves depleted to 0% (Agricultural supply exhausted)';
+      } else {
+        nextGameOverReason = 'POPULATION ATTRITION: All pioneer colonists reached maximum natural lifespan';
+      }
     }
   }
 
@@ -1125,6 +1137,7 @@ export function applySingleTick(state: ColonyState): ColonyState {
     batteryCells: updatedBatteryCells,
     activeAsteroid: currentAsteroid,
     status: nextStatus,
+    gameOverReason: nextGameOverReason,
     bestSolsSurvived: nextBestSols,
   };
 }

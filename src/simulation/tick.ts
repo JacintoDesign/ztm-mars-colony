@@ -548,11 +548,11 @@ export function applySingleTick(state: ColonyState): ColonyState {
       nextBestSols = solsSurvived;
     }
     if (!nextGameOverReason) {
-      if (hasOxygenDeficit) {
-        nextGameOverReason = 'CRITICAL ASYPHYXIATION: Oxygen depleted to 0% (Life support scrubbers offline)';
-      } else if (hasPowerDeficit) {
-        nextGameOverReason = 'POWER GRID COLLAPSE: Electrical power depleted to 0% (Heating and life support shut down)';
-      } else if (hasFoodDeficit) {
+      if (hasPowerDeficit || nextPower === 0 || state.power === 0) {
+        nextGameOverReason = 'POWER GRID COLLAPSE: Electrical power depleted to 0% (Life support heating shut down)';
+      } else if (hasOxygenDeficit || nextOxygen === 0 || state.oxygen === 0) {
+        nextGameOverReason = 'CRITICAL ASPHYXIATION: Oxygen depleted to 0% (Life support scrubbers offline)';
+      } else if (hasFoodDeficit || nextFood === 0 || state.food === 0) {
         nextGameOverReason = 'COLONY STARVATION: Food reserves depleted to 0% (Agricultural supply exhausted)';
       } else {
         nextGameOverReason = 'POPULATION ATTRITION: All pioneer colonists reached maximum natural lifespan';
