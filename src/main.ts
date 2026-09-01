@@ -24,8 +24,24 @@ readout.update(store.getState());
 const resourcePanel = new ResourcePanel();
 resourcePanel.updateFromState(store.getState());
 
-// Initialize help modal
-const helpModal = new HelpModal();
+// Initialize help modal with simulation pausing callbacks
+const helpModal = new HelpModal({
+  onOpen: () => {
+    stopSimulationLoops();
+    toolbar.setStatus('Simulation Paused (Reviewing Manual)', 'warning');
+  },
+  onClose: async () => {
+    if (activeUserId && activeColonyId && store.getState().status === 'active') {
+      try {
+        await colonyService.updateLastTickTime(activeColonyId, activeUserId);
+      } catch (err) {
+        console.warn('Failed to update tick timestamp on manual close:', err);
+      }
+      toolbar.setStatus('Telemetry Link Nominal', 'nominal');
+      startSimulationLoops(activeUserId);
+    }
+  },
+});
 
 // Initialize dedicated telemetry banner
 const telemetryBanner = new TelemetryBanner();
@@ -279,8 +295,14 @@ const authModal = new AuthModal({
 function startSimulationLoops(userId: string): void {
   stopSimulationLoops();
 
+  if (helpModal.isModalOpen()) {
+    toolbar.setStatus('Simulation Paused (Reviewing Manual)', 'warning');
+    return;
+  }
+
   // 1. Client-side projection (Display only)
   clientProjectionInterval = window.setInterval(() => {
+    if (helpModal.isModalOpen()) return;
     const state = store.getState();
     if (state.status === 'active') {
       store.advanceTicks(1);
@@ -291,6 +313,7 @@ function startSimulationLoops(userId: string): void {
 
   // 2. Authoritative server sync: calls server tick route every 15 seconds
   serverSyncInterval = window.setInterval(async () => {
+    if (helpModal.isModalOpen()) return;
     if (store.getState().status !== 'active') {
       stopSimulationLoops();
       return;
@@ -404,9 +427,6 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
       return { success: res.success, reason: res.reason };
     });
 
-    // Start 1-second client projection (display only) and 15-second server sync
-    startSimulationLoops(user.id);
-
     // Subscribe to realtime changes with connection status handling
     realtimeChannel = colonyService.subscribeToColony(
       colonyData.colony.id,
@@ -430,7 +450,9 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
           if (navigator.onLine) {
             telemetryBanner.setState('hidden');
             toolbar.setActionsPaused(false);
-            toolbar.setStatus('Telemetry Link Nominal', 'nominal');
+            if (!helpModal.isModalOpen()) {
+              toolbar.setStatus('Telemetry Link Nominal', 'nominal');
+            }
           }
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           telemetryBanner.setState('reconnecting');
@@ -439,10 +461,14 @@ async function handleAuthStateChange(authState: AuthState): Promise<void> {
       }
     );
 
-    toolbar.setStatus('Telemetry Link Nominal', 'nominal');
-
-    // Auto-open help modal on first load for this user
-    helpModal.handleUserSession(user.id);
+    // Auto-open help modal on first load for this user (pauses simulation until dismissed)
+    const isFirstTimeHelp = helpModal.handleUserSession(user.id);
+    if (!isFirstTimeHelp) {
+      startSimulationLoops(user.id);
+      toolbar.setStatus('Telemetry Link Nominal', 'nominal');
+    } else {
+      toolbar.setStatus('Simulation Paused (Reviewing Operations Manual)', 'warning');
+    }
   } catch (err: any) {
     console.error('Error initializing colony session:', err);
     toolbar.setStatus(`Colony Load Error: ${err.message}`, 'critical');

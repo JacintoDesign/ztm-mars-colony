@@ -1,14 +1,24 @@
 import { CONTRACT_RULES } from '../simulation/contract-rules';
 
+export interface HelpModalOptions {
+  onOpen?: () => void;
+  onClose?: () => void;
+}
+
 export class HelpModal {
   private affordanceBtn: HTMLButtonElement;
   private modalOverlay: HTMLElement;
   private isOpen: boolean = false;
+  private onOpenCallback?: () => void;
+  private onCloseCallback?: () => void;
 
   public static readonly AFFORDANCE_ID = 'help-btn';
   public static readonly MODAL_ID = 'help-modal';
 
-  constructor() {
+  constructor(options?: HelpModalOptions) {
+    this.onOpenCallback = options?.onOpen;
+    this.onCloseCallback = options?.onClose;
+
     let btn = document.getElementById(HelpModal.AFFORDANCE_ID) as HTMLButtonElement | null;
     if (!btn) {
       btn = document.createElement('button');
@@ -35,27 +45,41 @@ export class HelpModal {
     this.render();
   }
 
-  public handleUserSession(userId: string | null): void {
-    if (!userId) return;
+  public isModalOpen(): boolean {
+    return this.isOpen;
+  }
+
+  public handleUserSession(userId: string | null): boolean {
+    if (!userId) return false;
 
     const storageKey = `marscolony_help_seen_${userId}`;
     const hasSeen = localStorage.getItem(storageKey);
     if (!hasSeen) {
       this.open();
       localStorage.setItem(storageKey, 'true');
+      return true;
     }
+    return false;
   }
 
   public open(): void {
+    if (this.isOpen) return;
     this.isOpen = true;
     this.modalOverlay.style.display = 'flex';
     this.affordanceBtn.classList.add('active');
+    if (this.onOpenCallback) {
+      this.onOpenCallback();
+    }
   }
 
   public close(): void {
+    if (!this.isOpen) return;
     this.isOpen = false;
     this.modalOverlay.style.display = 'none';
     this.affordanceBtn.classList.remove('active');
+    if (this.onCloseCallback) {
+      this.onCloseCallback();
+    }
   }
 
   public toggle(): void {
@@ -102,9 +126,9 @@ export class HelpModal {
           <div class="help-section">
             <div class="help-section-title">1. SURVIVAL & LIFE SUPPORT</div>
             <div class="help-section-body">
-              <p>• <strong>Starting Colony:</strong> 1 Starter Habitat at (7, 7), 1 Solar Array at (5, 7), 1 Scrubber at (9, 7), 2 Pioneer Colonists, 50 O2, 50 Power, 50 Food, 25 Ore stockpile, and 500 Ore across Martian terrain deposits.</p>
+              <p>• <strong>Starting Colony:</strong> 1 Starter Habitat at (7, 7), 1 Solar Array at (5, 7), 1 Scrubber at (9, 7), 2 Pioneer Colonists, 50 O2, 50 Power, 50 Food, 25 Ore, 2 Electronics (Emergency Spare Parts Kit), and 500 Ore across Martian terrain deposits.</p>
               <p>• <strong>Workforce Capacity:</strong> Each living colonist supports up to <strong>4 operational structures</strong> (Habitats exempt). Expanding beyond 8 operational facilities requires recruiting more colonists via transport escorts.</p>
-              <p>• <strong>Consumption:</strong> Each colonist consumes <strong>3 O2</strong> and <strong>2 Food</strong> per tick.</p>
+              <p>• <strong>Consumption:</strong> Each colonist consumes <strong>3 O2</strong> and <strong>3 Food</strong> per tick.</p>
               <p>• <strong>Oxygen Storage:</strong> 100 base capacity + <strong>5 Max O2 per operational Scrubber</strong>.</p>
               <p>• <strong>Life Support Failure:</strong> If Oxygen, Power, or Food reaches 0, colonists lose <strong>-2 HP/tick</strong> (50-tick survival window). Recovers <strong>+1 HP/tick</strong> when all pools are positive.</p>
               <p>• <strong>Game Over:</strong> Mission terminates if all colonists perish. 1 Sol = 1,000 ticks.</p>

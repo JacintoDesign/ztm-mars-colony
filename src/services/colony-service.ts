@@ -311,6 +311,15 @@ export class ColonyService {
 
     return channel;
   }
+
+  public async updateLastTickTime(colonyId: string, userId: string): Promise<void> {
+    const nowIso = new Date().toISOString();
+    await supabase
+      .from('marscolony_colonies')
+      .update({ last_tick_at: nowIso, updated_at: nowIso })
+      .eq('id', colonyId)
+      .eq('owner', userId);
+  }
 }
 
 export const colonyService = new ColonyService();
