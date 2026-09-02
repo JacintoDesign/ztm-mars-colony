@@ -311,3 +311,28 @@ Then:  - starting inventory includes 2 Electronics (Emergency Spare Parts Kit)
 When:  the simulation reaches tick 500+.
 Then:  - environmental mechanical wear rolls activate (1-in-4,000 per building/tick)
        - any damaged structure can be immediately repaired using the 2 starting electronics or newly escorted ship supplies
+
+## Scenario 32: Structure Demolition and Tile Reclamation
+Given: 1 operational or deactivated building on tile (8, 8), colony power 50.
+When:  the player inspects the building and dispatches DESTROY_BUILDING.
+Then:  - 10 Power is deducted (colony power becomes 40)
+       - the target building is removed from the colony's buildings array and canvas
+       - tile (8, 8) becomes empty and immediately available for new construction
+       - if the demolished building was an Extractor, any remaining subterranean ore on the tile is preserved intact
+When:  a player attempts demolition with power < 10.
+Then:  - the action is rejected with reason "Insufficient Power (Requires 10 PWR)"
+       - no power is deducted and the structure remains intact
+
+## Scenario 33: Balanced Extractor Extraction Rate and Power Draw
+Given: 1 operational Extractor on a deposit with 50 ore, power 50, and living colonists.
+When:  the simulation runs 10 ticks.
+Then:  - the Extractor draws 1 PWR/tick (10 PWR drawn across 10 ticks)
+       - the Extractor extracts 1 Ore every 5 ticks (2 ore total extracted over 10 ticks)
+       - the tile's remaining deposit decreases from 50 to 48
+       - the colony's ore stockpile increases by +2
+
+## Scenario 34: Automatic Tool Deselection on Structure Selection
+Given: a player has clicked a building placement tool (e.g. Solar Array or Farm) in the toolbar.
+When:  the player clicks on an existing structure or the Landing Pad at (0, 0) on the canvas.
+Then:  - the active placement tool is automatically deselected and the toolbar highlight clears
+       - the context Building Inspector card for the clicked structure opens immediately without attempting invalid placement

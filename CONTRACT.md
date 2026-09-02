@@ -21,7 +21,7 @@
 - Every random-seeming decision in this document — building breakage, storm timing and target, asteroid timing and position, ore distribution at creation, movement tie-breaks — draws from the same seeded generator stored in colony state, never Math.random(). This is what makes the line above possible for a system with this many moving parts, not just the tick arithmetic itself
 
 ### Starting State
-- A new colony starts with oxygen 50, power 50, food 50, ore 25, electronics 0, 1 starter Habitat at tile (7, 7), 1 starter Solar Array at tile (5, 7), 1 starter Oxygen Scrubber at tile (9, 7), 2 Pioneer Colonists living at the starter Habitat, no pending arrivals, no rovers, no stored battery cells, and a fresh seed generating the colony's ore distribution and mining site positions
+- A new colony starts with oxygen 50, power 50, food 50, ore 25, electronics 2, 1 starter Habitat at tile (7, 7), 1 starter Solar Array at tile (5, 7), 1 starter Oxygen Scrubber at tile (9, 7), 2 Pioneer Colonists living at the starter Habitat, no pending arrivals, no rovers, no stored battery cells, and a fresh seed generating the colony's ore distribution and mining site positions
 
 ### Buildings & Workforce
 - **Workforce Capacity**: Industrial and operational facilities (solar, scrubbers, extractors, farms, garages, refineries) require colonist labor to maintain and operate. Each living colonist supports up to **4 operational facilities** ($\text{Max Operational Facilities} = \text{Living Colonists} \times 4$). Habitats provide residential quarters and are exempt from the operational facility limit. Only operational facilities count against this cap (broken, buried, and deactivated buildings are exempt).
@@ -29,7 +29,7 @@
   - habitat: houses 2 colonists, draws 2 power/tick. Cost: 20 PWR, 10 Ore.
   - solar: produces 5 power/tick, draws 0. Cost: 15 PWR, 0 Ore.
   - scrubber: produces 5 oxygen/tick when staffed, draws 3 power/tick (+5 Max O2 capacity). Cost: 15 PWR, 5 Ore.
-  - extractor: produces 3 ore/tick from its tile's local deposit when staffed, draws 4 power/tick. Can be deactivated (0 PWR draw) and relocated to fresh deposits for 10 PWR. Cost: 25 PWR, 0 Ore.
+  - extractor: produces 1 ore per 5 ticks from its tile's local deposit when staffed, draws 1 power/tick. Can be deactivated (0 PWR draw), relocated to fresh deposits for 10 PWR, or demolished for 10 PWR. Cost: 25 PWR, 0 Ore.
   - farm: produces 5 food/tick when staffed, draws 2 power/tick. Cost: 20 PWR, 5 Ore.
   - garage: holds up to 2 rovers, draws 1 power/tick, no production. Cost: 30 PWR, 10 Ore.
   - refinery: converts ore to battery cells, draws 5 power/tick, requires colonist presence — refining is a player-initiated action, not continuous. Cost: 25 PWR, 15 Ore.
