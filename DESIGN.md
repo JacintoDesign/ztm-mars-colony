@@ -124,7 +124,11 @@ Clicking any existing structure or the Landing Pad directly on the canvas opens 
   - `[ 🔧 DISPATCH REPAIR CREW ]`: Available on broken structures when the colony has sufficient electronics (1 for standard, 2 for heavy industrial). Dispatches the nearest available colonist immediately.
   - `[ ⛏ DISPATCH EXCAVATION CREW ]`: Available on buried structures (40 ticks digging, 0 cost). Dispatches the nearest available colonist immediately.
   - **Electronics Deficit Warning**: Displays exact electronics shortages and directs operators to incoming transport escorts.
-- **Power & Mobility Controls**: `[ ⚡ TURN OFF POWER (0 PWR) ]` / `[ ⚡ RESTORE POWER (ON) ]` for instant load shedding, and `[ ✥ RELOCATE (10 PWR) ]`.
+- **Power, Mobility & Demolition Controls**:
+  - `[ ⚡ TURN OFF POWER (0 PWR) ]` / `[ ⚡ RESTORE POWER (ON) ]` for instant load shedding.
+  - `[ ✥ RELOCATE (10 PWR) ]`: Relocates operational structure to any valid open tile.
+  - `[ 💥 DEMOLISH STRUCTURE (10 PWR) ]`: Permanently removes the structure and frees the tile for 10 Power (`DESTROY_BUILDING`).
+- **Seamless Tool Switching & Auto-Deselection**: Clicking any existing structure on the canvas automatically cancels any active building placement tool or relocation mode, smoothly opening that building's context inspector card.
 - **Canvas Highlighting**: Selected structures feature 3D corner bracket crosshairs, glowing base tile diamonds, and a floating status HUD tag (`[ ⚡ POWER: ON / OFF ]`).
 - **Interactive Ship Action Beacon**: When a transport ship touches down at `(0, 0)`, an interactive `[ 🚀 DISPATCH ESCORT ]` HUD beacon renders directly overhead.
 - **Keyboard Navigation**: Pressing `[P]` or `[Space]` toggles power on the selected structure, `[M]` initiates relocation, and `[Escape]` closes the inspector.

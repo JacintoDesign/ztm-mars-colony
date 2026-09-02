@@ -19,6 +19,7 @@ export interface RendererOptions {
   onHoverTile?: (tile: GridPoint | null) => void;
   onStatusChange?: (message: string, level: StatusLevel) => void;
   onSelectBuilding?: (buildingId: string | null) => void;
+  onToolDeselect?: () => void;
 }
 
 function tileColorHash(gx: number, gy: number): number {
@@ -39,6 +40,7 @@ export class IsometricRenderer {
   private onHoverTile?: (tile: GridPoint | null) => void;
   private onStatusChange?: (message: string, level: StatusLevel) => void;
   private onSelectBuilding?: (buildingId: string | null) => void;
+  private onToolDeselect?: () => void;
   private dpr = 1;
   private animationFrameId: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
@@ -66,6 +68,7 @@ export class IsometricRenderer {
     this.onHoverTile = options.onHoverTile;
     this.onStatusChange = options.onStatusChange;
     this.onSelectBuilding = options.onSelectBuilding;
+    this.onToolDeselect = options.onToolDeselect;
 
     const gridSize = options.gridSize ?? 20;
 
@@ -450,28 +453,16 @@ export class IsometricRenderer {
 
   private handleClick(e: MouseEvent): void {
     const { x, y } = this.getCanvasCoords(e);
+    const tile = screenToGrid(x, y, this.config);
 
-    // 1. If in tool placement mode, place building at tile
-    if (this.selectedTool) {
-      const tile = screenToGrid(x, y, this.config);
-      if (tile) {
-        this.handleTileAction(tile);
-      }
-      return;
-    }
-
-    // 2. If in relocation mode, relocate to tile
-    if (this.relocatingBuildingId) {
-      const tile = screenToGrid(x, y, this.config);
-      if (tile) {
-        this.handleTileAction(tile);
-      }
-      return;
-    }
-
-    // 3. Selection Mode: Test 3D building sprite first
+    // 1. Selection Mode: Test 3D building sprite first
     const clickedBuilding = this.findBuildingAtScreen(x, y);
     if (clickedBuilding) {
+      if (this.selectedTool) {
+        this.selectedTool = null;
+        if (this.onToolDeselect) this.onToolDeselect();
+      }
+      this.relocatingBuildingId = null;
       this.setSelectedBuildingId(clickedBuilding.id);
       const neighbors = this.store.getState().buildings.filter(
         (other) => other.id !== clickedBuilding.id && Math.abs(clickedBuilding.x - other.x) + Math.abs(clickedBuilding.y - other.y) === 1
@@ -487,9 +478,13 @@ export class IsometricRenderer {
       return;
     }
 
-    // 4. Test Landing Pad / Transport Capsule at (0, 0)
-    const tile = screenToGrid(x, y, this.config);
+    // 2. Test Landing Pad / Transport Capsule at (0, 0)
     if (tile && tile.x === 0 && tile.y === 0) {
+      if (this.selectedTool) {
+        this.selectedTool = null;
+        if (this.onToolDeselect) this.onToolDeselect();
+      }
+      this.relocatingBuildingId = null;
       this.setSelectedBuildingId('landing_pad');
       if (this.onStatusChange) {
         const hasArrival = this.store.getState().pendingArrivals.length > 0;
@@ -502,7 +497,23 @@ export class IsometricRenderer {
       return;
     }
 
-    // 5. Clicked empty terrain
+    // 3. If in tool placement mode, place building at empty tile
+    if (this.selectedTool) {
+      if (tile) {
+        this.handleTileAction(tile);
+      }
+      return;
+    }
+
+    // 4. If in relocation mode, relocate to empty tile
+    if (this.relocatingBuildingId) {
+      if (tile) {
+        this.handleTileAction(tile);
+      }
+      return;
+    }
+
+    // 5. Clicked empty terrain without tool or relocation: clear selection
     this.setSelectedBuildingId(null);
     if (tile) {
       this.handleTileAction(tile);

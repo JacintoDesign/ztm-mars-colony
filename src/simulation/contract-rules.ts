@@ -122,6 +122,11 @@ export const CONTRACT_RULES = {
     operationalBuildingsPerColonist: 4, // Each living colonist supports up to 4 operational buildings (Habitats exempt)
   },
 
+  // Demolition rules
+  demolition: {
+    costPower: 10,
+  },
+
   // Building specifications
   buildings: {
     habitat: {
@@ -169,13 +174,14 @@ export const CONTRACT_RULES = {
     extractor: {
       type: 'extractor' as BuildingType,
       name: 'Extractor',
-      description: 'Excavates ore from its local tile deposit (3 ore/tick).',
+      description: 'Excavates ore from its local tile deposit (1 ore / 5 ticks, 1 PWR draw).',
       capacity: 0,
-      powerDraw: 4,
+      powerDraw: 1,
       powerProduction: 0,
       oxygenProduction: 0,
       foodProduction: 0,
-      oreProduction: 3,
+      oreProduction: 1,
+      ticksPerExtraction: 5,
       cost: { power: 25, ore: 0, electronics: 0 },
       repairLabor: 2,
       repairElectronics: 2,

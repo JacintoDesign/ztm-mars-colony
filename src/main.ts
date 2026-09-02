@@ -161,6 +161,9 @@ const renderer = new IsometricRenderer({
       buildingInspector.hide();
     }
   },
+  onToolDeselect: () => {
+    toolbar.setTool(null);
+  },
 });
 
 // Initialize Building Inspector Card with contextual facility management & direct power controls
@@ -171,6 +174,21 @@ const buildingInspector = new BuildingInspector({
   },
   onRelocate: (buildingId) => {
     renderer.startRelocateBuilding(buildingId);
+  },
+  onDemolish: async (buildingId) => {
+    toolbar.setStatus('Demolishing Structure (-10 PWR)...', 'warning');
+    const res = await store.dispatch({
+      type: 'DESTROY_BUILDING',
+      buildingId,
+    });
+    if (res.success) {
+      toolbar.setStatus('Structure Demolished (-10 PWR)', 'nominal');
+      if (renderer.getSelectedBuildingId() === buildingId) {
+        renderer.setSelectedBuildingId(null);
+      }
+    } else {
+      toolbar.setStatus(res.reason ? `Demolition Failed: ${res.reason}` : 'Demolition Failed', 'critical');
+    }
   },
   onDispatchMaintenance: (buildingId) => {
     const res = store.dispatch({

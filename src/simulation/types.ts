@@ -191,4 +191,8 @@ export type SimulationAction =
   | {
       type: 'ASSIGN_COLONIST_MAINTENANCE';
       buildingId: string;
+    }
+  | {
+      type: 'DESTROY_BUILDING';
+      buildingId: string;
     };

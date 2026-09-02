@@ -351,9 +351,34 @@ export class ColonyStore {
         return this.handleRestartColony();
       case 'ASSIGN_COLONIST_MAINTENANCE':
         return this.handleAssignColonistMaintenance(action.buildingId);
+      case 'DESTROY_BUILDING':
+        return this.handleDestroyBuilding(action.buildingId);
       default:
         return { success: false };
     }
+  }
+
+  private handleDestroyBuilding(buildingId: string): DispatchResult {
+    const buildingIndex = this.state.buildings.findIndex((b) => b.id === buildingId);
+    if (buildingIndex < 0) {
+      return { success: false, reason: 'Building Not Found' };
+    }
+
+    const demolishCost = CONTRACT_RULES.demolition?.costPower ?? 10;
+    if (this.state.power < demolishCost) {
+      return { success: false, reason: `Insufficient Power (Requires ${demolishCost} PWR)` };
+    }
+
+    const updatedBuildings = this.state.buildings.filter((b) => b.id !== buildingId);
+
+    this.state = {
+      ...this.state,
+      power: this.state.power - demolishCost,
+      buildings: updatedBuildings,
+    };
+
+    this.notify();
+    return { success: true };
   }
 
   private handleAssignColonistMaintenance(buildingId: string): DispatchResult {

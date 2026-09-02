@@ -1858,6 +1858,23 @@ body:not(:has(#internal-readout)) .resource-panel {
   cursor: not-allowed;
 }
 
+.inspector-btn-demolish {
+  background-color: rgba(45, 12, 12, 0.85);
+  border-color: #D94F3D;
+  color: #ff8a80;
+}
+
+.inspector-btn-demolish:hover:not(:disabled) {
+  background-color: #D94F3D;
+  border-color: #ff5252;
+  color: #ffffff;
+}
+
+.inspector-btn-demolish:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .inspector-btn-repair {
   background-color: rgba(224, 160, 48, 0.2);
   border-color: #E0A030;

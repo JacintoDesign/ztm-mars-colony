@@ -11,6 +11,7 @@ export interface BuildingInspectorOptions {
   onRefineCell?: () => void;
   onDispatchEscort?: () => void;
   onDispatchMining?: () => void;
+  onDemolish?: (buildingId: string) => void;
   onClose?: () => void;
 }
 
@@ -24,6 +25,7 @@ export class BuildingInspector {
   private onRefineCell?: () => void;
   private onDispatchEscort?: () => void;
   private onDispatchMining?: () => void;
+  private onDemolish?: (buildingId: string) => void;
   private onClose?: () => void;
 
   public static readonly CONTAINER_ID = 'building-inspector';
@@ -36,6 +38,7 @@ export class BuildingInspector {
     this.onRefineCell = options.onRefineCell;
     this.onDispatchEscort = options.onDispatchEscort;
     this.onDispatchMining = options.onDispatchMining;
+    this.onDemolish = options.onDemolish;
     this.onClose = options.onClose;
 
     const existing = document.getElementById(options.containerId ?? BuildingInspector.CONTAINER_ID);
@@ -353,6 +356,10 @@ export class BuildingInspector {
               <span class="btn-icon">✥</span> RELOCATE (10 PWR)
               <span class="btn-shortcut">[M]</span>
             </button>
+
+            <button type="button" class="inspector-btn inspector-btn-demolish" id="inspector-demolish" ${state.power < 10 ? 'disabled' : ''}>
+              <span class="btn-icon">💥</span> DEMOLISH STRUCTURE (10 PWR)
+            </button>
           </div>
         </div>
       </div>
@@ -366,6 +373,15 @@ export class BuildingInspector {
 
     const relocateBtn = this.container.querySelector<HTMLButtonElement>('#inspector-relocate');
     relocateBtn?.addEventListener('click', () => this.handleRelocate());
+
+    const demolishBtn = this.container.querySelector<HTMLButtonElement>('#inspector-demolish');
+    demolishBtn?.addEventListener('click', () => {
+      if (this.selectedBuildingId && this.selectedBuildingId !== 'landing_pad') {
+        const id = this.selectedBuildingId;
+        this.hide();
+        if (this.onDemolish) this.onDemolish(id);
+      }
+    });
 
     const maintenanceBtn = this.container.querySelector<HTMLButtonElement>('#inspector-dispatch-maintenance');
     maintenanceBtn?.addEventListener('click', () => this.handleMaintenance());

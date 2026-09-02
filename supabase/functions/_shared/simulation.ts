@@ -264,6 +264,9 @@ export const CONTRACT_RULES = {
   workforce: {
     operationalBuildingsPerColonist: 4,
   },
+  demolition: {
+    costPower: 10,
+  },
   buildings: {
     habitat: {
       type: 'habitat' as BuildingType,
@@ -308,11 +311,12 @@ export const CONTRACT_RULES = {
       type: 'extractor' as BuildingType,
       name: 'Extractor',
       capacity: 0,
-      powerDraw: 4,
+      powerDraw: 1,
       powerProduction: 0,
       oxygenProduction: 0,
       foodProduction: 0,
-      oreProduction: 3,
+      oreProduction: 1,
+      ticksPerExtraction: 5,
       cost: { power: 25, ore: 0, electronics: 0 },
       repairLabor: 2,
       repairElectronics: 2,
@@ -1061,13 +1065,16 @@ export function applySingleTick(state: ColonyState): ColonyState {
     oxygenProduced += Math.max(0, spec.oxygenProduction - crowdingPenalty);
     foodProduced += Math.max(0, spec.foodProduction - crowdingPenalty);
 
+    // Extractor: mines ore from local tile deposit (1 ore / 5 ticks, requires colonist workforce)
     if (b.type === 'extractor') {
       const deposit = updatedOreDeposits.find((d) => d.x === b.x && d.y === b.y);
       if (deposit && deposit.remaining > 0) {
-        const effectiveOreProduction = Math.max(1, spec.oreProduction - crowdingPenalty);
-        const take = Math.min(effectiveOreProduction, deposit.remaining);
-        deposit.remaining -= take;
-        currentOre += take;
+        const extractionInterval = CONTRACT_RULES.buildings.extractor.ticksPerExtraction ?? 5;
+        if (nextTick % extractionInterval === 0) {
+          const take = Math.min(1, deposit.remaining);
+          deposit.remaining -= take;
+          currentOre += take;
+        }
       }
     }
   }
@@ -2005,6 +2012,47 @@ export async function executeAuthoritativeAction(
         colonyData: {
           ...currentData,
           colonists: updatedColonists,
+        },
+      };
+    }
+
+    case 'DESTROY_BUILDING': {
+      const bld = currentData.buildings.find((b: Building) => b.id === action.buildingId);
+      if (!bld) {
+        return { success: false, reason: 'Building Not Found', colonyData: currentData };
+      }
+
+      const demolishCost = CONTRACT_RULES.demolition?.costPower ?? 10;
+      if (colony.power < demolishCost) {
+        return { success: false, reason: `Insufficient Power (Requires ${demolishCost} PWR)`, colonyData: currentData };
+      }
+
+      const nextPower = colony.power - demolishCost;
+
+      await Promise.all([
+        supabase
+          .from('marscolony_buildings')
+          .delete()
+          .eq('id', bld.id)
+          .eq('owner', userId),
+        supabase
+          .from('marscolony_colonies')
+          .update({
+            power: nextPower,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', colonyId)
+          .eq('owner', userId),
+      ]);
+
+      const updatedBuildings = currentData.buildings.filter((b: Building) => b.id !== bld.id);
+
+      return {
+        success: true,
+        colonyData: {
+          ...currentData,
+          colony: { ...colony, power: nextPower },
+          buildings: updatedBuildings,
         },
       };
     }

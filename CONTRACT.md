@@ -49,11 +49,12 @@
 - ore is a stockpile, not a pool: 0 or above, no upper clamp
 - ore does not participate in the health rule. Oxygen, power, and food are the three that can trigger colonist health loss
 
-### Ore Deposits & Extractor Relocation
+### Ore Deposits, Extractor Balance & Demolition
 - Ore is not a single global reserve. At colony creation, the seeded generator distributes 500 ore total across roughly 15–25 grid tiles, unevenly — most tiles hold nothing, a handful hold a meaningful amount, and at least one holds as little as 1. Distribution is fixed for the colony's lifetime, generated once, never regenerated
-- An extractor placed on a tile mines only that tile's own deposit, at 3 ore/tick, until it reaches 0. It does not draw from any other tile
-- Once a tile's deposit is exhausted, an extractor there produces 0 ore/tick permanently. It still draws power unless deactivated by the player.
+- **Balanced Extractor Extraction**: An extractor placed on a tile mines only that tile's own deposit at **1 ore per 5 ticks** (requiring only **1 PWR draw/tick**), providing balanced, sustainable resource income without draining power grids or exhausting ore deposits instantly.
+- Once a tile's deposit is exhausted, an extractor there produces 0 ore permanently. It still draws 1 PWR unless deactivated by the player.
 - **Structure Deactivation & Relocation**: Players can select any structure (via map click or Building Inspector) and toggle its power state (deactivated: 0 PWR draw, 0 production). Players can also relocate a structure to another available tile on the grid for 10 Power.
+- **Structure Demolition**: Players can permanently demolish/destroy any building from its Inspector card for **10 Power** (`DESTROY_BUILDING`), freeing up the tile. Demolishing an extractor leaves any remaining subterranean deposit intact.
 - The three mining sites below are the largest individual deposits in this same 500-total pool, deliberately placed far from the landing zone
 
 ### Food

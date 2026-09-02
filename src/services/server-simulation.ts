@@ -904,6 +904,47 @@ export async function executeAuthoritativeAction(
       };
     }
 
+    case 'DESTROY_BUILDING': {
+      const bld = currentData.buildings.find((b: Building) => b.id === action.buildingId);
+      if (!bld) {
+        return { success: false, reason: 'Building Not Found', colonyData: currentData };
+      }
+
+      const demolishCost = CONTRACT_RULES.demolition?.costPower ?? 10;
+      if (colony.power < demolishCost) {
+        return { success: false, reason: `Insufficient Power (Requires ${demolishCost} PWR)`, colonyData: currentData };
+      }
+
+      const nextPower = colony.power - demolishCost;
+
+      await Promise.all([
+        client
+          .from('marscolony_buildings')
+          .delete()
+          .eq('id', bld.id)
+          .eq('owner', userId),
+        client
+          .from('marscolony_colonies')
+          .update({
+            power: nextPower,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', colonyId)
+          .eq('owner', userId),
+      ]);
+
+      const updatedBuildings = currentData.buildings.filter((b: Building) => b.id !== bld.id);
+
+      return {
+        success: true,
+        colonyData: {
+          ...currentData,
+          colony: { ...colony, power: nextPower },
+          buildings: updatedBuildings,
+        },
+      };
+    }
+
     case 'RESTART_COLONY': {
       if (colony.status !== 'game_over') {
         return { success: false, reason: 'Colony is Still Active', colonyData: currentData };

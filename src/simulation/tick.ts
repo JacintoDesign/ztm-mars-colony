@@ -498,14 +498,16 @@ export function applySingleTick(state: ColonyState): ColonyState {
       oxygenProduced += Math.max(0, spec.oxygenProduction - crowdingPenalty);
       foodProduced += Math.max(0, spec.foodProduction - crowdingPenalty);
 
-      // Extractor: mines ore from local tile deposit (requires colonist workforce)
+      // Extractor: mines ore from local tile deposit (1 ore / 5 ticks, requires colonist workforce)
       if (b.type === 'extractor') {
         const deposit = updatedOreDeposits.find((d) => d.x === b.x && d.y === b.y);
         if (deposit && deposit.remaining > 0) {
-          const effectiveOreProduction = Math.max(1, spec.oreProduction - crowdingPenalty);
-          const take = Math.min(effectiveOreProduction, deposit.remaining);
-          deposit.remaining -= take;
-          currentOre += take;
+          const extractionInterval = CONTRACT_RULES.buildings.extractor.ticksPerExtraction ?? 5;
+          if (nextTick % extractionInterval === 0) {
+            const take = Math.min(1, deposit.remaining);
+            deposit.remaining -= take;
+            currentOre += take;
+          }
         }
       }
     }
