@@ -1,7 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import {
   Building,
-  BuildingType,
   Colonist,
   ColonyState,
   Rover,
@@ -10,8 +9,9 @@ import {
   SimulationAction,
   BUILDING_COSTS,
 } from '../simulation/types';
-import { applyTicks } from '../simulation/tick';
-import { CONTRACT_RULES } from '../simulation/contract-rules';
+import { applyLivingTicks, applyTicks } from '../simulation/tick';
+import { CONTRACT_RULES, countsTowardWorkforceCap } from '../simulation/contract-rules';
+import { buildingFromRow, buildingPersistFields, persistableDestinationType } from '../simulation/persist-buildings';
 import { SeededPRNG, generateInitialSeed } from '../simulation/prng';
 import { generateOreDistribution } from '../simulation/ore-generator';
 import { findShortestRoute, getFreeAdjacentTiles } from '../simulation/pathfinding';
@@ -28,10 +28,37 @@ import { ColonyData, ColonyRecord } from './colony-service';
  * - The browser client never writes authoritative simulation ticks directly.
  */
 
+export interface AuthoritativeTickOptions {
+  skipCatchUp?: boolean;
+  speed?: number;
+  maxTicks?: number;
+  projectedTick?: number;
+}
+
+function persistColonyTickFields(nextState: ColonyState, lastTickAt: string) {
+  return {
+    oxygen: Math.round(nextState.oxygen),
+    power: Math.round(nextState.power),
+    food: Math.round(nextState.food),
+    ore: Math.round(nextState.ore),
+    electronics: Math.round(nextState.electronics),
+    seed: Math.trunc(nextState.seed),
+    battery_cells: nextState.batteryCells,
+    mining_sites: nextState.miningSites,
+    active_asteroid: nextState.activeAsteroid,
+    pending_arrivals: nextState.pendingArrivals,
+    tick: Math.trunc(nextState.tick),
+    status: nextState.status,
+    last_tick_at: lastTickAt,
+    updated_at: lastTickAt,
+  };
+}
+
 export async function executeAuthoritativeTick(
   client: SupabaseClient,
   colonyId: string,
-  userId: string
+  userId: string,
+  options?: AuthoritativeTickOptions
 ): Promise<ColonyData> {
   // 1. Fetch user account profile
   let bestSolsSurvived = 0;
@@ -60,30 +87,29 @@ export async function executeAuthoritativeTick(
   const colony: ColonyRecord = colonyRow as ColonyRecord;
 
   // 3. Fetch buildings
-  const { data: buildingsData } = await client
+  const { data: buildingsData, error: buildingsError } = await client
     .from('marscolony_buildings')
     .select('*')
     .eq('colony_id', colonyId)
     .order('created_at', { ascending: true });
 
-  const buildings: Building[] = (buildingsData || []).map((b) => ({
-    id: b.id,
-    type: b.type as BuildingType,
-    x: b.x,
-    y: b.y,
-    condition: b.condition ?? 'operational',
-    repairProgress: b.repair_progress ?? 0,
-    digProgress: b.dig_progress ?? 0,
-    wasBrokenBeforeBurial: b.was_broken_before_burial ?? false,
-  }));
+  if (buildingsError) {
+    throw new Error(`Failed to query buildings: ${buildingsError.message}`);
+  }
+
+  let buildings: Building[] = (buildingsData || []).map((b) => buildingFromRow(b));
 
   // 4. Fetch colonists
-  const { data: colonistsData } = await client
+  const { data: colonistsData, error: colonistsError } = await client
     .from('marscolony_colonists')
     .select('*')
     .eq('colony_id', colonyId);
 
-  const colonists: Colonist[] = (colonistsData || []).map((c) => ({
+  if (colonistsError) {
+    throw new Error(`Failed to query colonists: ${colonistsError.message}`);
+  }
+
+  let colonists: Colonist[] = (colonistsData || []).map((c) => ({
     id: c.id,
     x: c.x,
     y: c.y,
@@ -114,7 +140,12 @@ export async function executeAuthoritativeTick(
     power: r.power,
     cargo: r.cargo,
     destination: r.destination,
-    onSiteTicksRemaining: 0,
+    onSiteTicksRemaining:
+      typeof r.destination?.onSiteTicksRemaining === 'number'
+        ? r.destination.onSiteTicksRemaining
+        : r.state === 'on_site'
+          ? (r.destination?.onSiteTicksTotal ?? CONTRACT_RULES.rovers.landingZoneLoadTicks)
+          : 0,
     route: r.route || [],
   }));
   if (rovers.length > maxRoversAllowed) {
@@ -147,19 +178,70 @@ export async function executeAuthoritativeTick(
   if (colony.status === 'game_over') {
     return {
       colony: { ...colony, status: 'game_over' },
-      buildings: [],
-      colonists: [],
-      rovers: [],
-      oreDeposits: [],
+      buildings,
+      colonists,
+      rovers,
+      oreDeposits,
       bestSolsSurvived,
     };
   }
 
+  // An established colony never has zero structures or zero colonists. Empty fetch is a query failure — do not simulate a barren map into game_over.
+  if (colony.status === 'active' && (colony.tick ?? 0) > 0 && (buildings.length === 0 || colonists.length === 0)) {
+    if (buildings.length === 0) {
+      const { data: retryBuildings, error: retryBuildingsError } = await client
+        .from('marscolony_buildings')
+        .select('*')
+        .eq('colony_id', colonyId)
+        .order('created_at', { ascending: true });
+      if (retryBuildingsError) {
+        throw new Error(`Failed to query buildings: ${retryBuildingsError.message}`);
+      }
+      buildings = (retryBuildings || []).map((b) => buildingFromRow(b));
+    }
+    if (colonists.length === 0) {
+      const { data: retryColonists, error: retryColonistsError } = await client
+        .from('marscolony_colonists')
+        .select('*')
+        .eq('colony_id', colonyId);
+      if (retryColonistsError) {
+        throw new Error(`Failed to query colonists: ${retryColonistsError.message}`);
+      }
+      colonists = (retryColonists || []).map((c) => ({
+        id: c.id,
+        x: c.x,
+        y: c.y,
+        health: c.health,
+        age: c.age ?? 0,
+        lifespan: c.lifespan ?? 15000,
+        destination: c.destination,
+        destinationType: c.destination_type ?? 'habitat',
+        targetEntityId: null,
+        route: c.route || [],
+      }));
+    }
+    if (buildings.length === 0 || colonists.length === 0) {
+      throw new Error('Incomplete colony snapshot');
+    }
+  }
+
   // 7. Authoritative Simulation Ticks Computation
+  // skipCatchUp = do not advance from wall-clock elapsed time (time-while-away off). HUD projection still persists.
+  const speed = Math.max(1, Math.min(3, Math.floor(options?.speed ?? 1)));
   const lastTickTime = colony.last_tick_at ? new Date(colony.last_tick_at).getTime() : Date.now();
   const now = Date.now();
-  const elapsedSeconds = Math.max(0, Math.floor((now - lastTickTime) / 1000));
-  const ticksToApply = Math.min(elapsedSeconds, CONTRACT_RULES.maxCatchUpTicks);
+  const elapsedSeconds = Math.max(0, (now - lastTickTime) / 1000);
+  const elapsedCap =
+    options?.maxTicks != null
+      ? Math.min(CONTRACT_RULES.maxCatchUpTicks, Math.max(0, Math.floor(options.maxTicks)))
+      : CONTRACT_RULES.maxCatchUpTicks;
+  const fromElapsed = options?.skipCatchUp
+    ? 0
+    : Math.min(Math.floor(elapsedSeconds * speed), elapsedCap);
+  const projectedTick =
+    (colony.tick ?? 0) > 0 && options?.projectedTick != null ? Math.floor(options.projectedTick) : null;
+  const fromProjection = projectedTick != null ? Math.max(0, projectedTick - colony.tick) : 0;
+  const ticksToApply = Math.min(Math.max(fromElapsed, fromProjection), elapsedCap);
 
   if (colony.status === 'active' && ticksToApply > 0) {
     const currentState: ColonyState = {
@@ -186,35 +268,60 @@ export async function executeAuthoritativeTick(
       lastAppliedTick: colony.last_tick_at,
     };
 
-    const nextState = applyTicks(currentState, ticksToApply);
+    const elapsedState = fromElapsed > 0 ? applyTicks(currentState, fromElapsed) : currentState;
+    if (colonists.length === 0 && elapsedState.status === 'game_over') {
+      return {
+        colony,
+        buildings,
+        colonists,
+        rovers,
+        oreDeposits,
+        bestSolsSurvived,
+      };
+    }
+    const projectedState = applyLivingTicks(currentState, ticksToApply);
+    const nextState =
+      elapsedState.status === 'game_over'
+        ? elapsedState
+        : projectedState.tick >= elapsedState.tick
+          ? projectedState
+          : elapsedState;
 
     // 8. Authoritative Database Writes
     const newLastTickAt = new Date().toISOString();
 
     // 8a. Update colony record
-    await client
+    const { data: persistedRows, error: persistError } = await client
       .from('marscolony_colonies')
-      .update({
-        oxygen: nextState.oxygen,
-        power: nextState.power,
-        food: nextState.food,
-        ore: nextState.ore,
-        electronics: nextState.electronics,
-        seed: nextState.seed,
-        battery_cells: nextState.batteryCells,
-        mining_sites: nextState.miningSites,
-        active_asteroid: nextState.activeAsteroid,
-        pending_arrivals: nextState.pendingArrivals,
-        tick: nextState.tick,
-        status: nextState.status,
-        last_tick_at: newLastTickAt,
-        updated_at: newLastTickAt,
-      })
+      .update(persistColonyTickFields(nextState, newLastTickAt))
       .eq('id', colonyId)
-      .eq('owner', userId);
+      .eq('owner', userId)
+      .eq('tick', colony.tick)
+      .select('tick');
+
+    if (persistError || !persistedRows || persistedRows.length === 0) {
+      return {
+        colony,
+        buildings,
+        colonists,
+        rovers,
+        oreDeposits,
+        bestSolsSurvived,
+      };
+    }
 
     // If colony just terminated (reached game_over), record best sols and persist terminal state
     if (nextState.status === 'game_over') {
+      if (colonists.length === 0) {
+        return {
+          colony,
+          buildings,
+          colonists,
+          rovers,
+          oreDeposits,
+          bestSolsSurvived,
+        };
+      }
       const solsSurvived = Math.floor(nextState.tick / CONTRACT_RULES.ticksPerSol);
       if (solsSurvived > bestSolsSurvived) {
         bestSolsSurvived = solsSurvived;
@@ -247,40 +354,39 @@ export async function executeAuthoritativeTick(
     }
 
     // 8b. Update building conditions
-    for (const b of nextState.buildings) {
-      if (b.id && !b.id.startsWith('bld-')) {
-        await client
-          .from('marscolony_buildings')
-          .update({
-            condition: b.condition,
-            repair_progress: b.repairProgress,
-            dig_progress: b.digProgress,
-            was_broken_before_burial: b.wasBrokenBeforeBurial ?? false,
-          })
-          .eq('id', b.id);
-      }
-    }
+    await Promise.all(
+      nextState.buildings
+        .filter((b) => b.id && !b.id.startsWith('bld-'))
+        .map((b) =>
+          client
+            .from('marscolony_buildings')
+            .update(buildingPersistFields(b))
+            .eq('id', b.id)
+        )
+    );
 
     // 8c. Sync living colonists idempotently without race condition duplications
     if (nextState.colonists.length > 0) {
       const existingWithId = nextState.colonists.filter((c) => c.id && !c.id.startsWith('col-'));
       const newWithoutId = nextState.colonists.filter((c) => !c.id || c.id.startsWith('col-'));
 
-      for (const c of existingWithId) {
-        await client
-          .from('marscolony_colonists')
-          .update({
-            x: c.x,
-            y: c.y,
-            health: c.health,
-            age: c.age,
-            lifespan: c.lifespan,
-            destination: c.destination,
-            destination_type: c.destinationType,
-            route: c.route || [],
-          })
-          .eq('id', c.id);
-      }
+      await Promise.all(
+        existingWithId.map((c) =>
+          client
+            .from('marscolony_colonists')
+            .update({
+              x: c.x,
+              y: c.y,
+              health: c.health,
+              age: c.age,
+              lifespan: c.lifespan,
+              destination: c.destination,
+              destination_type: persistableDestinationType(c.destinationType),
+              route: c.route || [],
+            })
+            .eq('id', c.id)
+        )
+      );
 
       const keepIds = existingWithId.map((c) => c.id);
       if (keepIds.length > 0) {
@@ -301,7 +407,7 @@ export async function executeAuthoritativeTick(
           age: c.age,
           lifespan: c.lifespan,
           destination: c.destination,
-          destination_type: c.destinationType,
+          destination_type: persistableDestinationType(c.destinationType),
           route: c.route || [],
         }));
         const { data: insertedCols } = await client.from('marscolony_colonists').insert(colRows).select();
@@ -323,22 +429,26 @@ export async function executeAuthoritativeTick(
       const existingRoversWithId = nextState.rovers.filter((r) => r.id && !r.id.startsWith('rov-'));
       const newRoversWithoutId = nextState.rovers.filter((r) => !r.id || r.id.startsWith('rov-'));
 
-      for (const r of existingRoversWithId) {
-        await client
-          .from('marscolony_rovers')
-          .update({
-            garage_x: r.garageX,
-            garage_y: r.garageY,
-            x: r.x,
-            y: r.y,
-            state: r.state,
-            power: r.power,
-            cargo: r.cargo,
-            destination: r.destination,
-            route: r.route || [],
-          })
-          .eq('id', r.id);
-      }
+      await Promise.all(
+        existingRoversWithId.map((r) =>
+          client
+            .from('marscolony_rovers')
+            .update({
+              garage_x: r.garageX,
+              garage_y: r.garageY,
+              x: r.x,
+              y: r.y,
+              state: r.state,
+              power: Math.round(r.power),
+              cargo: r.cargo,
+              destination: r.destination
+                ? { ...r.destination, onSiteTicksRemaining: r.onSiteTicksRemaining }
+                : null,
+              route: r.route || [],
+            })
+            .eq('id', r.id)
+        )
+      );
 
       if (newRoversWithoutId.length > 0) {
         const rovRows = newRoversWithoutId.map((r) => ({
@@ -349,9 +459,11 @@ export async function executeAuthoritativeTick(
           x: r.x,
           y: r.y,
           state: r.state,
-          power: r.power,
+          power: Math.round(r.power),
           cargo: r.cargo,
-          destination: r.destination,
+          destination: r.destination
+            ? { ...r.destination, onSiteTicksRemaining: r.onSiteTicksRemaining }
+            : null,
           route: r.route || [],
         }));
         await client.from('marscolony_rovers').insert(rovRows);
@@ -364,14 +476,19 @@ export async function executeAuthoritativeTick(
     }
 
     // 8e. Sync ore deposit changes
-    for (const dep of nextState.oreDeposits) {
-      if (dep.id) {
-        await client
-          .from('marscolony_ore_deposits')
-          .update({ remaining: dep.remaining, updated_at: newLastTickAt })
-          .eq('id', dep.id);
-      }
-    }
+    const previousRemaining = new Map(
+      oreDeposits.filter((d) => d.id).map((d) => [d.id as string, d.remaining])
+    );
+    await Promise.all(
+      nextState.oreDeposits
+        .filter((dep) => dep.id && previousRemaining.get(dep.id) !== dep.remaining)
+        .map((dep) =>
+          client
+            .from('marscolony_ore_deposits')
+            .update({ remaining: dep.remaining, updated_at: newLastTickAt })
+            .eq('id', dep.id)
+        )
+    );
 
     colony.oxygen = nextState.oxygen;
     colony.power = nextState.power;
@@ -396,6 +513,16 @@ export async function executeAuthoritativeTick(
     };
   }
 
+  if (options?.skipCatchUp && colony.status === 'active') {
+    const nowIso = new Date().toISOString();
+    await client
+      .from('marscolony_colonies')
+      .update({ last_tick_at: nowIso, updated_at: nowIso })
+      .eq('id', colonyId)
+      .eq('owner', userId);
+    colony.last_tick_at = nowIso;
+  }
+
   return {
     colony,
     buildings,
@@ -410,10 +537,16 @@ export async function executeAuthoritativeAction(
   client: SupabaseClient,
   colonyId: string,
   userId: string,
-  action: SimulationAction
+  action: SimulationAction,
+  options?: AuthoritativeTickOptions
 ): Promise<{ success: boolean; reason?: string; colonyData: ColonyData }> {
-  // First advance ticks up to the moment of action
-  const currentData = await executeAuthoritativeTick(client, colonyId, userId);
+  // First advance ticks up to the moment of action, at the operator's live speed
+  const currentData = await executeAuthoritativeTick(client, colonyId, userId, {
+    speed: options?.speed,
+    maxTicks: options?.maxTicks,
+    skipCatchUp: options?.skipCatchUp,
+    projectedTick: options?.projectedTick,
+  });
   const colony = currentData.colony;
   const buildings = currentData.buildings;
   const rovers = currentData.rovers;
@@ -443,9 +576,7 @@ export async function executeAuthoritativeAction(
       }
 
       if (buildingType !== 'habitat') {
-        const operationalBuildingsCount = buildings.filter(
-          (b) => b.type !== 'habitat' && b.condition === 'operational'
-        ).length;
+        const operationalBuildingsCount = buildings.filter(countsTowardWorkforceCap).length;
         const maxOperationalAllowed = livingColonists * CONTRACT_RULES.workforce.operationalBuildingsPerColonist;
         if (operationalBuildingsCount >= maxOperationalAllowed) {
           const requiredColonists = Math.ceil((operationalBuildingsCount + 1) / CONTRACT_RULES.workforce.operationalBuildingsPerColonist);
@@ -485,7 +616,18 @@ export async function executeAuthoritativeAction(
         .eq('id', colonyId)
         .eq('owner', userId);
 
-      // Insert building
+      const persist = buildingPersistFields({
+        id: 'pending',
+        type: buildingType,
+        x,
+        y,
+        condition: 'constructing',
+        repairProgress: 0,
+        digProgress: 0,
+        wasBrokenBeforeBurial: false,
+      });
+
+      // Insert building in constructing state — a colonist must walk to the tile to finish it
       const { data: bldRecord, error: bldErr } = await client
         .from('marscolony_buildings')
         .insert({
@@ -494,99 +636,31 @@ export async function executeAuthoritativeAction(
           type: buildingType,
           x,
           y,
-          condition: 'operational',
-          repair_progress: 0,
-          dig_progress: 0,
-          was_broken_before_burial: false,
+          ...persist,
         })
         .select()
         .single();
 
       if (bldErr) {
+        await client
+          .from('marscolony_colonies')
+          .update({
+            power: colony.power,
+            ore: colony.ore,
+            electronics: colony.electronics,
+          })
+          .eq('id', colonyId)
+          .eq('owner', userId);
         return { success: false, reason: bldErr.message, colonyData: currentData };
       }
 
-      const newBuilding: Building = {
-        id: bldRecord.id,
-        type: bldRecord.type as BuildingType,
-        x: bldRecord.x,
-        y: bldRecord.y,
-        condition: 'operational',
-        repairProgress: 0,
-        digProgress: 0,
-        wasBrokenBeforeBurial: false,
-      };
+      const newBuilding: Building = buildingFromRow(bldRecord);
 
       const updatedBuildings = [...buildings, newBuilding];
-      let updatedRovers = [...rovers];
-
-      // Spawn 2 rovers if garage placed
-      if (buildingType === 'garage') {
-        const roverRows = [
-          {
-            colony_id: colonyId,
-            owner: userId,
-            garage_x: x,
-            garage_y: y,
-            x,
-            y,
-            state: 'idle_at_base',
-            power: CONTRACT_RULES.rovers.powerMax,
-            cargo: null,
-            destination: null,
-            route: [],
-          },
-          {
-            colony_id: colonyId,
-            owner: userId,
-            garage_x: x,
-            garage_y: y,
-            x,
-            y,
-            state: 'idle_at_base',
-            power: CONTRACT_RULES.rovers.powerMax,
-            cargo: null,
-            destination: null,
-            route: [],
-          },
-        ];
-        const { data: insertedRovers } = await client.from('marscolony_rovers').insert(roverRows).select();
-        if (insertedRovers) {
-          for (const r of insertedRovers) {
-            updatedRovers.push({
-              id: r.id,
-              garageX: r.garage_x,
-              garageY: r.garage_y,
-              x: r.x,
-              y: r.y,
-              state: r.state,
-              power: r.power,
-              cargo: r.cargo,
-              destination: r.destination,
-              onSiteTicksRemaining: 0,
-              route: r.route || [],
-            });
-          }
-        }
-      }
-
-      let updatedBatteryCells = colony.battery_cells || [];
-      if (buildingType === 'garage' && updatedBatteryCells.length === 0) {
-        updatedBatteryCells = [
-          { id: `cell-${Date.now()}-1`, efficiency: 100 },
-          { id: `cell-${Date.now()}-2`, efficiency: 100 },
-        ];
-        await client
-          .from('marscolony_colonies')
-          .update({ battery_cells: updatedBatteryCells })
-          .eq('id', colonyId)
-          .eq('owner', userId);
-      }
 
       colony.power = newPower;
       colony.ore = newOre;
       colony.electronics = newElectronics;
-      colony.battery_cells = updatedBatteryCells;
       colony.last_tick_at = nowIso;
 
       return {
@@ -595,7 +669,6 @@ export async function executeAuthoritativeAction(
           ...currentData,
           colony,
           buildings: updatedBuildings,
-          rovers: updatedRovers,
         },
       };
     }
@@ -745,7 +818,7 @@ export async function executeAuthoritativeAction(
       }
 
       const bld = buildings[bIndex];
-      if (bld.condition === 'broken' || bld.condition === 'buried') {
+      if (bld.condition === 'broken' || bld.condition === 'buried' || bld.condition === 'constructing') {
         return { success: false, reason: 'Cannot toggle broken/buried building', colonyData: currentData };
       }
 
@@ -774,7 +847,7 @@ export async function executeAuthoritativeAction(
       }
 
       const bld = buildings[bIndex];
-      if (bld.condition === 'broken' || bld.condition === 'buried') {
+      if (bld.condition === 'broken' || bld.condition === 'buried' || bld.condition === 'constructing') {
         return { success: false, reason: 'Cannot move broken/buried building', colonyData: currentData };
       }
       const targetX = (action as any).targetX ?? (action as any).newX;
@@ -869,13 +942,13 @@ export async function executeAuthoritativeAction(
         20
       );
 
-      const destType = bld.condition === 'buried' ? 'dig' : 'repair';
+      const destType = bld.condition === 'buried' ? 'dig' : bld.condition === 'constructing' ? 'construct' : 'repair';
 
       await client
         .from('marscolony_colonists')
         .update({
           destination: { x: bld.x, y: bld.y },
-          destination_type: destType,
+          destination_type: persistableDestinationType(destType),
           target_entity_id: bld.id,
           route,
         })
@@ -1013,16 +1086,7 @@ export async function executeAuthoritativeAction(
       ];
       const { data: insertedBuildings } = await client.from('marscolony_buildings').insert(starterBuildingRows).select();
       const freshBuildings: Building[] = (insertedBuildings && insertedBuildings.length > 0)
-        ? insertedBuildings.map((b) => ({
-            id: b.id,
-            type: b.type as BuildingType,
-            x: b.x,
-            y: b.y,
-            condition: b.condition ?? 'operational',
-            repairProgress: b.repair_progress ?? 0,
-            digProgress: b.dig_progress ?? 0,
-            wasBrokenBeforeBurial: b.was_broken_before_burial ?? false,
-          }))
+        ? insertedBuildings.map((b) => buildingFromRow(b))
         : [
             { id: `bld-hab-${Date.now()}`, type: 'habitat', x: habX, y: habY, condition: 'operational', repairProgress: 0, digProgress: 0, wasBrokenBeforeBurial: false },
             { id: `bld-sol-${Date.now()}`, type: 'solar', x: solX, y: solY, condition: 'operational', repairProgress: 0, digProgress: 0, wasBrokenBeforeBurial: false },

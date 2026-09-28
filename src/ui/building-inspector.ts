@@ -58,7 +58,7 @@ export class BuildingInspector {
       }
     });
 
-    // Keyboard shortcuts: P or Space to toggle power, M to relocate, Escape to close
+    // Keyboard shortcuts: P or Space to toggle power, M to relocate, D to demolish, Escape to close
     window.addEventListener('keydown', (e) => {
       if (!this.selectedBuildingId || this.container.style.display === 'none') return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -69,6 +69,9 @@ export class BuildingInspector {
       } else if (e.key === 'm' || e.key === 'M') {
         e.preventDefault();
         this.handleRelocate();
+      } else if (e.key === 'd' || e.key === 'D') {
+        e.preventDefault();
+        this.handleDemolish();
       } else if (e.key === 'Escape') {
         e.preventDefault();
         this.hide();
@@ -104,6 +107,13 @@ export class BuildingInspector {
   private handleRelocate(): void {
     if (!this.selectedBuildingId || this.selectedBuildingId === 'landing_pad') return;
     this.onRelocate(this.selectedBuildingId);
+  }
+
+  private handleDemolish(): void {
+    if (!this.selectedBuildingId || this.selectedBuildingId === 'landing_pad') return;
+    const id = this.selectedBuildingId;
+    this.hide();
+    if (this.onDemolish) this.onDemolish(id);
   }
 
   private handleMaintenance(): void {
@@ -229,6 +239,10 @@ export class BuildingInspector {
     } else if (building.condition === 'buried') {
       conditionBadgeClass = 'inspector-status-buried';
       conditionText = 'BURIED (NEEDS EXCAVATION)';
+    } else if (building.condition === 'constructing') {
+      conditionBadgeClass = 'inspector-status-constructing';
+      const needed = CONTRACT_RULES.maintenance.constructionDurationTicks ?? 10;
+      conditionText = `CONSTRUCTING (${building.repairProgress}/${needed} TICKS)`;
     }
 
     let statsHtml = '';
@@ -252,6 +266,7 @@ export class BuildingInspector {
       const deposit = state.oreDeposits.find((d) => d.x === building.x && d.y === building.y);
       const remaining = deposit?.remaining ?? 0;
       statsHtml += `<div class="inspector-stat-row"><span>Tile Ore Remaining:</span><span class="inspector-val-ore">${remaining} Ore</span></div>`;
+      statsHtml += `<div class="inspector-stat-row inspector-stat-note"><span>Demolish frees the tile. Remaining underground ore stays here — it is not added to the stockpile. Ore already extracted stays in the stockpile.</span></div>`;
     }
 
     // Garage and Refinery specific info
@@ -267,6 +282,7 @@ export class BuildingInspector {
     const isOperational = building.condition === 'operational';
     const isBroken = building.condition === 'broken';
     const isBuried = building.condition === 'buried';
+    const isConstructing = building.condition === 'constructing';
     const canToggle = isOperational || isDeactivated;
     const hasEnoughElec = state.electronics >= reqElectronics;
 
@@ -290,6 +306,12 @@ export class BuildingInspector {
       maintenanceActionHtml = `
         <button type="button" class="inspector-btn inspector-btn-dig" id="inspector-dispatch-maintenance">
           <span class="btn-icon">⛏</span> DISPATCH EXCAVATION (40 TICKS)
+        </button>
+      `;
+    } else if (isConstructing) {
+      maintenanceActionHtml = `
+        <button type="button" class="inspector-btn inspector-btn-repair" id="inspector-dispatch-maintenance">
+          <span class="btn-icon">🔧</span> DISPATCH BUILD CREW
         </button>
       `;
     }
@@ -352,13 +374,14 @@ export class BuildingInspector {
                 : ''
             }
 
-            <button type="button" class="inspector-btn inspector-btn-relocate" id="inspector-relocate" ${state.power < 10 || isBroken || isBuried ? 'disabled' : ''}>
+            <button type="button" class="inspector-btn inspector-btn-relocate" id="inspector-relocate" ${state.power < 10 || isBroken || isBuried || isConstructing ? 'disabled' : ''}>
               <span class="btn-icon">✥</span> RELOCATE (10 PWR)
               <span class="btn-shortcut">[M]</span>
             </button>
 
             <button type="button" class="inspector-btn inspector-btn-demolish" id="inspector-demolish" ${state.power < 10 ? 'disabled' : ''}>
-              <span class="btn-icon">💥</span> DEMOLISH STRUCTURE (10 PWR)
+              <span class="btn-icon">💥</span> DEMOLISH (10 PWR)
+              <span class="btn-shortcut">[D]</span>
             </button>
           </div>
         </div>
@@ -375,13 +398,7 @@ export class BuildingInspector {
     relocateBtn?.addEventListener('click', () => this.handleRelocate());
 
     const demolishBtn = this.container.querySelector<HTMLButtonElement>('#inspector-demolish');
-    demolishBtn?.addEventListener('click', () => {
-      if (this.selectedBuildingId && this.selectedBuildingId !== 'landing_pad') {
-        const id = this.selectedBuildingId;
-        this.hide();
-        if (this.onDemolish) this.onDemolish(id);
-      }
-    });
+    demolishBtn?.addEventListener('click', () => this.handleDemolish());
 
     const maintenanceBtn = this.container.querySelector<HTMLButtonElement>('#inspector-dispatch-maintenance');
     maintenanceBtn?.addEventListener('click', () => this.handleMaintenance());

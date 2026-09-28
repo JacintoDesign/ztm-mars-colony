@@ -8,7 +8,6 @@ import {
   Colonist,
   PlacementCheckResult,
   SimulationAction,
-  Rover,
   BatteryCell,
   RoverDestinationType,
   GridCoord,
@@ -19,7 +18,7 @@ import { applyTicks } from './tick';
 import { SeededPRNG, generateInitialSeed } from './prng';
 import { generateOreDistribution } from './ore-generator';
 import { findShortestRoute, getFreeAdjacentTiles } from './pathfinding';
-import { CONTRACT_RULES } from './contract-rules';
+import { CONTRACT_RULES, countsTowardWorkforceCap } from './contract-rules';
 
 export type StateListener = (state: ColonyState) => void;
 
@@ -101,7 +100,6 @@ export class ColonyStore {
   private state: ColonyState;
   private listeners: Set<StateListener> = new Set();
   private nextBuildingId = 1;
-  private nextRoverId = 1;
   private onBuildingPlacedHandler: BuildingPlacementCallback | null = null;
   private onRestartHandler: RestartColonyCallback | null = null;
   private serverActionHandler: ServerActionCallback | null = null;
@@ -118,7 +116,7 @@ export class ColonyStore {
       power: 50,
       food: 50,
       ore: CONTRACT_RULES.starting.ore ?? 25,
-      electronics: 0,
+      electronics: CONTRACT_RULES.starting.electronics ?? 2,
       seed,
       oreDeposits,
       buildings: starterBuildings,
@@ -154,6 +152,11 @@ export class ColonyStore {
   }
 
   public loadState(newState: Partial<ColonyState>): void {
+    if (this.state.status === 'game_over' && newState.status === 'active') {
+      const terminalSafeState = { ...newState };
+      delete terminalSafeState.status;
+      newState = terminalSafeState;
+    }
     this.state = {
       ...this.state,
       ...newState,
@@ -161,15 +164,22 @@ export class ColonyStore {
     this.notify();
   }
 
-  public loadColonyData(data: { colony: any; buildings: Building[]; colonists: any[]; rovers: any[]; oreDeposits: any[]; bestSolsSurvived: number }, signedInAccount: string): void {
+  public loadColonyData(data: { colony: any; buildings: Building[]; colonists: any[]; rovers: any[]; oreDeposits: any[]; bestSolsSurvived: number }, signedInAccount: string, options?: { authoritative?: boolean; allowRestart?: boolean }): void {
     const isDifferentColony = !this.state.colonyId || this.state.colonyId !== data.colony.id;
-    const isRestart = data.colony.status === 'active' && (data.colony.tick === 0 || this.state.status === 'game_over');
-    const monotonicTick = (isDifferentColony || isRestart)
-      ? (data.colony.tick ?? 0)
-      : Math.max(this.state.tick, data.colony.tick ?? 0);
+    const isRestart = options?.allowRestart === true && data.colony.status === 'active';
+    const serverTick = data.colony.tick ?? 0;
+    if (!isDifferentColony && this.state.status === 'game_over' && data.colony.status === 'active' && !isRestart) {
+      return;
+    }
+    if (data.colony.status === 'active' && serverTick > 0 && (!data.buildings?.length || !data.colonists?.length)) {
+      return;
+    }
+    if (!options?.authoritative && !isDifferentColony && !isRestart && serverTick < this.state.tick) {
+      return;
+    }
     this.state = {
       colonyId: data.colony.id,
-      tick: monotonicTick,
+      tick: serverTick,
       oxygen: data.colony.oxygen,
       power: data.colony.power,
       food: data.colony.food ?? 50,
@@ -295,11 +305,10 @@ export class ColonyStore {
       return { canPlace: false, reason: 'Colonist Workforce Required', cost };
     }
 
-    // Workforce constraint: each colonist supports up to 2 operational buildings (Habitats exempt)
+    // Workforce constraint: each colonist supports up to N operational buildings (Habitats exempt).
+    // Constructing sites count so operators cannot queue past the cap.
     if (type !== 'habitat') {
-      const operationalBuildingsCount = this.state.buildings.filter(
-        (b) => b.type !== 'habitat' && b.condition === 'operational'
-      ).length;
+      const operationalBuildingsCount = this.state.buildings.filter(countsTowardWorkforceCap).length;
       const maxOperationalAllowed = livingColonists * CONTRACT_RULES.workforce.operationalBuildingsPerColonist;
       if (operationalBuildingsCount >= maxOperationalAllowed) {
         const requiredColonists = Math.ceil((operationalBuildingsCount + 1) / CONTRACT_RULES.workforce.operationalBuildingsPerColonist);
@@ -424,7 +433,12 @@ export class ColonyStore {
         return {
           ...c,
           destination: { x: building.x, y: building.y },
-          destinationType: building.condition === 'buried' ? ('dig' as ColonistDestinationType) : ('repair' as ColonistDestinationType),
+          destinationType:
+            building.condition === 'buried'
+              ? ('dig' as ColonistDestinationType)
+              : building.condition === 'constructing'
+                ? ('construct' as ColonistDestinationType)
+                : ('repair' as ColonistDestinationType),
           targetEntityId: building.id,
           route,
           moveProgress: 0,
@@ -449,7 +463,7 @@ export class ColonyStore {
     }
 
     const building = this.state.buildings[buildingIndex];
-    if (building.condition === 'broken' || building.condition === 'buried') {
+    if (building.condition === 'broken' || building.condition === 'buried' || building.condition === 'constructing') {
       return { success: false, reason: 'Insufficient Power' };
     }
 
@@ -476,7 +490,7 @@ export class ColonyStore {
     }
 
     const building = this.state.buildings[buildingIndex];
-    if (building.condition === 'broken' || building.condition === 'buried') {
+    if (building.condition === 'broken' || building.condition === 'buried' || building.condition === 'constructing') {
       return { success: false, reason: 'Insufficient Power' };
     }
 
@@ -633,7 +647,7 @@ export class ColonyStore {
       power: 50,
       food: 50,
       ore: CONTRACT_RULES.starting.ore ?? 25,
-      electronics: 0,
+      electronics: CONTRACT_RULES.starting.electronics ?? 2,
       seed,
       oreDeposits,
       miningSites,
@@ -674,39 +688,10 @@ export class ColonyStore {
       type,
       x,
       y,
-      condition: 'operational',
+      condition: 'constructing',
       repairProgress: 0,
       digProgress: 0,
     };
-
-    // If placed garage, automatically spawn up to 2 rovers at the garage tile
-    let newRovers = [...this.state.rovers];
-    if (type === 'garage') {
-      for (let r = 0; r < CONTRACT_RULES.rovers.maxRoversPerGarage; r++) {
-        const rover: Rover = {
-          id: `rov-${Date.now()}-${this.nextRoverId++}`,
-          garageX: x,
-          garageY: y,
-          x,
-          y,
-          state: 'idle_at_base',
-          power: CONTRACT_RULES.rovers.powerMax,
-          cargo: null,
-          destination: null,
-          onSiteTicksRemaining: 0,
-          route: [],
-        };
-        newRovers.push(rover);
-      }
-    }
-
-    const newBatteryCells = [...this.state.batteryCells];
-    if (type === 'garage' && newBatteryCells.length === 0) {
-      newBatteryCells.push(
-        { id: `cell-${Date.now()}-1`, efficiency: 100 },
-        { id: `cell-${Date.now()}-2`, efficiency: 100 }
-      );
-    }
 
     this.state = {
       ...this.state,
@@ -714,8 +699,6 @@ export class ColonyStore {
       ore: this.state.ore - cost.ore,
       electronics: Math.max(0, this.state.electronics - (cost.electronics ?? 0)),
       buildings: [...this.state.buildings, newBuilding],
-      rovers: newRovers,
-      batteryCells: newBatteryCells,
     };
 
     this.notify();

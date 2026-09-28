@@ -34,7 +34,7 @@ serve(async (req) => {
       });
     }
 
-    const { colonyId } = await req.json();
+    const { colonyId, skipCatchUp, speed, maxTicks, projectedTick } = await req.json();
     if (!colonyId) {
       return new Response(JSON.stringify({ error: 'Missing colonyId' }), {
         status: 400,
@@ -43,7 +43,12 @@ serve(async (req) => {
     }
 
     const { executeAuthoritativeTick } = await import('../_shared/simulation.ts');
-    const colonyData = await executeAuthoritativeTick(supabase, colonyId, user.id);
+    const colonyData = await executeAuthoritativeTick(supabase, colonyId, user.id, {
+      skipCatchUp: Boolean(skipCatchUp),
+      speed: typeof speed === 'number' ? speed : 1,
+      maxTicks: typeof maxTicks === 'number' ? maxTicks : undefined,
+      projectedTick: typeof projectedTick === 'number' ? projectedTick : undefined,
+    });
 
     return new Response(
       JSON.stringify({ success: true, colonyId, colonyData }),

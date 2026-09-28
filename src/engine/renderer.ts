@@ -1,6 +1,6 @@
 import { getTileVertices, IsoConfig, GridPoint, screenToGrid } from './iso-math';
 import { ColonyStore } from '../simulation/store';
-import { Building, BuildingType } from '../simulation/types';
+import { Building, BuildingType, ColonyState } from '../simulation/types';
 import {
   drawBuilding,
   drawColonist,
@@ -32,6 +32,8 @@ export class IsometricRenderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private store: ColonyStore;
+  /** Decorative colony drawn on the signed-out home screen. Never dispatched. */
+  private previewState: ColonyState | null = null;
   private config: IsoConfig;
   private hoveredTile: GridPoint | null = null;
   private selectedTool: BuildingType | null = null;
@@ -99,6 +101,15 @@ export class IsometricRenderer {
     this.requestRender();
 
     requestAnimationFrame(() => this.handleResize());
+  }
+
+  public setPreviewState(state: ColonyState | null): void {
+    this.previewState = state;
+    this.requestRender();
+  }
+
+  private viewState(): ColonyState {
+    return this.previewState ?? this.store.getState();
   }
 
   public getZoomLevel(): number {
@@ -370,7 +381,7 @@ export class IsometricRenderer {
   }
 
   public findBuildingAtScreen(screenX: number, screenY: number): Building | null {
-    const buildings = this.store.getState().buildings;
+    const buildings = this.viewState().buildings;
     if (buildings.length === 0) return null;
 
     // Sort front-to-back by isometric depth (higher x + y first) so foreground structures take precedence
@@ -452,6 +463,7 @@ export class IsometricRenderer {
   }
 
   private handleClick(e: MouseEvent): void {
+    if (this.previewState) return;
     const { x, y } = this.getCanvasCoords(e);
     const tile = screenToGrid(x, y, this.config);
 
@@ -621,7 +633,7 @@ export class IsometricRenderer {
    * Renders atmospheric dusty haze over the scene as oxygen drops below 50.
    */
   private renderAtmosphericHaze(ctx: CanvasRenderingContext2D, width: number, height: number): void {
-    const oxygen = this.store.getState().oxygen;
+    const oxygen = this.viewState().oxygen;
     if (oxygen < 50) {
       const severity = (50 - oxygen) / 50; // 0 at oxygen=50, 1 at oxygen=0
       const opacity = severity * 0.48; // Max 48% dusty red-orange haze
@@ -722,7 +734,7 @@ export class IsometricRenderer {
         ctx.stroke();
 
         // Draw Landing Pad simple circle on (0, 0) ONLY if no ship is currently landed
-        if (gx === 0 && gy === 0 && this.store.getState().pendingArrivals.length === 0) {
+        if (gx === 0 && gy === 0 && this.viewState().pendingArrivals.length === 0) {
           drawLandingPad(ctx, v.center, this.config.tileWidth / 2, this.config.tileHeight / 2);
         }
       }
@@ -765,7 +777,7 @@ export class IsometricRenderer {
    * Renders placed buildings, colonists, rovers, asteroids, and landing zone pending arrivals sorted back-to-front by depth (x + y).
    */
   private renderEntities(ctx: CanvasRenderingContext2D): void {
-    const state = this.store.getState();
+    const state = this.viewState();
     const isPowered = state.power > 0;
     const halfW = this.config.tileWidth / 2;
     const halfH = this.config.tileHeight / 2;
