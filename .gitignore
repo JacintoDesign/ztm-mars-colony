@@ -68,3 +68,4 @@ build/
 !.vscode/extensions.json
 *.sublime-workspace
 *.sublime-project
+.vercel
